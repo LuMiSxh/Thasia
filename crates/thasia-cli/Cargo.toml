@@ -1,0 +1,21 @@
+[package]
+name = "thasia-cli"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "thasia"
+path = "src/main.rs"
+
+[dependencies]
+thasia-core = { path = "../thasia-core" }
+thasia-parser = { path = "../thasia-parser" }
+thasia-source = { path = "../thasia-source" }
+thasia-processor = { path = "../thasia-processor" }
+thasia-packager = { path = "../thasia-packager" }
+tokio = { workspace = true }
+clap = { workspace = true }
+miette = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+tracing-indicatif = { workspace = true }

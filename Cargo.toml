@@ -1,0 +1,36 @@
+[workspace]
+members = ["crates/*"]
+resolver = "2"
+
+[workspace.dependencies]
+tokio = { version = "1.52", features = ["full"] }
+rayon = "1.12"
+logos = "0.16"
+backoff = { version = "0.4", features = ["tokio"] }
+miette = { version = "7", features = ["fancy"] }
+thiserror = "2.0"
+serde = { version = "1", features = ["derive"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-indicatif = "0.3"
+async_zip = { version = "0.0.18", features = ["tokio", "deflate"] }
+image = { version = "0.25", default-features = false, features = [
+    "jpeg",
+    "png",
+    "webp",
+    "avif",
+] }
+walkdir = "2.5"
+tempfile = "3.27"
+async-trait = "0.1"
+ravif = "0.13"
+rav1e = { version = "0.8", default-features = false }
+webp = "0.3"
+clap = { version = "4", features = ["derive"] }
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+opt-level = 3
+strip = true
+panic = "abort"

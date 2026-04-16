@@ -1,0 +1,11 @@
+[package]
+name = "thasia-parser"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+thasia-core = { path = "../thasia-core" }
+logos = { workspace = true }
+serde = { workspace = true }
+
+[dev-dependencies]

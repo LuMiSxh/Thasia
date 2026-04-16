@@ -1,0 +1,12 @@
+[package]
+name = "thasia-source"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+thasia-core = { path = "../thasia-core" }
+tokio = { workspace = true }
+walkdir = { workspace = true }
+tempfile = { workspace = true }
+async-trait = { workspace = true }
+natord = "1.0"

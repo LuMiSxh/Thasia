@@ -1,0 +1,17 @@
+[package]
+name = "thasia-processor"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+thasia-core = { path = "../thasia-core" }
+thasia-source = { path = "../thasia-source" }
+tokio = { workspace = true }
+rayon = { workspace = true }
+backoff = { workspace = true }
+tracing = { workspace = true }
+async-trait = { workspace = true }
+image = { workspace = true }
+ravif = { workspace = true }
+rav1e = { workspace = true }
+webp = { workspace = true }
