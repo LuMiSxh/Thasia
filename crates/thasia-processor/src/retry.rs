@@ -17,14 +17,12 @@ where
     };
 
     retry(backoff, || async {
-        operation().await.map_err(|err| {
+        operation().await.inspect_err(|err| {
             warn!("Transient error in {}: {}. Retrying...", context, err);
-            err
         })
     })
     .await
-    .map_err(|e| {
+    .inspect_err(|_| {
         error!("Exhausted retries for {}", context);
-        e
     })
 }

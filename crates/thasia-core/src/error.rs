@@ -33,6 +33,7 @@ pub enum ThasiaError {
 
 /// A structured error representation that can be sent to a frontend via Tauri
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "tauri", derive(specta::Type))]
 pub struct SerializableError {
     pub code: String,
     pub message: String,

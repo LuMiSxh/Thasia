@@ -5,14 +5,17 @@ use std::path::Path;
 use thasia_core::{models::ProcessedImage, Result, ThasiaError};
 use tokio::fs::File;
 
+const COMIC_INFO: &str = include_str!("../templates/comic_info.xml");
+
 pub struct CbzGenerator {
     writer: Option<ZipFileWriter<File>>,
+    volume_name: String,
     page_count: u32,
 }
 
 impl CbzGenerator {
     pub fn new() -> Self {
-        Self { writer: None, page_count: 0 }
+        Self { writer: None, volume_name: String::new(), page_count: 0 }
     }
 }
 
@@ -29,6 +32,7 @@ impl Generator for CbzGenerator {
         let path = output_dir.join(format!("{volume_name}.cbz"));
         let file = File::create(&path).await.map_err(ThasiaError::Io)?;
         self.writer = Some(BaseZipFileWriter::with_tokio(file));
+        self.volume_name = volume_name.to_string();
         Ok(())
     }
 
@@ -61,16 +65,9 @@ impl Generator for CbzGenerator {
             .take()
             .ok_or_else(|| ThasiaError::Fatal("CbzGenerator not initialized".into()))?;
 
-        // Write ComicInfo.xml — Anansi Project schema
-        let xml = format!(
-            r#"<?xml version="1.0" encoding="utf-8"?>
-<ComicInfo xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-           xmlns:xsd="http://www.w3.org/2001/XMLSchema">
-  <Manga>Yes</Manga>
-  <PageCount>{}</PageCount>
-</ComicInfo>"#,
-            self.page_count
-        );
+        let xml = COMIC_INFO
+            .replace("%title%", &self.volume_name)
+            .replace("%pagecount%", &self.page_count.to_string());
 
         let builder = ZipEntryBuilder::new("ComicInfo.xml".into(), Compression::Deflate);
         writer

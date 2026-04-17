@@ -8,3 +8,4 @@ thasia-core = { path = "../thasia-core" }
 tokio = { workspace = true }
 async_zip = { workspace = true }
 async-trait = { workspace = true }
+epub-builder = { workspace = true }

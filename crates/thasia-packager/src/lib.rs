@@ -1,7 +1,9 @@
 pub mod cbz;
+pub mod epub;
 pub mod raw;
 
 pub use cbz::CbzGenerator;
+pub use epub::EpubGenerator;
 pub use raw::RawGenerator;
 
 use async_trait::async_trait;

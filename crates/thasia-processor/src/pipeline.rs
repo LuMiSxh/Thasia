@@ -4,38 +4,65 @@ use crate::{
 };
 use std::sync::Arc;
 use thasia_core::{
-    models::{ParsedImage, ProcessedImage},
+    models::{ImageFormat, ParsedImage, ProcessedImage},
     ThasiaError,
 };
 use thasia_source::Source;
 use tokio::sync::mpsc;
-use tracing::{error, warn};
+use tracing::warn;
 
 pub struct EncodeOptions {
-    /// "avif", "webp", or "original"
-    pub format: String,
-    /// Optional max width; images wider than this are downscaled preserving aspect ratio.
+    pub format: ImageFormat,
     pub max_width: Option<u32>,
 }
 
+/// Two-stage pipeline:
+///
+/// Stage 1 — async fetch (tokio, bounded concurrency via semaphore)
+///   Parsed images arrive → fetch raw bytes with retry → send to raw channel.
+///
+/// Stage 2 — Rayon encode (dedicated std thread + rayon::scope)
+///   Receives (ParsedImage, raw bytes) → encodes in parallel across all CPU cores
+///   using Rayon's work-stealing, with no tokio overhead on the hot path.
+///
+/// This matches Palaxy's approach: N cores are always busy encoding; no thread
+/// thrashing from spawning one blocking task per image.
 pub async fn start_pipeline<S: Source + Send + Sync + 'static>(
     source: Arc<S>,
     mut parsed_rx: mpsc::Receiver<ParsedImage>,
     options: Arc<EncodeOptions>,
 ) -> mpsc::Receiver<thasia_core::Result<ProcessedImage>> {
-    let (tx, rx) = mpsc::channel(64);
+    let (result_tx, result_rx) = mpsc::channel(64);
 
+    let num_cores = std::thread::available_parallelism()
+        .map(|n| n.get())
+        .unwrap_or(4);
+
+    // Bounded channel: async fetch → sync Rayon encode.
+    // Buffer = num_cores * 2 lets the fetch stage stay slightly ahead of encoding.
+    let (raw_tx, raw_rx) =
+        mpsc::channel::<(ParsedImage, Vec<u8>, String)>(num_cores * 2);
+
+    // ── Stage 1: async fetch ──────────────────────────────────────────────────
+    let fetch_sem = Arc::new(tokio::sync::Semaphore::new(num_cores * 2));
     tokio::spawn(async move {
         while let Some(parsed) = parsed_rx.recv().await {
-            let tx = tx.clone();
+            let permit = fetch_sem.clone().acquire_owned().await.unwrap();
             let source = source.clone();
-            let opts = options.clone();
+            let raw_tx = raw_tx.clone();
 
             tokio::spawn(async move {
+                let _permit = permit;
                 let path = parsed.source.relative_path.clone();
+                let ext = parsed
+                    .source
+                    .absolute_path
+                    .extension()
+                    .and_then(|e| e.to_str())
+                    .unwrap_or("jpg")
+                    .to_lowercase();
 
-                // Level 1: Fetch with retries
-                let raw_bytes = match with_retries(&format!("fetch:{path}"), || async {
+                match with_retries(&format!("fetch:{path}"), || async {
                     source
                         .fetch(&parsed.source)
                         .await
@@ -43,56 +70,65 @@ pub async fn start_pipeline<S: Source + Send + Sync + 'static>(
                 })
                 .await
                 {
-                    Ok(b) => b,
-                    Err(e) => {
-                        warn!("Skipping page (fetch failed): {}", e);
-                        return;
+                    Ok(bytes) => {
+                        let _ = raw_tx.send((parsed, bytes, ext)).await;
                     }
-                };
-
-                // Level 2: Encode with retries (CPU-bound, offloaded via spawn_blocking)
-                let process_res = with_retries(&format!("encode:{path}"), || async {
-                    let bytes = raw_bytes.clone();
-                    let opts = opts.clone();
-
-                    tokio::task::spawn_blocking(move || encode_image(bytes, &opts))
-                        .await
-                        .unwrap()
-                        .map_err(backoff::Error::transient)
-                })
-                .await;
-
-                match process_res {
-                    Ok((image_data, ext, width, height)) => {
-                        let _ = tx
-                            .send(Ok(ProcessedImage {
-                                parsed_data: parsed,
-                                image_data,
-                                ext,
-                                width,
-                                height,
-                            }))
-                            .await;
-                    }
-                    Err(e) => {
-                        error!("Failed to encode {}: {}", path, e);
-                    }
+                    Err(e) => warn!("Skipping {} (fetch failed): {}", path, e),
                 }
             });
         }
+        // raw_tx (outer clone) drops here; channel closes when all spawned fetch
+        // tasks finish and drop their own clones.
     });
 
-    rx
+    // ── Stage 2: Rayon encode ─────────────────────────────────────────────────
+    // Run on a plain std thread so the coordinator doesn't occupy a Rayon worker.
+    let result_tx_enc = result_tx;
+    let opts = options;
+    std::thread::spawn(move || {
+        let mut raw_rx = raw_rx;
+        rayon::scope(|s| {
+            while let Some((parsed, bytes, ext)) = raw_rx.blocking_recv() {
+                let result_tx = result_tx_enc.clone();
+                let opts = opts.clone();
+                s.spawn(move |_| {
+                    let result =
+                        encode_image(bytes, &ext, &opts).map(|(data, enc_ext, w, h)| {
+                            ProcessedImage {
+                                parsed_data: parsed,
+                                image_data: data,
+                                ext: enc_ext,
+                                width: w,
+                                height: h,
+                            }
+                        });
+                    result_tx.blocking_send(result).ok();
+                });
+            }
+            // scope waits here for all in-flight Rayon tasks to finish
+        });
+    });
+
+    result_rx
 }
 
 fn encode_image(
     bytes: Vec<u8>,
+    original_ext: &str,
     opts: &EncodeOptions,
 ) -> thasia_core::Result<(Vec<u8>, String, u32, u32)> {
+    if opts.format == ImageFormat::Original {
+        let img = image::load_from_memory(&bytes)
+            .map_err(|e| ThasiaError::Fatal(format!("Failed to load image: {e}")))?;
+        return Ok((bytes, original_ext.to_string(), img.width(), img.height()));
+    }
+
     let mut img = image::load_from_memory(&bytes)
         .map_err(|e| ThasiaError::Fatal(format!("Failed to load image: {e}")))?;
+    // Drop the compressed bytes now — AVIF/WebP encoding is the hot path and
+    // holding the JPEG buffer alongside the decoded pixel buffer wastes memory.
+    drop(bytes);
 
-    // Downscale if needed
     if let Some(max_w) = opts.max_width {
         let (w, h) = (img.width(), img.height());
         if w > max_w {
@@ -107,13 +143,10 @@ fn encode_image(
 
     let (w, h) = (img.width(), img.height());
 
-    let (data, ext) = match opts.format.as_str() {
-        "avif" => (convert_to_avif(&img)?, "avif".to_string()),
-        "webp" => (convert_to_webp(&img)?, "webp".to_string()),
-        _ => {
-            // Original passthrough
-            (bytes, "jpg".to_string())
-        }
+    let (data, ext) = match opts.format {
+        ImageFormat::Avif => (convert_to_avif(&img)?, "avif".to_string()),
+        ImageFormat::Webp => (convert_to_webp(&img)?, "webp".to_string()),
+        ImageFormat::Original => unreachable!(),
     };
 
     Ok((data, ext, w, h))

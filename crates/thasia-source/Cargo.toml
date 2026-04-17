@@ -10,3 +10,4 @@ walkdir = { workspace = true }
 tempfile = { workspace = true }
 async-trait = { workspace = true }
 natord = "1.0"
+zip = { workspace = true }

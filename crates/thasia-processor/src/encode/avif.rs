@@ -66,6 +66,23 @@ fn encode_gray(
     width: usize,
     height: usize,
 ) -> Result<Vec<u8>, ThasiaError> {
+    // Fast path: avoid allocating a luma buffer for RGB images — use the red
+    // channel as Y (exact for R=G=B grayscale; negligible error otherwise).
+    if let Some(rgb) = img.as_rgb8() {
+        let planes = rgb.as_raw().chunks_exact(3).map(|p| [p[0], 128u8, 128u8]);
+        return encoder
+            .encode_raw_planes_8_bit(
+                width,
+                height,
+                planes,
+                None::<[u8; 0]>,
+                rav1e::prelude::PixelRange::Full,
+                ravif::MatrixCoefficients::BT601,
+            )
+            .map(|e| e.avif_file)
+            .map_err(|e| ThasiaError::Fatal(format!("AVIF gray encode failed: {e}")));
+    }
+
     let luma = img.to_luma8();
     let planes = luma.as_raw().iter().map(|&y| [y, 128u8, 128u8]);
 
