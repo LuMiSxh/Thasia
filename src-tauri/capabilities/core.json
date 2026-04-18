@@ -1,0 +1,14 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "core-app",
+  "description": "Core app capability",
+  "windows": ["*"],
+  "permissions": [
+    "core:window:default",
+    "core:webview:default",
+    "core:resources:default",
+    "core:path:default",
+    "core:event:default",
+    "core:app:default"
+  ]
+}

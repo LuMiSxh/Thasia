@@ -1,1 +1,13 @@
+# Ruby related
+.bundle
 /target
+
+# Node related
+/node_modules
+/dist
+/build
+.svelte-kit
+
+# Claude related
+.claude
+.superpowers

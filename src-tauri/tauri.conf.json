@@ -1,0 +1,33 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Thasia",
+  "version": "0.1.0",
+  "identifier": "com.thasia",
+  "build": {
+    "beforeDevCommand": "pnpm dev",
+    "devUrl": "http://localhost:1421",
+    "beforeBuildCommand": "pnpm build",
+    "frontendDist": "../build"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Thasia",
+        "fullscreen": false,
+        "resizable": true,
+        "minWidth": 1280,
+        "minHeight": 800,
+        "dragDropEnabled": false
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; img-src 'self' thasia: blob:; style-src 'self' 'unsafe-inline'",
+      "capabilities": ["core-app", "dialog"]
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": ["icons/icon.png"]
+  }
+}
