@@ -48,11 +48,7 @@ Primary buttons flip completely between light and dark mode to maintain luxury c
 
 ```html
 <button
-    class="
-  bg-zinc-900 text-thasia-accent hover:bg-zinc-800
-  dark:bg-gold-metallic dark:text-black dark:hover:brightness-110 dark:bevel-dark
-  ...
-"
+    class="dark:bevel-dark bg-zinc-900 text-thasia-accent hover:bg-zinc-800 dark:bg-gold-metallic dark:text-black dark:hover:brightness-110 ..."
 >
     Confirm
 </button>

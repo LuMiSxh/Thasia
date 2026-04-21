@@ -126,6 +126,7 @@ Applies the page editor's mutations (reorder, exclude, add custom) to `ConvState
 Registered as `thasia://image/{volume_num}/{page_index}`.
 
 Uses `register_asynchronous_uri_scheme_protocol` so file I/O is non-blocking. The handler:
+
 1. Parses `volume_num` and `page_index` from the URI path
 2. Looks up the file path from `ConvState.scan_result` (already in managed state — no IPC)
 3. Reads the file from disk (works for both directory sources and extracted TempDir from ZIP/CBZ)
@@ -134,6 +135,7 @@ Uses `register_asynchronous_uri_scheme_protocol` so file I/O is non-blocking. Th
 **Memory profile:** zero image bytes in the JS heap. Only the `src` URL strings are held in the component. The WebView's native image cache handles repeat requests.
 
 Must be declared in `tauri.conf.json` capabilities:
+
 ```json
 { "protocol": { "asset": true, "assetScope": ["thasia://**"] } }
 ```
@@ -142,13 +144,13 @@ Must be declared in `tauri.conf.json` capabilities:
 
 All derive `specta::Type` + `tauri_specta::Event`.
 
-| Event | Payload |
-|---|---|
-| `ScanProgressEvent` | `{ current: u32, total: u32 }` |
-| `VolumeStartEvent` | `{ volume_num: u32, volume_name: String, total_volumes: u32 }` |
-| `ImageProgressEvent` | `{ volume_num: u32, current: u32, total: u32 }` |
-| `VolumeCompleteEvent` | `{ volume_num: u32, success: bool, error: Option<String> }` |
-| `ConversionCompleteEvent` | `{ successful: u32, failed: u32, duration_secs: f64 }` |
+| Event                     | Payload                                                        |
+| ------------------------- | -------------------------------------------------------------- |
+| `ScanProgressEvent`       | `{ current: u32, total: u32 }`                                 |
+| `VolumeStartEvent`        | `{ volume_num: u32, volume_name: String, total_volumes: u32 }` |
+| `ImageProgressEvent`      | `{ volume_num: u32, current: u32, total: u32 }`                |
+| `VolumeCompleteEvent`     | `{ volume_num: u32, success: bool, error: Option<String> }`    |
+| `ConversionCompleteEvent` | `{ successful: u32, failed: u32, duration_secs: f64 }`         |
 
 ### Specta / Bindings
 
@@ -176,6 +178,7 @@ specta_builder.export(Typescript::default(), "../src/types/bindings.ts").unwrap(
 ### App Shell
 
 `+layout.svelte` renders:
+
 ```
 <Sidebar />
 <slot />   ← page content takes remaining space
@@ -186,48 +189,52 @@ The sidebar toggle button is always visible on the left edge, vertically centere
 ### Sidebar (`Sidebar.svelte` + `sidebar/state.svelte.ts`)
 
 State:
+
 ```ts
-let isOpen = $state(false)     // user preference, persists across navigation
-let mode = $state<'nav' | 'wizard'>('nav')
+let isOpen = $state(false); // user preference, persists across navigation
+let mode = $state<'nav' | 'wizard'>('nav');
 ```
 
 Context overrides (called by the wizard host):
-- Entering `/convert` → `mode = 'wizard'`, `isOpen = true`  
-- Step 9 (Convert) active → `isOpen = false`  
+
+- Entering `/convert` → `mode = 'wizard'`, `isOpen = true`
+- Step 9 (Convert) active → `isOpen = false`
 - Leaving `/convert` → `mode = 'nav'`
 
 In `nav` mode: Home / Convert / Settings links.  
 In `wizard` mode: step progress list. Each step shows:
+
 - ✓ green + clickable → completed steps (jump back)
-- ● active → current step  
+- ● active → current step
 - ○ solid → locked (not yet reached)
 - ○ dashed + italic → conditional (will appear/disappear based on state)
 
 ### Wizard (`wizard/steps.ts` + `wizard/state.svelte.ts`)
 
 Step type:
+
 ```ts
 type WizardStep = {
-  id: string
-  label: string
-  component: Component
-  condition?: (state: WizardState) => boolean
-}
+    id: string;
+    label: string;
+    component: Component;
+    condition?: (state: WizardState) => boolean;
+};
 ```
 
 Registry (array, edit to add/remove/reorder):
 
-| # | id | label | condition |
-|---|---|---|---|
-| 1 | `source` | Source | — |
-| 2 | `destination` | Destination | — |
-| 3 | `image-format` | Image Format | — |
-| 4 | `container` | Container | — |
-| 5 | `direction` | Direction | `s.container === 'epub'` |
-| 6 | `bundling` | Bundling | — |
-| 7 | `page-editor` | Pages | — |
-| 8 | `review` | Review | — |
-| 9 | `convert` | Convert | — |
+| #   | id             | label        | condition                |
+| --- | -------------- | ------------ | ------------------------ |
+| 1   | `source`       | Source       | —                        |
+| 2   | `destination`  | Destination  | —                        |
+| 3   | `image-format` | Image Format | —                        |
+| 4   | `container`    | Container    | —                        |
+| 5   | `direction`    | Direction    | `s.container === 'epub'` |
+| 6   | `bundling`     | Bundling     | —                        |
+| 7   | `page-editor`  | Pages        | —                        |
+| 8   | `review`       | Review       | —                        |
+| 9   | `convert`      | Convert      | —                        |
 
 The wizard host in `convert/+page.svelte` filters the registry through conditions at render time. Steps where `condition(state) === false` are hidden from both the content area and the sidebar progress list (shown dashed if the condition hasn't resolved yet).
 
@@ -255,17 +262,17 @@ Form with default values for every wizard field. Saved to Tauri's app data dir (
 
 ```json
 {
-  "productName": "Thasia",
-  "identifier": "com.thasia",
-  "build": {
-    "beforeDevCommand": "pnpm dev",
-    "devUrl": "http://localhost:1421",
-    "beforeBuildCommand": "pnpm build",
-    "frontendDist": "../build"
-  },
-  "app": {
-    "windows": [{ "title": "Thasia", "minWidth": 1280, "minHeight": 800 }]
-  }
+    "productName": "Thasia",
+    "identifier": "com.thasia",
+    "build": {
+        "beforeDevCommand": "pnpm dev",
+        "devUrl": "http://localhost:1421",
+        "beforeBuildCommand": "pnpm build",
+        "frontendDist": "../build"
+    },
+    "app": {
+        "windows": [{ "title": "Thasia", "minWidth": 1280, "minHeight": 800 }]
+    }
 }
 ```
 

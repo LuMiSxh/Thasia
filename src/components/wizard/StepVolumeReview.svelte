@@ -1,263 +1,325 @@
 <script lang="ts">
-  import { wizard } from '$lib/wizard/state.svelte';
-  import type { VolumeEdit } from '$lib/wizard/state.svelte';
+    import { wizard } from '$lib/wizard/state.svelte';
+    import type { VolumeEdit } from '$lib/wizard/state.svelte';
+    import ProgressBar from '$components/ui/ProgressBar.svelte';
 
-  let { onNext, onBack }: { onNext: () => void; onBack: () => void } = $props();
+    let { onNext, onBack }: { onNext: () => void; onBack: () => void } = $props();
 
-  // When multiple scan volumes were detected, the unit is "chapters" (one scan vol = one chapter).
-  // For a flat/ZIP source with a single scan volume, the unit is individual pages.
-  let scanVols = $derived(wizard.scanResult ?? []);
-  let unit = $derived(scanVols.length > 1 ? 'chapter' : 'page');
-  let total = $derived(
-    unit === 'chapter'
-      ? scanVols.length
-      : (scanVols[0]?.pages.length ?? 0)
-  );
+    let scanVols = $derived(wizard.scanResult ?? []);
+    let unit = $derived(scanVols.length > 1 ? 'chapter' : 'page');
+    let total = $derived(unit === 'chapter' ? scanVols.length : (scanVols[0]?.pages.length ?? 0));
 
-  // Volume sizes: just an array of item-counts (chapters or pages per output volume).
-  let volumeSizes = $state<number[]>([]);
-  let newVolumeInput = $state('');
-  let editingIndex = $state<number | null>(null);
+    let volumeSizes = $state<number[]>([]);
+    let newVolumeInput = $state('');
+    let editingIndex = $state<number | null>(null);
 
-  // Initialize from current pageEdits on first load.
-  $effect.pre(() => {
-    if (volumeSizes.length === 0 && wizard.pageEdits.length > 0) {
-      if (unit === 'chapter') {
-        volumeSizes = wizard.pageEdits.map((ve) => {
-          // Count how many distinct source volumes this VolumeEdit covers.
-          const srcVols = new Set(ve.pages.map((p) => p.sourceVolumeNum));
-          return Math.max(1, srcVols.size);
-        });
-      } else {
-        volumeSizes = wizard.pageEdits.map((ve) => ve.pages.length);
-      }
-    }
-  });
+    $effect.pre(() => {
+        if (volumeSizes.length === 0 && wizard.pageEdits.length > 0) {
+            if (unit === 'chapter') {
+                volumeSizes = wizard.pageEdits.map((ve) => {
+                    const srcVols = new Set(ve.pages.map((p) => p.sourceVolumeNum));
+                    return Math.max(1, srcVols.size);
+                });
+            } else {
+                volumeSizes = wizard.pageEdits.map((ve) => ve.pages.length);
+            }
+        }
+    });
 
-  let used = $derived(volumeSizes.reduce((s, n) => s + n, 0));
-  let remaining = $derived(total - used);
-  let isOver = $derived(used > total);
-  let isValid = $derived(remaining === 0 && volumeSizes.length > 0 && volumeSizes.every((n) => n > 0));
+    let used = $derived(volumeSizes.reduce((s, n) => s + n, 0));
+    let remaining = $derived(total - used);
+    let isOver = $derived(used > total);
+    let isValid = $derived(
+        remaining === 0 && volumeSizes.length > 0 && volumeSizes.every((n) => n > 0)
+    );
 
-  // Visual item map: for each item index, which output volume owns it (-1 = unassigned).
-  let itemVolumeMap = $derived((() => {
-    const map = new Array(total).fill(-1);
-    let offset = 0;
-    for (let v = 0; v < volumeSizes.length; v++) {
-      for (let i = 0; i < volumeSizes[v] && offset < total; i++) map[offset++] = v;
-    }
-    return map;
-  })());
+    let usageVariant = $derived(isValid ? 'success' : isOver ? 'danger' : 'warning') as
+        | 'success'
+        | 'danger'
+        | 'warning';
 
-  // Alternating accent colours for volume slots in the map.
-  const slotColors = ['#6366f1', '#8b5cf6', '#a78bfa', '#c4b5fd'];
-  function slotColor(volumeIndex: number): string {
-    return slotColors[volumeIndex % slotColors.length];
-  }
+    let itemVolumeMap = $derived(
+        (() => {
+            const map = new Array(total).fill(-1);
+            let offset = 0;
+            for (let v = 0; v < volumeSizes.length; v++) {
+                for (let i = 0; i < volumeSizes[v] && offset < total; i++) map[offset++] = v;
+            }
+            return map;
+        })()
+    );
 
-  function addVolume() {
-    const n = Number(newVolumeInput);
-    if (!n || n <= 0 || isNaN(n)) return;
-    volumeSizes = [...volumeSizes, n];
-    newVolumeInput = '';
-  }
-
-  function deleteVolume(i: number) {
-    volumeSizes = volumeSizes.filter((_, idx) => idx !== i);
-    if (editingIndex === i) editingIndex = null;
-  }
-
-  function handleAddKey(e: KeyboardEvent) {
-    if (e.key === 'Enter') addVolume();
-  }
-
-  function handleNext() {
-    if (!isValid) return;
-
-    let newEdits: VolumeEdit[];
-
-    if (unit === 'chapter') {
-      // Assign whole scan volumes to output volumes.
-      let chapOffset = 0;
-      newEdits = volumeSizes.map((count, outIdx) => {
-        const assignedScanVols = scanVols.slice(chapOffset, (chapOffset += count));
-        return {
-          volumeNum: outIdx + 1,
-          pages: assignedScanVols.flatMap((sv) =>
-            sv.pages.map((_, pi) => ({
-              originalPageIndex: pi,
-              sourceVolumeNum: sv.volume_num,
-              customPath: null as string | null,
-              excluded: false,
-            }))
-          ),
-        };
-      });
-    } else {
-      // Assign individual pages from the single scan volume.
-      const srcVol = scanVols[0];
-      let off = 0;
-      newEdits = volumeSizes.map((count, outIdx) => {
-        const start = off;
-        off += count;
-        return {
-          volumeNum: outIdx + 1,
-          pages: Array.from({ length: count }, (_, pi) => ({
-            originalPageIndex: start + pi,
-            sourceVolumeNum: srcVol?.volume_num ?? 1,
-            customPath: null as string | null,
-            excluded: false,
-          })),
-        };
-      });
+    const slotColors = ['#6366f1', '#8b5cf6', '#a78bfa', '#c4b5fd'];
+    function slotColor(volumeIndex: number): string {
+        return slotColors[volumeIndex % slotColors.length];
     }
 
-    wizard.pageEdits = newEdits;
-    onNext();
-  }
+    function addVolume() {
+        const n = Number(newVolumeInput);
+        if (!n || n <= 0 || isNaN(n)) return;
+        volumeSizes = [...volumeSizes, n];
+        newVolumeInput = '';
+    }
+
+    function deleteVolume(i: number) {
+        volumeSizes = volumeSizes.filter((_, idx) => idx !== i);
+        if (editingIndex === i) editingIndex = null;
+    }
+
+    function handleAddKey(e: KeyboardEvent) {
+        if (e.key === 'Enter') addVolume();
+    }
+
+    function handleNext() {
+        if (!isValid) return;
+
+        let newEdits: VolumeEdit[];
+
+        if (unit === 'chapter') {
+            let chapOffset = 0;
+            newEdits = volumeSizes.map((count, outIdx) => {
+                const assignedScanVols = scanVols.slice(chapOffset, (chapOffset += count));
+                return {
+                    volumeNum: outIdx + 1,
+                    pages: assignedScanVols.flatMap((sv) =>
+                        sv.pages.map((_, pi) => ({
+                            originalPageIndex: pi,
+                            sourceVolumeNum: sv.volume_num,
+                            customPath: null as string | null,
+                            excluded: false,
+                        }))
+                    ),
+                };
+            });
+        } else {
+            const srcVol = scanVols[0];
+            let off = 0;
+            newEdits = volumeSizes.map((count, outIdx) => {
+                const start = off;
+                off += count;
+                return {
+                    volumeNum: outIdx + 1,
+                    pages: Array.from({ length: count }, (_, pi) => ({
+                        originalPageIndex: start + pi,
+                        sourceVolumeNum: srcVol?.volume_num ?? 1,
+                        customPath: null as string | null,
+                        excluded: false,
+                    })),
+                };
+            });
+        }
+
+        wizard.pageEdits = newEdits;
+        onNext();
+    }
 </script>
 
-<div style="display:flex;flex-direction:column;gap:16px;padding:16px;height:calc(100vh - 120px);overflow:hidden;">
-
-  <!-- Stat row -->
-  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;flex-shrink:0;">
-    <div style="background:#1f2937;border:1px solid #374151;border-radius:8px;padding:12px;">
-      <div style="font-size:10px;text-transform:uppercase;color:#6b7280;margin-bottom:4px;">Detected</div>
-      <div style="font-size:24px;font-weight:bold;">{total}</div>
-      <div style="font-size:11px;color:#6b7280;">{unit}s</div>
+<div class="flex h-[calc(100vh-120px)] flex-col gap-4 overflow-hidden p-4">
+    <!-- Stat row -->
+    <div class="grid flex-shrink-0 grid-cols-3 gap-2">
+        <div class="rounded-lg border border-thasia-border bg-thasia-surface p-3">
+            <div class="mb-1 text-[10px] tracking-wider text-thasia-muted uppercase">Detected</div>
+            <div class="text-2xl font-bold">{total}</div>
+            <div class="text-xs text-thasia-muted">{unit}s</div>
+        </div>
+        <div class="rounded-lg border border-thasia-border bg-thasia-surface p-3">
+            <div class="mb-1 text-[10px] tracking-wider text-thasia-muted uppercase">Used</div>
+            <div
+                class="text-2xl font-bold {isValid
+                    ? 'text-emerald-500'
+                    : isOver
+                      ? 'text-red-400'
+                      : 'text-amber-400'}"
+            >
+                {used}
+            </div>
+            <div class="text-xs text-thasia-muted">
+                {remaining > 0
+                    ? `${remaining} remaining`
+                    : isOver
+                      ? `${-remaining} over`
+                      : 'all assigned'}
+            </div>
+        </div>
+        <div class="rounded-lg border border-thasia-border bg-thasia-surface p-3">
+            <div class="mb-1 text-[10px] tracking-wider text-thasia-muted uppercase">Volumes</div>
+            <div class="text-2xl font-bold">{volumeSizes.length}</div>
+        </div>
     </div>
-    <div style="background:#1f2937;border:1px solid #374151;border-radius:8px;padding:12px;">
-      <div style="font-size:10px;text-transform:uppercase;color:#6b7280;margin-bottom:4px;">Used</div>
-      <div style="font-size:24px;font-weight:bold;color:{isValid ? '#10b981' : isOver ? '#ef4444' : '#f59e0b'};">{used}</div>
-      <div style="font-size:11px;color:#6b7280;">{remaining > 0 ? `${remaining} remaining` : isOver ? `${-remaining} over` : 'all assigned'}</div>
-    </div>
-    <div style="background:#1f2937;border:1px solid #374151;border-radius:8px;padding:12px;">
-      <div style="font-size:10px;text-transform:uppercase;color:#6b7280;margin-bottom:4px;">Volumes</div>
-      <div style="font-size:24px;font-weight:bold;">{volumeSizes.length}</div>
-    </div>
-  </div>
 
-  <!-- Main area: volume list + distribution -->
-  <div style="display:grid;grid-template-columns:1fr 220px;gap:8px;flex:1;min-height:0;">
+    <!-- Main area -->
+    <div class="grid min-h-0 flex-1 gap-2" style="grid-template-columns: 1fr 220px;">
+        <!-- Volume list -->
+        <div
+            class="bg-thesia-surface flex flex-col overflow-hidden rounded-lg border border-thasia-border"
+        >
+            <div
+                class="flex-shrink-0 border-b border-thasia-border px-3 py-2.5 text-[10px] tracking-wider text-thasia-muted uppercase"
+            >
+                Volumes
+            </div>
+            <div class="flex-1 overflow-y-auto p-2">
+                {#if volumeSizes.length === 0}
+                    <div
+                        class="justify-content-center flex h-full items-center text-sm text-thasia-muted"
+                    >
+                        No volumes yet — add one below
+                    </div>
+                {:else}
+                    {#each volumeSizes as count, i}
+                        <div
+                            class="mb-1.5 rounded-md border bg-thasia-bg px-3 py-2.5 transition-colors duration-150
+                        {editingIndex === i ? 'border-thasia-accent' : 'border-thasia-border'}"
+                        >
+                            <div class="flex items-center gap-2">
+                                <!-- Volume index badge -->
+                                <div
+                                    class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full"
+                                    style="background: {slotColor(i)}22;"
+                                >
+                                    <span class="text-xs font-bold" style="color: {slotColor(i)};"
+                                        >{i + 1}</span
+                                    >
+                                </div>
 
-    <!-- Volume list -->
-    <div style="background:#1f2937;border:1px solid #374151;border-radius:8px;display:flex;flex-direction:column;overflow:hidden;">
-      <div style="padding:10px 12px;border-bottom:1px solid #374151;font-size:11px;text-transform:uppercase;color:#6b7280;flex-shrink:0;">
-        Volumes
-      </div>
-      <div style="flex:1;overflow-y:auto;padding:8px;">
-        {#if volumeSizes.length === 0}
-          <div style="height:100%;display:flex;align-items:center;justify-content:center;color:#6b7280;font-size:13px;">
-            No volumes yet — add one below
-          </div>
-        {:else}
-          {#each volumeSizes as count, i}
-            {@const pct = Math.min((count / total) * 100, 100)}
-            <div style="background:#111827;border:1px solid {editingIndex === i ? '#6366f1' : '#374151'};border-radius:6px;padding:10px 12px;margin-bottom:6px;">
-              <div style="display:flex;align-items:center;gap:8px;">
-                <div style="width:32px;height:32px;border-radius:50%;background:{slotColor(i)}22;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                  <span style="font-size:12px;font-weight:bold;color:{slotColor(i)};">{i+1}</span>
-                </div>
-                <div style="flex:1;min-width:0;">
-                  <div style="font-size:13px;font-weight:500;margin-bottom:4px;">Volume {i + 1}</div>
-                  <div style="background:#1f2937;height:4px;border-radius:2px;overflow:hidden;">
-                    <div style="background:{slotColor(i)};height:4px;width:{pct}%;transition:width .2s;border-radius:2px;"></div>
-                  </div>
-                </div>
-                {#if editingIndex === i}
-                  <input
+                                <!-- Name + progress -->
+                                <div class="min-w-0 flex-1">
+                                    <div class="mb-1.5 text-sm font-medium">Volume {i + 1}</div>
+                                    <ProgressBar
+                                        value={count / total}
+                                        color={slotColor(i)}
+                                        class="h-1"
+                                    />
+                                </div>
+
+                                <!-- Count editor -->
+                                {#if editingIndex === i}
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        max={total}
+                                        value={count}
+                                        oninput={(e) => {
+                                            volumeSizes[i] =
+                                                parseInt((e.target as HTMLInputElement).value) || 0;
+                                        }}
+                                        onblur={() => (editingIndex = null)}
+                                        onkeydown={(e) => {
+                                            if (e.key === 'Enter' || e.key === 'Escape')
+                                                editingIndex = null;
+                                        }}
+                                        class="h-8 w-14 rounded-md border border-thasia-accent bg-thasia-bg text-center text-sm text-thasia-text
+                           focus:ring-1 focus:ring-thasia-accent focus:outline-none"
+                                    />
+                                {:else}
+                                    <button
+                                        onclick={() => (editingIndex = i)}
+                                        class="h-8 w-14 cursor-pointer rounded-md border border-thasia-border bg-thasia-bg text-center
+                           text-sm font-medium text-thasia-text transition-colors duration-150 hover:border-thasia-accent"
+                                        title="Click to edit"
+                                    >
+                                        {count}
+                                    </button>
+                                {/if}
+
+                                <span class="text-xs whitespace-nowrap text-thasia-muted">
+                                    {unit}{count !== 1 ? 's' : ''}
+                                </span>
+
+                                <button
+                                    onclick={() => deleteVolume(i)}
+                                    class="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md
+                         border border-thasia-border bg-transparent text-sm text-red-400
+                         transition-colors duration-150 hover:border-red-500/50 hover:bg-red-500/10"
+                                    >×</button
+                                >
+                            </div>
+                        </div>
+                    {/each}
+                {/if}
+            </div>
+
+            <!-- Add volume row -->
+            <div class="flex flex-shrink-0 gap-1.5 border-t border-thasia-border p-2">
+                <input
                     type="number"
                     min="1"
-                    max={total}
-                    value={count}
-                    oninput={(e) => { volumeSizes[i] = parseInt((e.target as HTMLInputElement).value) || 0; }}
-                    onblur={() => editingIndex = null}
-                    onkeydown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') editingIndex = null; }}
-                    style="width:56px;height:32px;text-align:center;border:1px solid #6366f1;border-radius:6px;background:#111827;color:white;"
-                  />
-                {:else}
-                  <button
-                    onclick={() => editingIndex = i}
-                    style="width:56px;height:32px;text-align:center;border:1px solid #374151;border-radius:6px;background:#111827;color:white;cursor:pointer;font-size:13px;font-weight:500;"
-                    title="Click to edit"
-                  >
-                    {count}
-                  </button>
-                {/if}
-                <span style="font-size:11px;color:#6b7280;white-space:nowrap;">
-                  {unit}{count !== 1 ? 's' : ''}
-                </span>
+                    placeholder="# of {unit}s"
+                    bind:value={newVolumeInput}
+                    onkeydown={handleAddKey}
+                    class="flex-1 rounded-md border border-thasia-border bg-thasia-bg px-2 py-1.5 text-sm text-thasia-text
+                 transition-colors duration-150 placeholder:text-thasia-muted focus:border-thasia-accent focus:ring-1
+                 focus:ring-thasia-accent focus:outline-none"
+                />
                 <button
-                  onclick={() => deleteVolume(i)}
-                  style="width:28px;height:28px;border-radius:6px;border:1px solid #374151;background:transparent;color:#ef4444;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;"
-                >×</button>
-              </div>
+                    onclick={addVolume}
+                    disabled={!newVolumeInput || Number(newVolumeInput) <= 0}
+                    class="cursor-pointer rounded-md border-none bg-thasia-accent px-4 py-1.5 text-sm font-bold text-white
+                 transition-all duration-150 hover:brightness-110 disabled:pointer-events-none disabled:opacity-40"
+                >
+                    Add
+                </button>
             </div>
-          {/each}
-        {/if}
-      </div>
+        </div>
 
-      <!-- Add volume row -->
-      <div style="padding:8px;border-top:1px solid #374151;display:flex;gap:6px;flex-shrink:0;">
-        <input
-          type="number"
-          min="1"
-          placeholder="# of {unit}s"
-          bind:value={newVolumeInput}
-          onkeydown={handleAddKey}
-          style="flex:1;padding:6px 8px;border:1px solid #374151;border-radius:6px;background:#111827;color:white;"
-        />
-        <button
-          onclick={addVolume}
-          disabled={!newVolumeInput || Number(newVolumeInput) <= 0}
-          style="padding:6px 14px;border-radius:6px;background:#6366f1;color:white;border:none;cursor:pointer;"
+        <!-- Distribution sidebar -->
+        <div
+            class="flex flex-col overflow-hidden rounded-lg border border-thasia-border bg-thasia-surface"
         >
-          Add
-        </button>
-      </div>
-    </div>
-
-    <!-- Distribution sidebar -->
-    <div style="background:#1f2937;border:1px solid #374151;border-radius:8px;display:flex;flex-direction:column;overflow:hidden;">
-      <div style="padding:10px 12px;border-bottom:1px solid #374151;font-size:11px;text-transform:uppercase;color:#6b7280;flex-shrink:0;">
-        Distribution
-      </div>
-      <div style="flex:1;overflow-y:auto;padding:12px;">
-        <!-- Progress bar -->
-        <div style="margin-bottom:12px;">
-          <div style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:12px;">
-            <span>Usage</span>
-            <span style="font-family:monospace;">{used}/{total}</span>
-          </div>
-          <div style="background:#111827;height:6px;border-radius:3px;overflow:hidden;">
-            <div style="height:6px;border-radius:3px;transition:width .3s;width:{Math.min((used/total)*100, 100)}%;background:{isValid ? '#10b981' : isOver ? '#ef4444' : '#f59e0b'};"></div>
-          </div>
-        </div>
-        <!-- Item map -->
-        <div style="font-size:11px;color:#6b7280;margin-bottom:6px;">{unit === 'chapter' ? 'Chapter' : 'Page'} map</div>
-        <div style="display:flex;flex-wrap:wrap;gap:3px;">
-          {#each itemVolumeMap as vIdx, itemI}
             <div
-              style="width:10px;height:10px;border-radius:2px;cursor:help;transition:background .15s;
-                     background:{vIdx === -1 ? '#374151' : slotColor(vIdx)};"
-              title="{unit === 'chapter' ? 'Chapter' : 'Page'} {itemI + 1}{vIdx >= 0 ? ` → Volume ${vIdx + 1}` : ' (unassigned)'}"
-            ></div>
-          {/each}
-        </div>
-      </div>
-    </div>
-  </div>
+                class="flex-shrink-0 border-b border-thasia-border px-3 py-2.5 text-[10px] tracking-wider text-thasia-muted uppercase"
+            >
+                Distribution
+            </div>
+            <div class="flex-1 overflow-y-auto p-3">
+                <!-- Usage bar -->
+                <div class="mb-3">
+                    <div class="mb-1 flex justify-between text-xs">
+                        <span>Usage</span>
+                        <span class="font-mono">{used}/{total}</span>
+                    </div>
+                    <ProgressBar
+                        value={used / Math.max(total, 1)}
+                        variant={usageVariant}
+                        class="h-1.5"
+                    />
+                </div>
 
-  <!-- Footer -->
-  <div style="display:flex;gap:8px;flex-shrink:0;">
-    <button onclick={onBack}>← Back</button>
-    <button
-      onclick={handleNext}
-      disabled={!isValid}
-      style="margin-left:auto;opacity:{isValid ? 1 : 0.5};"
-      title={!isValid ? `${remaining > 0 ? remaining + ' unassigned' : 'over by ' + (-remaining)} — assign all ${unit}s first` : ''}
-    >
-      Next →
-    </button>
-  </div>
+                <!-- Item map -->
+                <div class="mb-1.5 text-[11px] text-thasia-muted">
+                    {unit === 'chapter' ? 'Chapter' : 'Page'} map
+                </div>
+                <div class="flex flex-wrap gap-0.5">
+                    {#each itemVolumeMap as vIdx, itemI}
+                        <div
+                            class="h-2.5 w-2.5 cursor-help rounded-sm transition-colors duration-150"
+                            style="background: {vIdx === -1 ? 'var(--border)' : slotColor(vIdx)};"
+                            title="{unit === 'chapter' ? 'Chapter' : 'Page'} {itemI + 1}{vIdx >= 0
+                                ? ` → Volume ${vIdx + 1}`
+                                : ' (unassigned)'}"
+                        ></div>
+                    {/each}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="flex flex-shrink-0 gap-2">
+        <button
+            onclick={onBack}
+            class="rounded-lg border border-thasia-border bg-thasia-bg px-4 py-1.5 text-sm font-bold text-thasia-text
+             transition-colors duration-150 hover:border-thasia-accent/50">← Back</button
+        >
+        <button
+            onclick={handleNext}
+            disabled={!isValid}
+            class="ml-auto rounded-lg border border-thasia-border bg-thasia-bg px-4 py-1.5 text-sm font-bold text-thasia-text
+             transition-colors duration-150 hover:border-thasia-accent/50
+             disabled:pointer-events-none disabled:opacity-40"
+            title={!isValid
+                ? `${remaining > 0 ? remaining + ' unassigned' : 'over by ' + -remaining} — assign all ${unit}s first`
+                : ''}>Next →</button
+        >
+    </div>
 </div>

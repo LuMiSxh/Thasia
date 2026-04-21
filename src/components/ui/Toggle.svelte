@@ -1,55 +1,61 @@
 <script lang="ts">
-  interface Props {
-    checked: boolean;
-    onchange?: (checked: boolean) => void;
-    disabled?: boolean;
-    label?: string;
-    class?: string;
-  }
+    interface Props {
+        checked: boolean;
+        onchange?: (checked: boolean) => void;
+        disabled?: boolean;
+        label?: string;
+        class?: string;
+    }
 
-  let { checked = $bindable(), onchange, disabled = false, label, class: className = '' }: Props = $props();
+    let {
+        checked = $bindable(),
+        onchange,
+        disabled = false,
+        label,
+        class: className = '',
+    }: Props = $props();
 
-  function toggle() {
-    if (disabled) return;
-    checked = !checked;
-    onchange?.(checked);
-  }
+    function toggle() {
+        if (disabled) return;
+        checked = !checked;
+        onchange?.(checked);
+    }
 </script>
 
 <button
-  type="button"
-  role="switch"
-  aria-checked={checked}
-  aria-label={label}
-  {disabled}
-  onclick={toggle}
-  class="
-    inline-flex items-center gap-2.5 cursor-pointer select-none
-    disabled:opacity-40 disabled:pointer-events-none
-    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-thasia-accent focus-visible:ring-offset-2 focus-visible:ring-offset-thasia-surface
+    type="button"
+    role="switch"
+    aria-checked={checked}
+    aria-label={label}
+    {disabled}
+    onclick={toggle}
+    class="
+    group inline-flex cursor-pointer items-center gap-2.5 select-none
+    focus-visible:ring-2 focus-visible:ring-thasia-accent
+    focus-visible:ring-offset-2 focus-visible:ring-offset-thasia-surface focus-visible:outline-none disabled:pointer-events-none disabled:opacity-40
     {className}
   "
 >
-  <!-- Track -->
-  <span
-    class="
+    <!-- Track -->
+    <span
+        class="
       relative inline-flex h-5 w-9 shrink-0 items-center rounded-md border transition-colors duration-200
       {checked
-        ? 'bg-thasia-accent border-thasia-accent/50'
-        : 'bg-thasia-bg border-thasia-border'}
+            ? 'border-thasia-accent/50 bg-thasia-accent'
+            : 'border-thasia-border bg-thasia-bg group-hover:border-thasia-accent/40'}
     "
-  >
-    <!-- Thumb -->
-    <span
-      class="
-        absolute h-3.5 w-3.5 rounded-sm border transition-all duration-200 shadow-sm
+    >
+        <!-- Thumb -->
+        <span
+            class="
+        absolute h-3.5 w-3.5 rounded-sm border shadow-sm transition-all duration-200
         {checked
-          ? 'translate-x-[18px] bg-black dark:bg-zinc-900 border-black/20'
-          : 'translate-x-0.5 bg-thasia-muted border-thasia-border'}
+                ? 'translate-x-[18px] border-black/20 bg-black dark:bg-zinc-900'
+                : 'translate-x-0.5 border-thasia-border bg-thasia-muted group-hover:border-thasia-accent/40 group-hover:bg-thasia-accent/30'}
       "
-    ></span>
-  </span>
-  {#if label}
-    <span class="text-sm text-thasia-text">{label}</span>
-  {/if}
+        ></span>
+    </span>
+    {#if label}
+        <span class="text-sm text-thasia-text">{label}</span>
+    {/if}
 </button>

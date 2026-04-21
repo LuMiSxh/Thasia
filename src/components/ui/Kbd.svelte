@@ -1,9 +1,13 @@
 <script lang="ts">
-  import type { Snippet } from 'svelte';
-  interface Props { children: Snippet; }
-  let { children }: Props = $props();
+    import type { Snippet } from 'svelte';
+    interface Props {
+        children: Snippet;
+    }
+    let { children }: Props = $props();
 </script>
 
-<kbd class="font-mono text-[10px] uppercase border border-thasia-border bg-thasia-panel rounded px-1.5 py-0.5 text-thasia-muted tracking-wider">
-  {@render children()}
+<kbd
+    class="rounded border border-thasia-border bg-thasia-panel px-1.5 py-0.5 font-mono text-[10px] tracking-wider text-thasia-muted uppercase"
+>
+    {@render children()}
 </kbd>

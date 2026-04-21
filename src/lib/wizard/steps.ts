@@ -12,28 +12,36 @@ import Step8Review from '$components/wizard/Step8Review.svelte';
 import Step9Convert from '$components/wizard/Step9Convert.svelte';
 
 export type WizardStep = {
-  id: string;
-  label: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  component: Component<any>;
-  condition?: (w: InstanceType<typeof WizardStore>) => boolean;
+    id: string;
+    label: string;
+     
+    component: Component<any>;
+    condition?: (w: InstanceType<typeof WizardStore>) => boolean;
 };
 
 export const STEPS: WizardStep[] = [
-  { id: 'source',       label: 'Source',       component: Step1Source },
-  { id: 'destination',  label: 'Destination',  component: Step2Destination },
-  { id: 'image-format', label: 'Image Format', component: Step3ImageFormat },
-  { id: 'container',    label: 'Container',    component: Step4Container },
-  { id: 'direction',    label: 'Direction',    component: Step5Direction,
-    condition: (w) => w.container === 'epub' },
-  { id: 'bundling',       label: 'Bundling',     component: Step6Bundling },
-  { id: 'volume-review', label: 'Volumes',      component: StepVolumeReview,
-    condition: (w) => w.bundle !== 'flatten' },
-  { id: 'page-editor',   label: 'Pages',        component: Step7PageEditor },
-  { id: 'review',       label: 'Review',       component: Step8Review },
-  { id: 'convert',      label: 'Convert',      component: Step9Convert },
+    { id: 'source', label: 'Source', component: Step1Source },
+    { id: 'destination', label: 'Destination', component: Step2Destination },
+    { id: 'image-format', label: 'Image Format', component: Step3ImageFormat },
+    { id: 'container', label: 'Container', component: Step4Container },
+    {
+        id: 'direction',
+        label: 'Direction',
+        component: Step5Direction,
+        condition: (w) => w.container === 'epub',
+    },
+    { id: 'bundling', label: 'Bundling', component: Step6Bundling },
+    {
+        id: 'volume-review',
+        label: 'Volumes',
+        component: StepVolumeReview,
+        condition: (w) => w.bundle !== 'flatten',
+    },
+    { id: 'page-editor', label: 'Pages', component: Step7PageEditor },
+    { id: 'review', label: 'Review', component: Step8Review },
+    { id: 'convert', label: 'Convert', component: Step9Convert },
 ];
 
 export function activeSteps(w: InstanceType<typeof WizardStore>): WizardStep[] {
-  return STEPS.filter((s) => !s.condition || s.condition(w));
+    return STEPS.filter((s) => !s.condition || s.condition(w));
 }

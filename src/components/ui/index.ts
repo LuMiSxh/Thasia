@@ -7,3 +7,4 @@ export { default as Card } from './Card.svelte';
 export { default as SectionLabel } from './SectionLabel.svelte';
 export { default as ProgressBar } from './ProgressBar.svelte';
 export { default as Kbd } from './Kbd.svelte';
+export { default as SegmentedControl } from './SegmentedControl.svelte';
