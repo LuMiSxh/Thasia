@@ -6,7 +6,7 @@ Add a keyboard-first navigation layer to Thasia: a `KeyboardManager` for event r
 
 ## Architecture
 
-Four new files, two modified files, one existing file extended.
+Four new files, two modified files.
 
 ### New files
 
@@ -16,25 +16,25 @@ Four new files, two modified files, one existing file extended.
 - `smartRegister(handlers[]) → cleanup fn` — registers all, returns one cleanup
 - `mount() → unmount fn` — attaches/detaches the window listener
 
-**`src/lib/keyhint.svelte.ts`** — Singleton `KeyHintState` class (ported from Palaxy). Manages named scopes of `[combo, label]` pairs. Exposes:
-- `register(pairs[], exclusive?) → cleanup fn` — adds a scope, returns cleanup
-- `get() → [combo, label][]` — flattens all active scopes (exclusive scopes hide others)
+**`src/lib/keyhint.svelte.ts`** — Singleton `KeyHintState` class (ported from Palaxy) plus two Svelte actions. Manages named scopes of `[combo, label]` pairs. Exposes:
+- `keyHint.register(pairs[], exclusive?) → cleanup fn` — adds a scope, returns cleanup
+- `keyHint.get() → [combo, label][]` — flattens all active scopes (exclusive scopes hide others)
+- `use:mountedHint={pairs}` — Svelte action: registers hints for the lifetime of the element (on mount → on destroy). Used on step root divs for always-on step shortcuts.
+- `use:handleKeyHint={keys}` — Svelte action (ported from Palaxy): registers hints only while the element is focused. Used on individual interactive elements.
 
-**`src/components/ui/KeyComboDisplay.svelte`** — Converts a combo string to OS-aware symbols. Detects OS via `@tauri-apps/plugin-os`. Renders using the existing `Kbd` component. Examples: `"alt+arrowright"` → `⌥ →` on macOS, `Alt →` on Windows.
+No manual `keyHint.register()` calls needed in component `onMount` — all hint display is action-based. Only `keyboard.smartRegister` (the actual shortcut handlers) lives in `onMount`.
 
-**`src/components/ui/KeyHintBar.svelte`** — Thin strip (h-8) rendered inside `<main>` in `+layout.svelte`, flush at the bottom. `border-t border-thasia-border bg-thasia-surface`. Reads `keyhint.get()` reactively. Each hint: `[KeyComboDisplay] label`. Hints animate in/out with a width-collapse + translate + blur transition (glass motion, ported from Palaxy). Hidden entirely when `showKeyHints` setting is false — shortcuts still fire.
+**`src/components/ui/KeyComboDisplay.svelte`** — Converts a combo string to OS-aware symbols. Detects OS via `@tauri-apps/plugin-os`. Renders using the existing `Kbd` component. Examples: `"alt+arrowright"` → `⌥→` on macOS, `Alt →` on Windows.
+
+**`src/components/ui/KeyHintBar.svelte`** — Thin strip (h-8) rendered inside `<main>` in `+layout.svelte`, flush at the bottom. `border-t border-thasia-border bg-thasia-surface`. Reads `keyHint.get()` reactively. Each hint: `[KeyComboDisplay] label`. Hints animate in/out with a width-collapse + translate + blur transition (glass motion, ported from Palaxy). Hidden entirely when `showKeyHints` setting is false — shortcuts still fire.
 
 ### Modified files
 
-**`src/routes/+layout.svelte`** — On mount: call `keyboard.mount()` and save unmount cleanup. Register global shortcuts. Render `<KeyHintBar>` inside `<main>` as a flex child at the bottom (main becomes `flex flex-col`, content area is `flex-1 overflow-auto`, hint bar is `flex-shrink-0`). Register global keyhints for the `⌘1`–`⌘4` and `⌘B` combos.
+**`src/routes/+layout.svelte`** — On mount: call `keyboard.mount()` and save unmount cleanup. Register global shortcut handlers via `smartRegister`. Render `<KeyHintBar>` inside `<main>` as a flex child at the bottom (main becomes `flex flex-col`, content area is `flex-1 overflow-auto`, hint bar is `flex-shrink-0`). Use `use:mountedHint` on the layout root for global hints (`⌘1`–`⌘4`, `⌘B`).
 
-**`src/routes/convert/+page.svelte`** — On mount: `smartRegister` `Alt+ArrowRight` (→ `goNext`) and `Alt+ArrowLeft` (→ `goBack`). Register keyhints for those two combos. Clean up on destroy.
+**`src/routes/convert/+page.svelte`** — On mount: `smartRegister` `Alt+ArrowRight` (→ `goNext`) and `Alt+ArrowLeft` (→ `goBack`). Use `use:mountedHint` on the page root div for those two hints. Clean up on destroy.
 
-**`src/routes/settings/+page.svelte`** — Add `showKeyHints: boolean` (default `true`) to the `Defaults` type and localStorage persistence. Add a new "Interface" panel (same `rounded-xl border bg-thasia-surface` style as existing panels) with a single `Toggle` row: "Keyboard hint bar" / "Show shortcut hints at the bottom of the window".
-
-### Extended existing file
-
-**`src/lib/wizard/state.svelte.ts`** — No changes needed; steps already expose `onNext`/`onBack` as props and wizard state is in `WizardStore`.
+**`src/routes/settings/+page.svelte`** — Add `showKeyHints: boolean` (default `true`) to the `Defaults` type and localStorage persistence. Add a new "Interface" panel (same `rounded-xl border bg-thasia-surface` style) with a single `Toggle` row: "Keyboard hint bar" / "Show shortcut hints at the bottom of the window".
 
 ## Keyboard Bindings
 
@@ -55,7 +55,7 @@ Four new files, two modified files, one existing file extended.
 | `Alt+→` | Next step (only fires if current step is valid) |
 | `Alt+←` | Back step |
 
-### Step-specific — each step registers on `onMount`, cleans up on `onDestroy`
+### Step-specific — `use:mountedHint` on step root div for hints, `onMount` for handlers
 
 | Step | Combo | Action |
 |---|---|---|
