@@ -1,4 +1,5 @@
 import type { VolumeMeta } from '$types/bindings';
+import { SvelteSet } from 'svelte/reactivity';
 
 export type VolumeEdit = {
     volumeNum: number;
@@ -40,10 +41,10 @@ export class WizardStore {
 
     // Navigation
     currentStepId = $state('source');
-    completedStepIds = $state(new Set<string>());
+    completedStepIds = new SvelteSet<string>();
 
     markComplete(id: string) {
-        this.completedStepIds = new Set([...this.completedStepIds, id]);
+        this.completedStepIds.add(id);
     }
 
     reset() {
@@ -61,7 +62,7 @@ export class WizardStore {
         this.scanResult = null;
         this.pageEdits = [];
         this.currentStepId = 'source';
-        this.completedStepIds = new Set();
+        this.completedStepIds.clear();
     }
 }
 

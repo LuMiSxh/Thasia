@@ -2,6 +2,14 @@
     import { wizard } from '$lib/wizard/state.svelte';
     import { open } from '@tauri-apps/plugin-dialog';
     import { commands } from '$types/bindings';
+    import { Button } from '$components/ui/index';
+    import {
+        IconFolderOpen,
+        IconFileZip,
+        IconAlertCircle,
+        IconArrowLeft,
+        IconArrowRight,
+    } from '@tabler/icons-svelte';
 
     let { onNext, onBack }: { onNext: () => void; onBack: () => void } = $props();
     let loading = $state(false);
@@ -9,13 +17,11 @@
 
     function inferOutputName(path: string) {
         const base = path.split(/[\\/]/).at(-1) ?? '';
-        // Strip known archive extensions
         return base.replace(/\.(zip|cbz)$/i, '') || base;
     }
 
     function applySource(path: string) {
         wizard.sourcePath = path;
-        // Only infer if user hasn't customised the name yet
         if (wizard.outputName === 'output' || wizard.outputName === '') {
             wizard.outputName = inferOutputName(path);
         }
@@ -71,25 +77,62 @@
     }
 </script>
 
-<h2>Source</h2>
-<p>Select a folder, ZIP, or CBZ file containing your manga images.</p>
+<div class="flex h-full flex-col">
+    <div class="flex-shrink-0 border-b border-thasia-border px-5 py-4">
+        <h2 class="text-base font-bold">Source</h2>
+        <p class="mt-0.5 text-xs text-thasia-muted">
+            Select a folder, ZIP, or CBZ containing your manga images.
+        </p>
+    </div>
 
-<div>
-    <input
-        type="text"
-        readonly
-        value={wizard.sourcePath}
-        placeholder="No source selected"
-        style="width:100%;padding:8px;margin-bottom:8px;"
-    />
-    <button onclick={pickSource}>Browse folder…</button>
-    <button onclick={pickArchive}>Browse archive…</button>
-</div>
+    <div class="flex flex-1 flex-col gap-3 overflow-y-auto px-5 py-5">
+        <div class="overflow-hidden rounded-xl border border-thasia-border bg-thasia-surface">
+            <!-- Path display -->
+            <div class="flex flex-col gap-2.5 px-4 py-4">
+                <div class="flex items-center gap-2">
+                    <IconFolderOpen size={14} class="flex-shrink-0 text-thasia-muted" />
+                    <span class="text-sm font-medium">Selected source</span>
+                </div>
+                <div
+                    class="rounded-lg border border-thasia-border bg-thasia-bg px-3 py-2 font-mono text-xs
+                            {wizard.sourcePath ? 'text-thasia-text' : 'text-thasia-muted'}"
+                >
+                    {wizard.sourcePath || 'No source selected'}
+                </div>
+            </div>
 
-{#if error}<p style="color:red;">{error}</p>{/if}
-{#if loading}<p>Scanning…</p>{/if}
+            <div class="mx-4 border-t border-thasia-border"></div>
 
-<div style="margin-top:24px;">
-    <button onclick={onBack} disabled={true}>Back</button>
-    <button onclick={handleNext} disabled={loading || !wizard.sourcePath}>Next →</button>
+            <!-- Browse buttons -->
+            <div class="flex gap-2 px-4 py-4">
+                <Button onclick={pickSource} class="flex-1">
+                    <IconFolderOpen size={14} /> Browse folder…
+                </Button>
+                <Button onclick={pickArchive} class="flex-1">
+                    <IconFileZip size={14} /> Browse archive…
+                </Button>
+            </div>
+        </div>
+
+        {#if error}
+            <div
+                class="flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-xs text-red-400"
+            >
+                <IconAlertCircle size={14} class="flex-shrink-0" />
+                {error}
+            </div>
+        {/if}
+
+        {#if loading}
+            <p class="px-1 text-xs text-thasia-muted">Scanning source…</p>
+        {/if}
+    </div>
+
+    <div class="flex flex-shrink-0 gap-2 border-t border-thasia-border px-5 py-4">
+        <Button onclick={onBack} disabled={true}><IconArrowLeft size={15} /> Back</Button>
+        <Button onclick={handleNext} disabled={loading || !wizard.sourcePath} class="ml-auto">
+            {loading ? 'Scanning…' : 'Next'}
+            <IconArrowRight size={15} />
+        </Button>
+    </div>
 </div>

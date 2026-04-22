@@ -3,6 +3,8 @@
     import { open } from '@tauri-apps/plugin-dialog';
     import { flip } from 'svelte/animate';
     import { duration } from '$lib/transitions';
+    import { Button } from '$components/ui/index';
+    import { IconArrowLeft, IconArrowRight, IconPlus, IconRefresh } from '@tabler/icons-svelte';
 
     let { onNext, onBack }: { onNext: () => void; onBack: () => void } = $props();
 
@@ -129,48 +131,54 @@
     }
 </script>
 
-<div style="display:flex;height:calc(100vh - 120px);gap:0;">
+<div class="flex h-full gap-0">
     <!-- Volume list -->
-    <div
-        style="width:160px;border-right:1px solid #374151;padding:12px;overflow-y:auto;flex-shrink:0;"
-    >
-        <div style="font-size:11px;text-transform:uppercase;margin-bottom:8px;">Volumes</div>
-        {#each volumes as ve, i}
-            <button
-                onclick={() => setActiveVolume(i)}
-                style="width:100%;text-align:left;padding:6px 8px;margin-bottom:4px;
-               background:{i === activeVolumeIndex ? '#1e1b4b' : 'transparent'};
-               border:1px solid {i === activeVolumeIndex
-                    ? '#6366f1'
-                    : '#374151'};border-radius:4px;cursor:pointer;"
-            >
-                <div style="font-weight:bold;">Vol {ve.volumeNum}</div>
-                <div style="font-size:10px;color:#6b7280;">
-                    {ve.pages.filter((p) => !p.excluded).length} pages
-                </div>
-            </button>
-        {/each}
+    <div class="flex w-44 flex-shrink-0 flex-col overflow-hidden border-r border-thasia-border">
+        <div
+            class="flex-shrink-0 border-b border-thasia-border px-3 py-2.5 text-[10px] font-bold tracking-wider text-thasia-muted uppercase"
+        >
+            Volumes
+        </div>
+        <div class="flex-1 overflow-y-auto p-2">
+            {#each volumes as ve, i (ve)}
+                <button
+                    onclick={() => setActiveVolume(i)}
+                    class="mb-1 w-full rounded-lg border px-3 py-2 text-left transition-colors duration-150
+                           {i === activeVolumeIndex
+                        ? 'border-thasia-accent/40 bg-thasia-accent/8 text-thasia-text'
+                        : 'border-thasia-border bg-transparent text-thasia-muted hover:border-thasia-accent/25 hover:bg-thasia-panel hover:text-thasia-text'}"
+                >
+                    <div class="text-sm font-bold">Vol {ve.volumeNum}</div>
+                    <div class="text-xs text-thasia-muted">
+                        {ve.pages.filter((p) => !p.excluded).length} pages
+                    </div>
+                </button>
+            {/each}
+        </div>
     </div>
 
     <!-- Page grid -->
-    <div style="flex:1;display:flex;flex-direction:column;overflow:hidden;">
+    <div class="flex flex-1 flex-col overflow-hidden">
         <!-- Toolbar -->
         <div
-            style="padding:8px 16px;border-bottom:1px solid #374151;display:flex;align-items:center;gap:12px;"
+            class="flex flex-shrink-0 items-center gap-3 border-b border-thasia-border px-4 py-2.5"
         >
-            <span style="font-weight:bold;"
-                >Volume {volumes[activeVolumeIndex]?.volumeNum ?? '—'}</span
-            >
-            <span style="color:#6b7280;font-size:12px;"
-                >Drag to reorder · × to exclude · first image = cover</span
-            >
-            <button onclick={addCustomImage} style="margin-left:auto;">+ Add image</button>
+            <span class="text-sm font-bold">
+                Volume {volumes[activeVolumeIndex]?.volumeNum ?? '—'}
+            </span>
+            <span class="text-xs text-thasia-muted">
+                Drag to reorder · click to exclude · first image = cover
+            </span>
+            <Button onclick={addCustomImage} size="sm" class="ml-auto">
+                <IconPlus size={13} /> Add image
+            </Button>
         </div>
 
         <!-- Grid -->
         <div
             role="list"
-            style="flex:1;padding:12px;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:8px;align-content:start;"
+            class="flex-1 overflow-y-auto p-3"
+            style="display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:8px;align-content:start;"
         >
             {#each activeEdits as edit, i (pageKey(edit))}
                 <div
@@ -182,68 +190,67 @@
                     ondragleave={onDragLeave}
                     ondrop={(e) => onDrop(e, i)}
                     animate:flip={{ duration: duration.slow }}
-                    style="position:relative;opacity:{edit.excluded ? 0.4 : 1};"
+                    class="relative {edit.excluded ? 'opacity-40' : ''}"
                 >
-                    <div
+                    <!-- Image card — click anywhere to toggle exclude -->
+                    <button
+                        onclick={() => toggleExclude(i)}
+                        title={edit.excluded ? 'Click to include' : 'Click to exclude'}
+                        class="relative w-full overflow-hidden rounded-md transition-opacity duration-150"
                         style="
-            aspect-ratio:2/3;border-radius:4px;overflow:hidden;
-            border:2px solid {i === firstNonExcluded
-                            ? '#6366f1'
+                            aspect-ratio: 2/3;
+                            display: block;
+                            border: 2px solid {i === firstNonExcluded
+                            ? 'var(--accent)'
                             : dragOverIndex === i
-                              ? '#a5b4fc'
+                              ? 'color-mix(in srgb, var(--accent) 50%, transparent)'
                               : edit.excluded
                                 ? '#ef4444'
                                 : edit.customPath
                                   ? '#10b981'
-                                  : '#374151'};
-            border-style:{edit.excluded ? 'dashed' : 'solid'};
-            cursor:grab;position:relative;background:#1f2937;
-          "
+                                  : 'var(--border)'};
+                            border-style: {edit.excluded ? 'dashed' : 'solid'};
+                            cursor: pointer;
+                            background: var(--panel);
+                        "
                     >
                         <img
                             src={imageUrl(edit)}
                             alt={fileName(edit)}
                             draggable="false"
-                            style="width:100%;height:100%;object-fit:cover;"
+                            class="h-full w-full object-cover"
                             loading="lazy"
                         />
-                    </div>
 
-                    {#if i === firstNonExcluded}
-                        <div
-                            style="position:absolute;top:-8px;left:50%;transform:translateX(-50%);
-                        background:#6366f1;color:white;font-size:8px;font-weight:bold;
-                        padding:1px 6px;border-radius:3px;white-space:nowrap;"
-                        >
-                            COVER
-                        </div>
-                    {/if}
+                        {#if i === firstNonExcluded}
+                            <div
+                                class="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2
+                                       rounded-sm px-1.5 py-px text-[8px] font-bold text-black"
+                                style="background: var(--accent);"
+                            >
+                                COVER
+                            </div>
+                        {/if}
 
-                    {#if edit.customPath}
-                        <div
-                            style="position:absolute;top:{i === firstNonExcluded
-                                ? 4
-                                : -8}px;left:50%;transform:translateX(-50%);
-                        background:#10b981;color:white;font-size:8px;font-weight:bold;
-                        padding:1px 6px;border-radius:3px;white-space:nowrap;"
-                        >
-                            ADDED
-                        </div>
-                    {/if}
+                        {#if edit.customPath}
+                            <div
+                                class="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-sm
+                                       bg-emerald-500 px-1.5 py-px text-[8px] font-bold text-white"
+                                style="top: {i === firstNonExcluded ? '16px' : '0'};"
+                            >
+                                ADDED
+                            </div>
+                        {/if}
 
-                    <button
-                        onclick={() => toggleExclude(i)}
-                        style="position:absolute;top:2px;right:2px;width:16px;height:16px;border-radius:50%;
-                   background:{edit.excluded ? '#10b981' : '#ef4444'};color:white;border:none;
-                   cursor:pointer;font-size:9px;display:flex;align-items:center;justify-content:center;"
-                        title={edit.excluded ? 'Restore' : 'Exclude'}
-                    >
-                        {edit.excluded ? '↺' : '×'}
+                        {#if edit.excluded}
+                            <div class="absolute inset-0 flex items-center justify-center">
+                                <IconRefresh size={16} class="text-thasia-muted" />
+                            </div>
+                        {/if}
                     </button>
 
                     <div
-                        style="font-size:8px;color:#6b7280;text-align:center;margin-top:2px;
-                      overflow:hidden;white-space:nowrap;text-overflow:ellipsis;"
+                        class="mt-1 overflow-hidden text-center text-[8px] text-ellipsis whitespace-nowrap text-thasia-muted"
                     >
                         {fileName(edit)}
                     </div>
@@ -252,9 +259,9 @@
         </div>
 
         <!-- Footer -->
-        <div style="padding:8px 16px;border-top:1px solid #374151;display:flex;gap:8px;">
-            <button onclick={onBack}>← Back</button>
-            <button onclick={onNext} style="margin-left:auto;">Next →</button>
+        <div class="flex flex-shrink-0 gap-2 border-t border-thasia-border px-4 py-3">
+            <Button onclick={onBack}><IconArrowLeft size={15} /> Back</Button>
+            <Button onclick={onNext} class="ml-auto">Next <IconArrowRight size={15} /></Button>
         </div>
     </div>
 </div>

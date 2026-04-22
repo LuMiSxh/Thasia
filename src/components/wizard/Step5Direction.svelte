@@ -1,24 +1,42 @@
 <script lang="ts">
     import { wizard } from '$lib/wizard/state.svelte';
+    import { Button, SegmentedControl } from '$components/ui/index';
+    import { IconArrowLeft, IconArrowRight, IconDirection } from '@tabler/icons-svelte';
 
     let { onNext, onBack }: { onNext: () => void; onBack: () => void } = $props();
 </script>
 
-<h2>Reading Direction</h2>
-<p>Applies to EPUB output only.</p>
+<div class="flex h-full flex-col">
+    <div class="flex-shrink-0 border-b border-thasia-border px-5 py-4">
+        <h2 class="text-base font-bold">Reading Direction</h2>
+        <p class="mt-0.5 text-xs text-thasia-muted">Controls page order in the EPUB output.</p>
+    </div>
 
-<fieldset>
-    <legend>Direction</legend>
-    <label
-        ><input type="radio" bind:group={wizard.direction} value="ltr" /> Left-to-right (Western comics,
-        manhwa)</label
-    ><br />
-    <label
-        ><input type="radio" bind:group={wizard.direction} value="rtl" /> Right-to-left (manga, manhua)</label
-    >
-</fieldset>
+    <div class="flex flex-1 flex-col gap-3 overflow-y-auto px-5 py-5">
+        <div class="overflow-hidden rounded-xl border border-thasia-border bg-thasia-surface">
+            <div class="flex flex-col gap-2.5 px-4 py-4">
+                <div class="flex items-center gap-2">
+                    <IconDirection size={14} class="flex-shrink-0 text-thasia-muted" />
+                    <span class="text-sm font-medium">Direction</span>
+                </div>
+                <SegmentedControl
+                    options={[
+                        { value: 'ltr', label: 'Left to Right' },
+                        { value: 'rtl', label: 'Right to Left' },
+                    ]}
+                    bind:value={wizard.direction}
+                />
+                <p class="text-xs text-thasia-muted">
+                    {wizard.direction === 'rtl'
+                        ? 'Right-to-left — standard for manga and manhua'
+                        : 'Left-to-right — standard for Western comics and manhwa'}
+                </p>
+            </div>
+        </div>
+    </div>
 
-<div style="margin-top:24px;">
-    <button onclick={onBack}>← Back</button>
-    <button onclick={onNext}>Next →</button>
+    <div class="flex flex-shrink-0 gap-2 border-t border-thasia-border px-5 py-4">
+        <Button onclick={onBack}><IconArrowLeft size={15} /> Back</Button>
+        <Button onclick={onNext} class="ml-auto">Next <IconArrowRight size={15} /></Button>
+    </div>
 </div>

@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/capabilities.schema.json",
+  "identifier": "opener",
+  "description": "Allow opening URLs in the system browser",
+  "windows": ["main"],
+  "permissions": ["opener:allow-open-url", "opener:allow-default-urls"]
+}

@@ -1,14 +1,17 @@
 <script lang="ts">
-    import { sidebarSlide } from '$lib/transitions';
+    import { sidebarSlide, sendPill, receivePill, slideUp, duration } from '$lib/transitions';
     import { sidebar } from '$lib/sidebar/state.svelte';
     import { wizard } from '$lib/wizard/state.svelte';
     import { theme } from '$lib/theme.svelte';
     import { STEPS } from '$lib/wizard/steps';
     import { page } from '$app/stores';
+    import { SectionLabel } from '$components/ui/index';
+    import { fade } from 'svelte/transition';
     import {
         IconHome,
         IconFileSignal,
         IconSettings,
+        IconInfoCircle,
         IconChevronRight,
         IconChevronLeft,
         IconCheck,
@@ -30,6 +33,28 @@
         }))
     );
 
+    const navLinks = [
+        { href: '/', label: 'Home', icon: IconHome, match: (p: string) => p === '/' },
+        {
+            href: '/convert',
+            label: 'Convert',
+            icon: IconFileSignal,
+            match: (p: string) => p.startsWith('/convert'),
+        },
+        {
+            href: '/settings',
+            label: 'Settings',
+            icon: IconSettings,
+            match: (p: string) => p.startsWith('/settings'),
+        },
+        {
+            href: '/about',
+            label: 'About',
+            icon: IconInfoCircle,
+            match: (p: string) => p.startsWith('/about'),
+        },
+    ];
+
     function handleStepClick(id: string, status: string) {
         if (status === 'done') {
             document.dispatchEvent(new CustomEvent('wizard:goto', { detail: id }));
@@ -48,9 +73,11 @@
             <!-- Wordmark -->
             <a
                 href="/"
-                class="block flex-shrink-0 border-b border-thasia-border px-4 pt-5 pb-4 transition-colors duration-150 hover:bg-thasia-panel"
+                class="group block flex-shrink-0 border-b border-thasia-border px-4 pt-5 pb-4 transition-colors duration-150 hover:bg-thasia-panel"
             >
-                <div class="text-sm font-bold tracking-widest text-thasia-accent uppercase">
+                <div
+                    class="text-sm font-bold tracking-widest text-thasia-accent uppercase transition-opacity duration-150 group-hover:opacity-80"
+                >
                     Thasia
                 </div>
                 <div class="mt-0.5 text-[10px] tracking-wider text-thasia-muted uppercase">
@@ -58,104 +85,128 @@
                 </div>
             </a>
 
-            <!-- Content -->
-            <div class="flex flex-1 flex-col gap-1 overflow-y-auto p-3">
-                {#if sidebar.mode === 'nav'}
-                    <a
-                        href="/"
-                        class="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors duration-150
-                               {$page.url.pathname === '/'
-                            ? 'border border-thasia-accent/30 bg-thasia-accent/10 text-thasia-accent'
-                            : 'text-thasia-muted hover:bg-thasia-panel hover:text-thasia-text'}"
-                    >
-                        <IconHome size={15} />
-                        Home
-                    </a>
-                    <a
-                        href="/convert"
-                        class="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors duration-150
-                               {$page.url.pathname.startsWith('/convert')
-                            ? 'border border-thasia-accent/30 bg-thasia-accent/10 text-thasia-accent'
-                            : 'text-thasia-muted hover:bg-thasia-panel hover:text-thasia-text'}"
-                    >
-                        <IconFileSignal size={15} />
-                        Convert
-                    </a>
-                    <a
-                        href="/settings"
-                        class="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors duration-150
-                               {$page.url.pathname.startsWith('/settings')
-                            ? 'border border-thasia-accent/30 bg-thasia-accent/10 text-thasia-accent'
-                            : 'text-thasia-muted hover:bg-thasia-panel hover:text-thasia-text'}"
-                    >
-                        <IconSettings size={15} />
-                        Settings
-                    </a>
-                {:else}
-                    <!-- Exit wizard -->
-                    <a
-                        href="/"
-                        class="mb-1 flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm
-                               text-thasia-muted transition-colors duration-150 hover:bg-thasia-panel hover:text-thasia-text"
-                    >
-                        <IconHome size={15} />
-                        Home
-                    </a>
-                    <!-- Wizard steps -->
+            <!-- Content — keyed so it transitions on mode change -->
+            <div class="flex flex-1 flex-col overflow-y-auto">
+                {#key sidebar.mode}
                     <div
-                        class="mb-1 px-2 text-xs font-bold tracking-wider text-thasia-muted uppercase"
+                        class="flex flex-1 flex-col gap-0.5 p-3"
+                        in:slideUp={{ duration: duration.base }}
                     >
-                        Wizard
+                        {#if sidebar.mode === 'nav'}
+                            {#each navLinks as link (link.href)}
+                                {@const active = link.match($page.url.pathname)}
+                                {@const Icon = link.icon}
+                                <a
+                                    href={link.href}
+                                    class="relative flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors duration-150
+                                           {active
+                                        ? 'text-thasia-text'
+                                        : 'text-thasia-muted hover:bg-thasia-panel hover:text-thasia-text'}"
+                                >
+                                    {#if active}
+                                        <span
+                                            class="absolute inset-0 rounded-lg border border-thasia-accent/25 bg-thasia-accent/8"
+                                            in:receivePill={{ key: 'nav-active' }}
+                                            out:sendPill={{ key: 'nav-active' }}
+                                        ></span>
+                                    {/if}
+                                    <span class="relative {active ? 'text-thasia-accent' : ''}">
+                                        <Icon size={15} />
+                                    </span>
+                                    <span class="relative">{link.label}</span>
+                                </a>
+                            {/each}
+                        {:else}
+                            <!-- Exit wizard -->
+                            <a
+                                href="/"
+                                class="mb-2 flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm
+                                       text-thasia-muted transition-colors duration-150 hover:bg-thasia-panel hover:text-thasia-text"
+                            >
+                                <IconHome size={15} />
+                                Home
+                            </a>
+
+                            <div class="px-3 pb-2">
+                                <SectionLabel>Wizard</SectionLabel>
+                            </div>
+
+                            {#each sidebarSteps as step (step.id)}
+                                <button
+                                    onclick={() => handleStepClick(step.id, step.status)}
+                                    disabled={step.status === 'locked' ||
+                                        step.status === 'conditional'}
+                                    class="relative flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm
+                                           transition-colors duration-150
+                                           {step.status === 'active'
+                                        ? 'text-thasia-text'
+                                        : step.status === 'done'
+                                          ? 'cursor-pointer text-thasia-muted hover:bg-thasia-panel hover:text-thasia-text'
+                                          : 'cursor-default text-thasia-muted opacity-40'}"
+                                >
+                                    {#if step.status === 'active'}
+                                        <span
+                                            class="absolute inset-0 rounded-lg border border-thasia-accent/25 bg-thasia-accent/8"
+                                            in:receivePill={{ key: 'step-active' }}
+                                            out:sendPill={{ key: 'step-active' }}
+                                        ></span>
+                                    {/if}
+
+                                    <!-- Step indicator -->
+                                    <span
+                                        class="relative flex h-4 w-4 flex-shrink-0 items-center justify-center"
+                                    >
+                                        {#if step.status === 'done'}
+                                            <span
+                                                class="flex h-4 w-4 items-center justify-center rounded-full bg-thasia-accent"
+                                                in:fade={{ duration: duration.fast }}
+                                            >
+                                                <IconCheck
+                                                    size={10}
+                                                    class="text-black dark:text-zinc-900"
+                                                    stroke={3}
+                                                />
+                                            </span>
+                                        {:else if step.status === 'active'}
+                                            <span
+                                                class="relative flex h-4 w-4 items-center justify-center"
+                                            >
+                                                <span
+                                                    class="absolute h-4 w-4 animate-ping rounded-full bg-thasia-accent/30"
+                                                ></span>
+                                                <span
+                                                    class="h-2 w-2 rounded-full border-2 border-thasia-accent"
+                                                ></span>
+                                            </span>
+                                        {:else if step.status === 'conditional'}
+                                            <span
+                                                class="h-3 w-3 rounded-full border border-dashed border-thasia-border"
+                                            ></span>
+                                        {:else}
+                                            <span
+                                                class="h-3 w-3 rounded-full border border-thasia-border"
+                                            ></span>
+                                        {/if}
+                                    </span>
+
+                                    <span
+                                        class="relative truncate {step.status === 'conditional'
+                                            ? 'italic'
+                                            : ''}">{step.label}</span
+                                    >
+                                </button>
+                            {/each}
+                        {/if}
                     </div>
-                    {#each sidebarSteps as step}
-                        <button
-                            onclick={() => handleStepClick(step.id, step.status)}
-                            disabled={step.status === 'locked' || step.status === 'conditional'}
-                            class="
-                flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm
-                transition-colors duration-150
-                {step.status === 'active'
-                                ? 'border border-thasia-accent/30 bg-thasia-accent/10 text-thasia-text'
-                                : step.status === 'done'
-                                  ? 'cursor-pointer text-thasia-muted hover:bg-thasia-panel hover:text-thasia-text'
-                                  : 'cursor-default text-thasia-muted opacity-50'}
-              "
-                        >
-                            <!-- Step indicator dot -->
-                            <span
-                                class="
-                flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full
-                {step.status === 'done'
-                                    ? 'bg-thasia-accent'
-                                    : step.status === 'active'
-                                      ? 'border-2 border-thasia-accent'
-                                      : step.status === 'conditional'
-                                        ? 'border border-dashed border-thasia-border'
-                                        : 'border border-thasia-border'}
-              "
-                            >
-                                {#if step.status === 'done'}
-                                    <IconCheck
-                                        size={10}
-                                        class="text-black dark:text-zinc-900"
-                                        stroke={3}
-                                    />
-                                {/if}
-                            </span>
-                            <span class="truncate {step.status === 'conditional' ? 'italic' : ''}"
-                                >{step.label}</span
-                            >
-                        </button>
-                    {/each}
-                {/if}
+                {/key}
             </div>
 
             <!-- Bottom: theme toggle -->
             <div class="flex-shrink-0 border-t border-thasia-border p-3">
                 <button
                     onclick={() => theme.toggle()}
-                    class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-thasia-muted
-                 transition-colors duration-150 hover:bg-thasia-panel hover:text-thasia-text"
+                    class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-thasia-muted
+                           transition-colors duration-150 hover:bg-thasia-panel hover:text-thasia-text"
                 >
                     {#if theme.dark}
                         <IconSun size={15} />
@@ -173,12 +224,10 @@
     <button
         onclick={() => sidebar.toggle()}
         aria-label="Toggle sidebar"
-        class="
-      flex w-5 flex-shrink-0 items-center justify-center self-stretch
-      border-r border-thasia-border bg-thasia-surface
-      text-thasia-muted transition-colors duration-150
-      hover:bg-thasia-panel hover:text-thasia-accent
-    "
+        class="flex flex-shrink-0 items-center justify-center self-stretch border-r border-thasia-border
+               bg-thasia-surface text-thasia-muted transition-all duration-150
+               hover:bg-thasia-panel hover:text-thasia-accent
+               {sidebar.isOpen ? 'w-4' : 'w-6'}"
     >
         {#if sidebar.isOpen}
             <IconChevronLeft size={13} />

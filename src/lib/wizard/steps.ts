@@ -14,7 +14,7 @@ import Step9Convert from '$components/wizard/Step9Convert.svelte';
 export type WizardStep = {
     id: string;
     label: string;
-     
+
     component: Component<any>;
     condition?: (w: InstanceType<typeof WizardStore>) => boolean;
 };

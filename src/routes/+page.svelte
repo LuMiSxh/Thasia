@@ -1,7 +1,7 @@
 <script lang="ts">
     import { getVersion } from '@tauri-apps/api/app';
     import { onMount } from 'svelte';
-    import { IconZip, IconSettings, IconChevronRight } from '@tabler/icons-svelte';
+    import { IconZip, IconSettings, IconInfoCircle, IconChevronRight } from '@tabler/icons-svelte';
 
     let version = $state('...');
     onMount(async () => {
@@ -24,7 +24,7 @@
     </div>
 
     <!-- Action cards -->
-    <div class="flex w-full max-w-lg gap-4">
+    <div class="flex w-full max-w-2xl gap-4">
         <a
             href="/convert"
             class="
@@ -74,6 +74,32 @@
             <div>
                 <div class="text-sm font-bold text-thasia-text">Settings</div>
                 <div class="mt-0.5 text-xs text-thasia-muted">Set defaults for the wizard</div>
+            </div>
+        </a>
+
+        <a
+            href="/about"
+            class="
+        group flex flex-1 flex-col gap-3 rounded-xl
+        border border-thasia-border bg-thasia-surface
+        p-5 transition-all
+        duration-150 hover:border-thasia-accent/40 hover:bg-thasia-panel active:translate-y-px
+      "
+        >
+            <div class="flex items-center justify-between">
+                <div
+                    class="flex h-9 w-9 items-center justify-center rounded-lg border border-thasia-border bg-thasia-panel"
+                >
+                    <IconInfoCircle size={18} class="text-thasia-muted" />
+                </div>
+                <IconChevronRight
+                    size={16}
+                    class="text-thasia-border transition-colors duration-150 group-hover:text-thasia-accent"
+                />
+            </div>
+            <div>
+                <div class="text-sm font-bold text-thasia-text">About</div>
+                <div class="mt-0.5 text-xs text-thasia-muted">The story behind Thasia</div>
             </div>
         </a>
     </div>

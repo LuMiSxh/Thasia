@@ -4,8 +4,11 @@
     import { commands, events } from '$types/bindings';
     import { goto } from '$app/navigation';
     import ProgressBar from '$components/ui/ProgressBar.svelte';
+    import { Button } from '$components/ui/index';
+    import { SvelteMap } from 'svelte/reactivity';
+    import { IconArrowLeft, IconCheck, IconX, IconRefresh } from '@tabler/icons-svelte';
 
-    let { onNext, onBack }: { onNext: () => void; onBack: () => void } = $props();
+    let { onBack }: { onNext: () => void; onBack: () => void } = $props();
 
     type VolumeProgress = {
         name: string;
@@ -16,9 +19,9 @@
     };
 
     let status = $state<'idle' | 'converting' | 'done' | 'error'>('idle');
-    let volumeMap = $state(new Map<number, VolumeProgress>());
+    let volumeMap = new SvelteMap<number, VolumeProgress>();
     let errorMessage = $state('');
-    let duration = $state(0);
+    let elapsed = $state(0);
 
     let unlisteners: Array<() => void> = [];
 
@@ -29,7 +32,7 @@
     onMount(async () => {
         unlisteners.push(
             await events.volumeStartEvent.listen((e) => {
-                volumeMap = new Map(volumeMap).set(e.payload.volume_num, {
+                volumeMap.set(e.payload.volume_num, {
                     name: e.payload.volume_name,
                     current: 0,
                     total: 0,
@@ -41,7 +44,7 @@
             await events.imageProgressEvent.listen((e) => {
                 const existing = volumeMap.get(e.payload.volume_num);
                 if (existing) {
-                    volumeMap = new Map(volumeMap).set(e.payload.volume_num, {
+                    volumeMap.set(e.payload.volume_num, {
                         ...existing,
                         current: e.payload.current,
                         total: e.payload.total,
@@ -53,7 +56,7 @@
             await events.volumeCompleteEvent.listen((e) => {
                 const existing = volumeMap.get(e.payload.volume_num);
                 if (existing) {
-                    volumeMap = new Map(volumeMap).set(e.payload.volume_num, {
+                    volumeMap.set(e.payload.volume_num, {
                         ...existing,
                         done: true,
                         success: e.payload.success,
@@ -63,7 +66,7 @@
         );
         unlisteners.push(
             await events.conversionCompleteEvent.listen((e) => {
-                duration = e.payload.duration_secs;
+                elapsed = e.payload.duration_secs;
                 status = 'done';
             })
         );
@@ -106,61 +109,99 @@
     onDestroy(() => {
         unlisteners.forEach((u) => u());
     });
+
+    let doneCount = $derived([...volumeMap.values()].filter((v) => v.done && v.success).length);
+    let failedCount = $derived([...volumeMap.values()].filter((v) => v.done && !v.success).length);
 </script>
 
-<div class="flex h-[calc(100vh-120px)] flex-col gap-6 overflow-y-auto p-6">
-    <h2 class="text-xl font-bold">
-        {status === 'done' ? 'Done!' : status === 'error' ? 'Conversion failed' : 'Converting…'}
-    </h2>
+<div class="flex h-full flex-col">
+    <!-- Header -->
+    <div class="flex-shrink-0 border-b border-thasia-border px-5 py-4">
+        <h2 class="text-base font-bold">
+            {#if status === 'done'}
+                Conversion complete
+            {:else if status === 'error'}
+                Conversion failed
+            {:else}
+                Converting…
+            {/if}
+        </h2>
+        <p class="mt-0.5 text-xs text-thasia-muted">
+            {#if status === 'done'}
+                {doneCount} volume{doneCount !== 1 ? 's' : ''} written in {elapsed.toFixed(1)}s
+                {#if failedCount > 0}· {failedCount} failed{/if}
+            {:else if status === 'error'}
+                An error occurred during conversion
+            {:else}
+                Processing pages and packaging output…
+            {/if}
+        </p>
+    </div>
 
-    {#if status === 'converting' || status === 'done'}
-        <div class="flex flex-col gap-4">
-            {#each [...volumeMap.entries()] as [num, vol]}
-                <div>
-                    <div class="mb-1.5 flex justify-between text-sm">
-                        <span>{vol.name}</span>
-                        <span
-                            class={vol.done && vol.success
-                                ? 'text-emerald-500'
-                                : vol.done
-                                  ? 'text-red-400'
-                                  : 'text-thasia-muted'}
-                        >
-                            {vol.done
-                                ? vol.success
-                                    ? '✓ Done'
-                                    : '✗ Failed'
-                                : `${vol.current}/${vol.total}`}
-                        </span>
+    <!-- Content -->
+    <div class="flex flex-1 flex-col gap-3 overflow-y-auto px-5 py-5">
+        {#if volumeMap.size > 0}
+            <div class="overflow-hidden rounded-xl border border-thasia-border bg-thasia-surface">
+                {#each [...volumeMap.entries()] as [_num, vol], i ([_num, vol])}
+                    <div
+                        class="flex flex-col gap-2 px-4 py-3 {i < volumeMap.size - 1
+                            ? 'border-b border-thasia-border'
+                            : ''}"
+                    >
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm font-medium">{vol.name}</span>
+                            <span
+                                class="inline-flex items-center gap-1 text-xs {vol.done &&
+                                vol.success
+                                    ? 'text-emerald-500'
+                                    : vol.done
+                                      ? 'text-red-400'
+                                      : 'text-thasia-muted'}"
+                            >
+                                {#if vol.done && vol.success}
+                                    <IconCheck size={12} /> Done
+                                {:else if vol.done}
+                                    <IconX size={12} /> Failed
+                                {:else}
+                                    {vol.current}/{vol.total}
+                                {/if}
+                            </span>
+                        </div>
+                        <ProgressBar
+                            value={vol.total ? vol.current / vol.total : 0}
+                            variant={vol.done ? (vol.success ? 'success' : 'danger') : 'accent'}
+                            class="h-1.5"
+                        />
                     </div>
-                    <ProgressBar
-                        value={vol.total ? vol.current / vol.total : 0}
-                        variant={vol.done ? (vol.success ? 'success' : 'danger') : 'accent'}
-                        class="h-2"
-                    />
-                </div>
-            {/each}
+                {/each}
+            </div>
+        {/if}
+
+        {#if status === 'error'}
+            <div
+                class="overflow-hidden rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3"
+            >
+                <p class="text-xs text-red-400">{errorMessage}</p>
+            </div>
+        {/if}
+    </div>
+
+    <!-- Footer — only shown when there's an action to take -->
+    {#if status === 'done' || status === 'error'}
+        <div class="flex flex-shrink-0 gap-2 border-t border-thasia-border px-5 py-4">
+            {#if status === 'error'}
+                <Button onclick={onBack}><IconArrowLeft size={15} /> Back</Button>
+            {:else}
+                <Button
+                    variant="primary"
+                    onclick={() => {
+                        wizard.reset();
+                        goto('/');
+                    }}
+                >
+                    <IconRefresh size={15} /> Start over
+                </Button>
+            {/if}
         </div>
-    {/if}
-
-    {#if status === 'done'}
-        <p class="text-sm text-emerald-500">All done in {duration.toFixed(1)}s!</p>
-        <button
-            onclick={() => {
-                wizard.reset();
-                goto('/');
-            }}
-            class="self-start rounded-lg border border-thasia-border bg-thasia-bg px-4 py-1.5 text-sm font-bold text-thasia-text
-             transition-colors duration-150 hover:border-thasia-accent/50">Start over</button
-        >
-    {/if}
-
-    {#if status === 'error'}
-        <p class="text-sm text-red-400">Error: {errorMessage}</p>
-        <button
-            onclick={onBack}
-            class="self-start rounded-lg border border-thasia-border bg-thasia-bg px-4 py-1.5 text-sm font-bold text-thasia-text
-             transition-colors duration-150 hover:border-thasia-accent/50">← Back</button
-        >
     {/if}
 </div>

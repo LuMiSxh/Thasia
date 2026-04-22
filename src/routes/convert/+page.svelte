@@ -24,19 +24,16 @@
             } catch {}
         }
 
-        document.addEventListener('wizard:goto', handleGoto as EventListener<CustomEvent<string>>);
+        document.addEventListener('wizard:goto', handleGoto);
     });
 
     onDestroy(() => {
         sidebar.exitWizard();
-        document.removeEventListener(
-            'wizard:goto',
-            handleGoto as EventListener<CustomEvent<string>>
-        );
+        document.removeEventListener('wizard:goto', handleGoto);
     });
 
-    function handleGoto(e: CustomEvent<string>) {
-        const id = e.detail;
+    function handleGoto(e: Event) {
+        const id = (e as CustomEvent<string>).detail;
         if (wizard.completedStepIds.has(id)) {
             wizard.currentStepId = id;
         }
@@ -92,11 +89,7 @@
     }
 </script>
 
-<div style="padding:32px;max-width:800px;margin:0 auto;">
-    <div style="margin-bottom:8px;color:#6b7280;font-size:12px;">
-        Step {currentIndex + 1} of {active.length} — {currentStep?.label}
-    </div>
-
+<div class="flex h-full flex-col">
     {#if currentStep}
         {#key currentStep.id}
             <currentStep.component onNext={goNext} onBack={goBack} />

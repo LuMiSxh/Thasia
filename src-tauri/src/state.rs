@@ -52,7 +52,11 @@ pub struct PageMeta {
 /// One volume's page metadata — returned by scan_source.
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct VolumeMeta {
+    /// Sequential scan index — unique key used for page lookup in convert.
     pub volume_num: u32,
+    /// Actual parsed volume number from the source folder names — used by the
+    /// frontend to compute the default chapter→volume grouping.
+    pub source_volume_num: u32,
     pub pages: Vec<PageMeta>,
 }
 
@@ -95,6 +99,7 @@ mod tests {
     fn page_edit_entry_custom_image() {
         let entry = PageEditEntry {
             original_page_index: None,
+            source_volume_num: None,
             custom_path: Some("/tmp/cover.png".into()),
             excluded: false,
         };

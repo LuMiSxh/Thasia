@@ -1,6 +1,15 @@
 <script lang="ts">
     import { wizard } from '$lib/wizard/state.svelte';
     import { open } from '@tauri-apps/plugin-dialog';
+    import { Button, Input, Toggle } from '$components/ui/index';
+    import {
+        IconAlertCircle,
+        IconArrowLeft,
+        IconArrowRight,
+        IconFolderOpen,
+        IconTag,
+        IconFolderPlus,
+    } from '@tabler/icons-svelte';
 
     let { onNext, onBack }: { onNext: () => void; onBack: () => void } = $props();
     let error = $state('');
@@ -23,39 +32,72 @@
     }
 </script>
 
-<h2>Destination</h2>
-
-<label>
-    Output folder
-    <div>
-        <input
-            type="text"
-            readonly
-            value={wizard.outputDir}
-            placeholder="No folder selected"
-            style="width:100%;padding:8px;"
-        />
-        <button onclick={pickDir}>Browse…</button>
+<div class="flex h-full flex-col">
+    <div class="flex-shrink-0 border-b border-thasia-border px-5 py-4">
+        <h2 class="text-base font-bold">Destination</h2>
+        <p class="mt-0.5 text-xs text-thasia-muted">Where to save the converted output.</p>
     </div>
-</label>
 
-<label style="display:block;margin-top:16px;">
-    Output name (base filename)
-    <input
-        type="text"
-        bind:value={wizard.outputName}
-        style="width:100%;padding:8px;margin-top:4px;"
-    />
-</label>
+    <div class="flex flex-1 flex-col gap-3 overflow-y-auto px-5 py-5">
+        <div class="overflow-hidden rounded-xl border border-thasia-border bg-thasia-surface">
+            <!-- Output folder -->
+            <div class="flex flex-col gap-2.5 px-4 py-4">
+                <div class="flex items-center gap-2">
+                    <IconFolderOpen size={14} class="flex-shrink-0 text-thasia-muted" />
+                    <span class="text-sm font-medium">Output folder</span>
+                </div>
+                <div class="flex gap-2">
+                    <div
+                        class="flex-1 rounded-lg border border-thasia-border bg-thasia-bg px-3 py-2 font-mono text-xs
+                                {wizard.outputDir ? 'text-thasia-text' : 'text-thasia-muted'}"
+                    >
+                        {wizard.outputDir || 'No folder selected'}
+                    </div>
+                    <Button onclick={pickDir} size="sm">Browse…</Button>
+                </div>
+            </div>
 
-<label style="display:block;margin-top:16px;">
-    <input type="checkbox" bind:checked={wizard.createDirectory} />
-    Create a named subdirectory inside the output folder
-</label>
+            <div class="mx-4 border-t border-thasia-border"></div>
 
-{#if error}<p style="color:red;">{error}</p>{/if}
+            <!-- Output name -->
+            <div class="flex flex-col gap-2.5 px-4 py-4">
+                <div class="flex items-center gap-2">
+                    <IconTag size={14} class="flex-shrink-0 text-thasia-muted" />
+                    <span class="text-sm font-medium">Output name</span>
+                </div>
+                <Input
+                    bind:value={wizard.outputName}
+                    hint="Base filename — volume numbers are appended automatically"
+                />
+            </div>
 
-<div style="margin-top:24px;">
-    <button onclick={onBack}>← Back</button>
-    <button onclick={handleNext}>Next →</button>
+            <div class="mx-4 border-t border-thasia-border"></div>
+
+            <!-- Subdirectory toggle -->
+            <div class="flex items-center justify-between gap-4 px-4 py-4">
+                <div class="flex items-center gap-2">
+                    <IconFolderPlus size={14} class="flex-shrink-0 text-thasia-muted" />
+                    <div>
+                        <div class="text-sm font-medium">Create subdirectory</div>
+                        <div class="text-xs text-thasia-muted">Wrap output in a named folder</div>
+                    </div>
+                </div>
+                <Toggle bind:checked={wizard.createDirectory} />
+            </div>
+        </div>
+
+        {#if error}
+            <div
+                class="flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-xs text-red-400"
+            >
+                <IconAlertCircle size={14} class="flex-shrink-0" />
+                {error}
+            </div>
+        {/if}
+    </div>
+
+    <div class="flex flex-shrink-0 gap-2 border-t border-thasia-border px-5 py-4">
+        <Button onclick={onBack}><IconArrowLeft size={15} /> Back</Button>
+        <Button onclick={handleNext} class="ml-auto">Next <IconArrowRight size={15} /></Button>
+    </div>
 </div>

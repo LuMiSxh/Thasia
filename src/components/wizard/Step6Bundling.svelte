@@ -1,11 +1,17 @@
 <script lang="ts">
     import { wizard } from '$lib/wizard/state.svelte';
+    import { slide } from 'svelte/transition';
+    import { cubicInOut } from 'svelte/easing';
+    import { Button, SegmentedControl, Input, Toggle } from '$components/ui/index';
+    import { IconArrowLeft, IconArrowRight, IconStack, IconSeparator } from '@tabler/icons-svelte';
+    import { duration } from '$lib/transitions';
 
     let { onNext, onBack }: { onNext: () => void; onBack: () => void } = $props();
 
+    const collapse = { duration: duration.base, easing: cubicInOut };
+
     function handleNext() {
         if (wizard.bundle === 'flatten' && wizard.pageEdits.length > 1) {
-            // Collapse all volumes into one so the downstream steps see a single volume.
             const firstNum = wizard.pageEdits[0]?.volumeNum ?? 1;
             wizard.pageEdits = [
                 {
@@ -14,7 +20,6 @@
                 },
             ];
         } else if (wizard.bundle === 'auto' && wizard.scanResult && wizard.pageEdits.length === 1) {
-            // Restore auto grouping from scan result if user toggled back to auto after flattening.
             wizard.pageEdits = wizard.scanResult.map((vol) => ({
                 volumeNum: vol.volume_num,
                 pages: vol.pages.map((_, i) => ({
@@ -29,41 +34,60 @@
     }
 </script>
 
-<h2>Bundling</h2>
-
-<fieldset>
-    <legend>Strategy</legend>
-    <label>
-        <input type="radio" bind:group={wizard.bundle} value="auto" />
-        Auto — group chapters by detected volume number
-    </label><br />
-    <label>
-        <input type="radio" bind:group={wizard.bundle} value="flatten" />
-        Flatten — merge everything into a single output file
-    </label>
-</fieldset>
-
-{#if wizard.bundle === 'auto'}
-    <div style="margin-top:16px;padding:12px;border:1px solid #374151;">
-        <label style="display:block;margin-bottom:8px;">
-            Volume separator
-            <input
-                type="text"
-                bind:value={wizard.volumeSeparator}
-                style="width:120px;margin-left:8px;"
-            />
-            <span style="margin-left:8px;color:#6b7280;"
-                >e.g. "{wizard.outputName}{wizard.volumeSeparator}1"</span
-            >
-        </label>
-        <label>
-            <input type="checkbox" bind:checked={wizard.hideSingleVolume} />
-            Omit volume number when only one volume is produced
-        </label>
+<div class="flex h-full flex-col">
+    <div class="flex-shrink-0 border-b border-thasia-border px-5 py-4">
+        <h2 class="text-base font-bold">Bundling</h2>
+        <p class="mt-0.5 text-xs text-thasia-muted">
+            How detected chapters are grouped into output volumes.
+        </p>
     </div>
-{/if}
 
-<div style="margin-top:24px;">
-    <button onclick={onBack}>← Back</button>
-    <button onclick={handleNext}>Next →</button>
+    <div class="flex flex-1 flex-col gap-3 overflow-y-auto px-5 py-5">
+        <div class="overflow-hidden rounded-xl border border-thasia-border bg-thasia-surface">
+            <!-- Mode -->
+            <div class="flex flex-col gap-2.5 px-4 py-4">
+                <div class="flex items-center gap-2">
+                    <IconStack size={14} class="flex-shrink-0 text-thasia-muted" />
+                    <span class="text-sm font-medium">Mode</span>
+                </div>
+                <SegmentedControl
+                    options={[
+                        { value: 'auto', label: 'Auto' },
+                        { value: 'flatten', label: 'Flatten' },
+                    ]}
+                    bind:value={wizard.bundle}
+                />
+                <p class="text-xs text-thasia-muted">
+                    {wizard.bundle === 'auto'
+                        ? 'Group chapters by detected volume number'
+                        : 'Merge everything into a single output file'}
+                </p>
+            </div>
+
+            {#if wizard.bundle === 'auto'}
+                <div transition:slide={collapse}>
+                    <div class="mx-4 border-t border-thasia-border"></div>
+                    <div class="flex flex-col gap-3 px-4 py-4">
+                        <div class="flex items-center gap-2">
+                            <IconSeparator size={14} class="flex-shrink-0 text-thasia-muted" />
+                            <span class="text-sm font-medium">Volume separator</span>
+                        </div>
+                        <Input
+                            bind:value={wizard.volumeSeparator}
+                            hint={`e.g. "${wizard.outputName}${wizard.volumeSeparator}1"`}
+                        />
+                        <Toggle
+                            bind:checked={wizard.hideSingleVolume}
+                            label="Omit volume number when only one volume is produced"
+                        />
+                    </div>
+                </div>
+            {/if}
+        </div>
+    </div>
+
+    <div class="flex flex-shrink-0 gap-2 border-t border-thasia-border px-5 py-4">
+        <Button onclick={onBack}><IconArrowLeft size={15} /> Back</Button>
+        <Button onclick={handleNext} class="ml-auto">Next <IconArrowRight size={15} /></Button>
+    </div>
 </div>

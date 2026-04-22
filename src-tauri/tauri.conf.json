@@ -18,12 +18,12 @@
         "minWidth": 1280,
         "minHeight": 800,
         "dragDropEnabled": false,
-        "titleBarStyle": "overlay"
+        "titleBarStyle": "Overlay"
       }
     ],
     "security": {
       "csp": "default-src 'self'; img-src 'self' thasia: blob:; style-src 'self' 'unsafe-inline'",
-      "capabilities": ["core-app", "dialog"]
+      "capabilities": ["core-app", "dialog", "opener"]
     }
   },
   "bundle": {

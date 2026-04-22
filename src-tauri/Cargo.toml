@@ -13,20 +13,21 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2.5", features = [] }
 
 [dependencies]
-thasia-core     = { path = "../crates/thasia-core", features = ["tauri"] }
-thasia-source   = { path = "../crates/thasia-source" }
-thasia-parser   = { path = "../crates/thasia-parser" }
+thasia-core = { path = "../crates/thasia-core", features = ["tauri"] }
+thasia-source = { path = "../crates/thasia-source" }
+thasia-parser = { path = "../crates/thasia-parser" }
 thasia-processor = { path = "../crates/thasia-processor" }
 thasia-packager = { path = "../crates/thasia-packager" }
 
-tauri           = { version = "2.10", features = [] }
-tauri-specta    = { version = "=2.0.0-rc.21", features = ["derive", "typescript"] }
-specta          = "=2.0.0-rc.22"
+tauri = { version = "2.10", features = [] }
+tauri-specta = { version = "=2.0.0-rc.21", features = ["derive", "typescript"] }
+specta = "=2.0.0-rc.22"
 specta-typescript = "0.0.9"
 tauri-plugin-dialog = "2.4.2"
+tauri-plugin-opener = "2"
 
-serde   = { version = "1", features = ["derive"] }
-tokio   = { version = "1.52", features = ["full"] }
+serde = { version = "1", features = ["derive"] }
+tokio = { version = "1.52", features = ["full"] }
 tracing = "0.1"
 urlencoding = "2.1"
 tempfile = "3.27"

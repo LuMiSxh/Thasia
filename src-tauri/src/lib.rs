@@ -38,6 +38,7 @@ pub fn run() {
 
     Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_opener::init())
         .manage(RwLock::new(state::ConvState::default()))
         .register_uri_scheme_protocol("thasia", |_app, request| {
             protocol::handle(request)
