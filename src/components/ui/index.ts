@@ -8,3 +8,5 @@ export { default as SectionLabel } from './SectionLabel.svelte';
 export { default as ProgressBar } from './ProgressBar.svelte';
 export { default as Kbd } from './Kbd.svelte';
 export { default as SegmentedControl } from './SegmentedControl.svelte';
+export { default as KeyComboDisplay } from './KeyComboDisplay.svelte';
+export { default as KeyHintBar } from './KeyHintBar.svelte';

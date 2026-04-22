@@ -1,10 +1,13 @@
 <script lang="ts">
+    import { onMount, onDestroy } from 'svelte';
     import { wizard } from '$lib/wizard/state.svelte';
     import { slide } from 'svelte/transition';
     import { cubicInOut } from 'svelte/easing';
     import { Button, SegmentedControl, Input, Toggle } from '$components/ui/index';
     import { IconArrowLeft, IconArrowRight, IconStack, IconSeparator } from '@tabler/icons-svelte';
     import { duration } from '$lib/transitions';
+    import { keyboard } from '$lib/keyboard';
+    import { mountedHint } from '$lib/keyhint.svelte';
 
     let { onNext, onBack }: { onNext: () => void; onBack: () => void } = $props();
 
@@ -13,12 +16,10 @@
     function handleNext() {
         if (wizard.bundle === 'flatten' && wizard.pageEdits.length > 1) {
             const firstNum = wizard.pageEdits[0]?.volumeNum ?? 1;
-            wizard.pageEdits = [
-                {
-                    volumeNum: firstNum,
-                    pages: wizard.pageEdits.flatMap((ve) => ve.pages),
-                },
-            ];
+            wizard.pageEdits = [{
+                volumeNum: firstNum,
+                pages: wizard.pageEdits.flatMap((ve) => ve.pages),
+            }];
         } else if (wizard.bundle === 'auto' && wizard.scanResult && wizard.pageEdits.length === 1) {
             wizard.pageEdits = wizard.scanResult.map((vol) => ({
                 volumeNum: vol.volume_num,
@@ -32,14 +33,21 @@
         }
         onNext();
     }
+
+    let cleanupKb: (() => void) | undefined;
+    onMount(() => {
+        cleanupKb = keyboard.smartRegister([
+            ['keya', () => { wizard.bundle = 'auto'; return true; }],
+            ['keyf', () => { wizard.bundle = 'flatten'; return true; }],
+        ]);
+    });
+    onDestroy(() => cleanupKb?.());
 </script>
 
-<div class="flex h-full flex-col">
+<div class="flex h-full flex-col" use:mountedHint={[['keya', 'Auto'], ['keyf', 'Flatten']]}>
     <div class="flex-shrink-0 border-b border-thasia-border px-5 py-4">
         <h2 class="text-base font-bold">Bundling</h2>
-        <p class="mt-0.5 text-xs text-thasia-muted">
-            How detected chapters are grouped into output volumes.
-        </p>
+        <p class="mt-0.5 text-xs text-thasia-muted">How detected chapters are grouped into output volumes.</p>
     </div>
 
     <div class="flex flex-1 flex-col gap-3 overflow-y-auto px-5 py-5">

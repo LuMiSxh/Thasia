@@ -1,10 +1,13 @@
 <script lang="ts">
+    import { onMount, onDestroy } from 'svelte';
     import { wizard } from '$lib/wizard/state.svelte';
     import { slide } from 'svelte/transition';
     import { cubicInOut } from 'svelte/easing';
     import { Button, SegmentedControl, Toggle, Input } from '$components/ui/index';
     import { IconArrowLeft, IconArrowRight, IconPhoto, IconRuler } from '@tabler/icons-svelte';
     import { duration } from '$lib/transitions';
+    import { keyboard } from '$lib/keyboard';
+    import { mountedHint } from '$lib/keyhint.svelte';
 
     let { onNext, onBack }: { onNext: () => void; onBack: () => void } = $props();
     let enableMaxWidth = $state(wizard.maxWidth !== null);
@@ -16,9 +19,19 @@
         webp: 'Good compression, widely supported',
         original: 'No re-encoding — fastest, preserves originals',
     };
+
+    let cleanupKb: (() => void) | undefined;
+    onMount(() => {
+        cleanupKb = keyboard.smartRegister([
+            ['keya', () => { wizard.imageFormat = 'avif'; return true; }],
+            ['keyw', () => { wizard.imageFormat = 'webp'; return true; }],
+            ['keyo', () => { wizard.imageFormat = 'original'; return true; }],
+        ]);
+    });
+    onDestroy(() => cleanupKb?.());
 </script>
 
-<div class="flex h-full flex-col">
+<div class="flex h-full flex-col" use:mountedHint={[['keya', 'AVIF'], ['keyw', 'WebP'], ['keyo', 'Original']]}>
     <div class="flex-shrink-0 border-b border-thasia-border px-5 py-4">
         <h2 class="text-base font-bold">Image Format</h2>
         <p class="mt-0.5 text-xs text-thasia-muted">

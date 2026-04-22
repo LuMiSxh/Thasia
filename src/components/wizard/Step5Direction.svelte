@@ -1,12 +1,24 @@
 <script lang="ts">
+    import { onMount, onDestroy } from 'svelte';
     import { wizard } from '$lib/wizard/state.svelte';
     import { Button, SegmentedControl } from '$components/ui/index';
     import { IconArrowLeft, IconArrowRight, IconDirection } from '@tabler/icons-svelte';
+    import { keyboard } from '$lib/keyboard';
+    import { mountedHint } from '$lib/keyhint.svelte';
 
     let { onNext, onBack }: { onNext: () => void; onBack: () => void } = $props();
+
+    let cleanupKb: (() => void) | undefined;
+    onMount(() => {
+        cleanupKb = keyboard.smartRegister([
+            ['keyl', () => { wizard.direction = 'ltr'; return true; }],
+            ['keyr', () => { wizard.direction = 'rtl'; return true; }],
+        ]);
+    });
+    onDestroy(() => cleanupKb?.());
 </script>
 
-<div class="flex h-full flex-col">
+<div class="flex h-full flex-col" use:mountedHint={[['keyl', 'LTR'], ['keyr', 'RTL']]}>
     <div class="flex-shrink-0 border-b border-thasia-border px-5 py-4">
         <h2 class="text-base font-bold">Reading Direction</h2>
         <p class="mt-0.5 text-xs text-thasia-muted">Controls page order in the EPUB output.</p>

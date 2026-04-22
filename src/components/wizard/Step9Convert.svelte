@@ -7,6 +7,8 @@
     import { Button } from '$components/ui/index';
     import { SvelteMap } from 'svelte/reactivity';
     import { IconArrowLeft, IconCheck, IconX, IconRefresh } from '@tabler/icons-svelte';
+    import { keyboard } from '$lib/keyboard';
+    import { mountedHint } from '$lib/keyhint.svelte';
 
     let { onBack }: { onNext: () => void; onBack: () => void } = $props();
 
@@ -24,6 +26,7 @@
     let elapsed = $state(0);
 
     let unlisteners: Array<() => void> = [];
+    let cleanupKb: (() => void) | undefined;
 
     function capitalize(s: string): string {
         return s.charAt(0).toUpperCase() + s.slice(1);
@@ -71,6 +74,13 @@
             })
         );
 
+        cleanupKb = keyboard.smartRegister([
+            ['enter', () => {
+                if (status === 'done') { wizard.reset(); goto('/'); }
+                return true;
+            }],
+        ]);
+
         status = 'converting';
         try {
             const result = await commands.convert(
@@ -108,13 +118,14 @@
 
     onDestroy(() => {
         unlisteners.forEach((u) => u());
+        cleanupKb?.();
     });
 
     let doneCount = $derived([...volumeMap.values()].filter((v) => v.done && v.success).length);
     let failedCount = $derived([...volumeMap.values()].filter((v) => v.done && !v.success).length);
 </script>
 
-<div class="flex h-full flex-col">
+<div class="flex h-full flex-col" use:mountedHint={status === 'done' ? [['enter', 'Start over']] : []}>
     <!-- Header -->
     <div class="flex-shrink-0 border-b border-thasia-border px-5 py-4">
         <h2 class="text-base font-bold">

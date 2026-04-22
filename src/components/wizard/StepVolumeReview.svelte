@@ -2,7 +2,7 @@
     import { wizard } from '$lib/wizard/state.svelte';
     import type { VolumeEdit } from '$lib/wizard/state.svelte';
     import ProgressBar from '$components/ui/ProgressBar.svelte';
-    import { Button, Input } from '$components/ui/index';
+    import { Button } from '$components/ui/index';
     import {
         IconArrowLeft,
         IconArrowRight,

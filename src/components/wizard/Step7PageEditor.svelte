@@ -1,10 +1,13 @@
 <script lang="ts">
+    import { onMount, onDestroy } from 'svelte';
     import { wizard } from '$lib/wizard/state.svelte';
     import { open } from '@tauri-apps/plugin-dialog';
     import { flip } from 'svelte/animate';
     import { duration } from '$lib/transitions';
     import { Button } from '$components/ui/index';
     import { IconArrowLeft, IconArrowRight, IconPlus, IconRefresh } from '@tabler/icons-svelte';
+    import { keyboard } from '$lib/keyboard';
+    import { mountedHint } from '$lib/keyhint.svelte';
 
     let { onNext, onBack }: { onNext: () => void; onBack: () => void } = $props();
 
@@ -15,6 +18,23 @@
     let firstNonExcluded = $derived(activeEdits.findIndex((e) => !e.excluded));
 
     let dragOverIndex = $state<number | null>(null);
+
+    let cleanupKb: (() => void) | undefined;
+    onMount(() => {
+        cleanupKb = keyboard.smartRegister([
+            ['arrowleft', (e) => {
+                e.preventDefault();
+                if (activeVolumeIndex > 0) activeVolumeIndex--;
+                return true;
+            }],
+            ['arrowright', (e) => {
+                e.preventDefault();
+                if (activeVolumeIndex < volumes.length - 1) activeVolumeIndex++;
+                return true;
+            }],
+        ]);
+    });
+    onDestroy(() => cleanupKb?.());
 
     function pageKey(edit: (typeof activeEdits)[number]): string {
         if (edit.customPath) return 'custom:' + edit.customPath;
@@ -131,7 +151,7 @@
     }
 </script>
 
-<div class="flex h-full gap-0">
+<div class="flex h-full gap-0" use:mountedHint={[['arrowleft', 'Prev volume'], ['arrowright', 'Next volume']]}>
     <!-- Volume list -->
     <div class="flex w-44 flex-shrink-0 flex-col overflow-hidden border-r border-thasia-border">
         <div

@@ -1,7 +1,10 @@
 <script lang="ts">
+    import { onMount, onDestroy } from 'svelte';
     import { wizard } from '$lib/wizard/state.svelte';
     import { Button, SegmentedControl } from '$components/ui/index';
     import { IconArrowLeft, IconArrowRight, IconPackage } from '@tabler/icons-svelte';
+    import { keyboard } from '$lib/keyboard';
+    import { mountedHint } from '$lib/keyhint.svelte';
 
     let { onNext, onBack }: { onNext: () => void; onBack: () => void } = $props();
 
@@ -10,14 +13,22 @@
         epub: 'EPUB 3 fixed-layout — best for e-readers',
         raw: 'Flat image folder — no packaging',
     };
+
+    let cleanupKb: (() => void) | undefined;
+    onMount(() => {
+        cleanupKb = keyboard.smartRegister([
+            ['keyc', () => { wizard.container = 'cbz'; return true; }],
+            ['keye', () => { wizard.container = 'epub'; return true; }],
+            ['keyr', () => { wizard.container = 'raw'; return true; }],
+        ]);
+    });
+    onDestroy(() => cleanupKb?.());
 </script>
 
-<div class="flex h-full flex-col">
+<div class="flex h-full flex-col" use:mountedHint={[['keyc', 'CBZ'], ['keye', 'EPUB'], ['keyr', 'Raw']]}>
     <div class="flex-shrink-0 border-b border-thasia-border px-5 py-4">
         <h2 class="text-base font-bold">Output Container</h2>
-        <p class="mt-0.5 text-xs text-thasia-muted">
-            The file format used to package the converted images.
-        </p>
+        <p class="mt-0.5 text-xs text-thasia-muted">The file format used to package the converted images.</p>
     </div>
 
     <div class="flex flex-1 flex-col gap-3 overflow-y-auto px-5 py-5">

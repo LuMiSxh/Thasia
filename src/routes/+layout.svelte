@@ -1,17 +1,42 @@
 <script lang="ts">
     import '../app.css';
     import { onMount } from 'svelte';
+    import { goto } from '$app/navigation';
     import Sidebar from '$components/Sidebar.svelte';
+    import { KeyHintBar } from '$components/ui/index';
     import { theme } from '$lib/theme.svelte';
+    import { keyboard } from '$lib/keyboard';
+    import { mountedHint } from '$lib/keyhint.svelte';
+    import { uiPrefs } from '$lib/ui-prefs.svelte';
+    import { sidebar } from '$lib/sidebar/state.svelte';
 
     let { children } = $props();
 
     onMount(() => {
         theme.init();
+        uiPrefs.init();
+        const unmount = keyboard.mount();
+        const cleanup = keyboard.smartRegister([
+            ['meta+digit1', () => { goto('/'); return true; }],
+            ['meta+digit2', () => { goto('/convert'); return true; }],
+            ['meta+digit3', () => { goto('/settings'); return true; }],
+            ['meta+digit4', () => { goto('/about'); return true; }],
+            ['meta+keyb', () => { sidebar.toggle(); return true; }],
+        ]);
+        return () => { unmount(); cleanup(); };
     });
 </script>
 
-<div class="flex h-screen flex-col overflow-hidden bg-thasia-bg text-thasia-text">
+<div
+    class="flex h-screen flex-col overflow-hidden bg-thasia-bg text-thasia-text"
+    use:mountedHint={[
+        ['meta+digit1', 'Home'],
+        ['meta+digit2', 'Convert'],
+        ['meta+digit3', 'Settings'],
+        ['meta+digit4', 'About'],
+        ['meta+keyb', 'Sidebar'],
+    ]}
+>
     <!-- macOS title bar: sits behind traffic lights, draggable -->
     <div
         class="titlebar h-8 flex-shrink-0 border-b border-thasia-border bg-thasia-surface"
@@ -20,8 +45,11 @@
 
     <div class="flex flex-1 overflow-hidden">
         <Sidebar />
-        <main class="flex-1 overflow-auto">
-            {@render children()}
+        <main class="flex flex-1 flex-col overflow-hidden">
+            <div class="flex-1 overflow-auto">
+                {@render children()}
+            </div>
+            <KeyHintBar />
         </main>
     </div>
 </div>
