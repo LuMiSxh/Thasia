@@ -23,7 +23,7 @@
     let cleanupKb: (() => void) | undefined;
     onMount(() => {
         cleanupKb = keyboard.smartRegister([
-            ['alt+arrowright', (e) => { e.preventDefault(); handleNext(); return true; }],
+            ['shift+arrowright', (e) => { e.preventDefault(); handleNext(); return true; }],
         ]);
     });
     onDestroy(() => cleanupKb?.());
@@ -152,7 +152,7 @@
 
 <div
     class="flex h-full flex-col"
-    use:mountedHint={isValid ? [['alt+arrowright', 'Next step']] : []}
+    use:mountedHint={isValid ? [['shift+arrowright', 'Next step']] : []}
 >
     <!-- Header -->
     <div class="flex-shrink-0 border-b border-thasia-border px-5 py-4">

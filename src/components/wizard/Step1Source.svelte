@@ -24,7 +24,7 @@
     let error = $state('');
 
     let nextHints = $derived(
-        !!wizard.sourcePath ? [['alt+arrowright', 'Next step'] as [string, string]] : []
+        !!wizard.sourcePath ? [['shift+arrowright', 'Next step'] as [string, string]] : []
     );
 
     let cleanupKb: (() => void) | undefined;
@@ -32,7 +32,7 @@
         cleanupKb = keyboard.smartRegister([
             ['keyo', () => { pickSource(); return true; }],
             ['keyz', () => { pickArchive(); return true; }],
-            ['alt+arrowright', (e) => { e.preventDefault(); handleNext(); return true; }],
+            ['shift+arrowright', (e) => { e.preventDefault(); handleNext(); return true; }],
         ]);
     });
     onDestroy(() => cleanupKb?.());

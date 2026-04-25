@@ -69,10 +69,12 @@ class KeyboardManager {
             (event.target instanceof HTMLElement && event.target.isContentEditable);
 
         const isLetterCombo = /^key[a-z]$/.test(event.code);
-        const isAltArrow = event.altKey && event.code.startsWith('Arrow');
+        const isArrow = event.code.startsWith('Arrow');
+        const isAltArrow = event.altKey && isArrow;
+        const isShiftArrow = event.shiftKey && isArrow;
 
         for (let i = handlers.length - 1; i >= 0; i--) {
-            if (isInInput && (isLetterCombo || isAltArrow)) continue;
+            if (isInInput && (isLetterCombo || isAltArrow || isShiftArrow)) continue;
             if (handlers[i].callback(event) === true) break;
         }
     }
