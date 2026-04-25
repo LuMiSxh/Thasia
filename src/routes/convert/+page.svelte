@@ -28,8 +28,8 @@
         document.addEventListener('wizard:goto', handleGoto);
 
         const cleanup = keyboard.smartRegister([
-            ['shift+arrowright', (e) => { e.preventDefault(); if (canGoNext) goNext(); return true; }],
-            ['shift+arrowleft', (e) => { e.preventDefault(); if (canGoBack) goBack(); return true; }],
+            ['shift+arrowright', (e) => { if (!canGoNext) return false; e.preventDefault(); goNext(); return true; }],
+            ['shift+arrowleft', (e) => { if (!canGoBack) return false; e.preventDefault(); goBack(); return true; }],
         ]);
 
         return () => {
