@@ -34,7 +34,7 @@
         class="inline-flex gap-0 rounded-lg border border-thasia-border bg-thasia-bg p-0.5
               transition-colors duration-150 hover:border-thasia-accent/40"
     >
-        {#each options as opt (opt)}
+        {#each options as opt (opt.value)}
             <button
                 type="button"
                 {disabled}

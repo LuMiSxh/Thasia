@@ -5,8 +5,12 @@
 
     let version = $state('...');
     onMount(async () => {
-        version = await getVersion();
+        try { version = await getVersion(); } catch { version = '?' }
     });
+
+    const cardClass =
+        'group flex flex-1 flex-col gap-3 rounded-xl border border-thasia-border bg-thasia-surface ' +
+        'p-5 transition-all duration-150 hover:border-thasia-accent/40 hover:bg-thasia-panel active:translate-y-px';
 </script>
 
 <div class="flex h-full flex-col items-center justify-center gap-12 p-12">
@@ -25,15 +29,7 @@
 
     <!-- Action cards -->
     <div class="flex w-full max-w-2xl gap-4">
-        <a
-            href="/convert"
-            class="
-        group flex flex-1 flex-col gap-3 rounded-xl
-        border border-thasia-border bg-thasia-surface
-        p-5 transition-all
-        duration-150 hover:border-thasia-accent/40 hover:bg-thasia-panel active:translate-y-px
-      "
-        >
+        <a href="/convert" class={cardClass}>
             <div class="flex items-center justify-between">
                 <div
                     class="flex h-9 w-9 items-center justify-center rounded-lg border border-thasia-accent/20 bg-thasia-accent/10"
@@ -51,15 +47,7 @@
             </div>
         </a>
 
-        <a
-            href="/settings"
-            class="
-        group flex flex-1 flex-col gap-3 rounded-xl
-        border border-thasia-border bg-thasia-surface
-        p-5 transition-all
-        duration-150 hover:border-thasia-accent/40 hover:bg-thasia-panel active:translate-y-px
-      "
-        >
+        <a href="/settings" class={cardClass}>
             <div class="flex items-center justify-between">
                 <div
                     class="flex h-9 w-9 items-center justify-center rounded-lg border border-thasia-border bg-thasia-panel"
@@ -77,15 +65,7 @@
             </div>
         </a>
 
-        <a
-            href="/about"
-            class="
-        group flex flex-1 flex-col gap-3 rounded-xl
-        border border-thasia-border bg-thasia-surface
-        p-5 transition-all
-        duration-150 hover:border-thasia-accent/40 hover:bg-thasia-panel active:translate-y-px
-      "
-        >
+        <a href="/about" class={cardClass}>
             <div class="flex items-center justify-between">
                 <div
                     class="flex h-9 w-9 items-center justify-center rounded-lg border border-thasia-border bg-thasia-panel"

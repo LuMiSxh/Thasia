@@ -77,12 +77,9 @@ class KeyboardManager {
         }
     }
 
+    private nextId = 0;
     private generateId(): string {
-        let id: string;
-        do {
-            id = Math.random().toString(36).slice(2, 9);
-        } while ([...this.handlers.values()].flat().some((h) => h.id === id));
-        return id;
+        return `kb-${++this.nextId}`;
     }
 }
 

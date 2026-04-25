@@ -7,9 +7,10 @@ type Scope = {
 
 class KeyHintState {
     private scopes = $state<Record<string, Scope>>({});
+    private nextId = 0;
 
     register(keys: [string, string][], exclusive = false): () => void {
-        const id = Math.random().toString(36).slice(2);
+        const id = `kh-${++this.nextId}`;
         untrack(() => {
             this.scopes = { ...this.scopes, [id]: { keys, exclusive } };
         });

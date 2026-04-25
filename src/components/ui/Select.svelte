@@ -43,7 +43,7 @@
       focus:ring-thasia-accent disabled:opacity-40
     "
     >
-        {#each options as opt (opt)}
+        {#each options as opt (opt.value)}
             <option value={opt.value}>{opt.label}</option>
         {/each}
     </select>

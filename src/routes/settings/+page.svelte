@@ -1,7 +1,7 @@
 <script lang="ts">
     import { wizard } from '$lib/wizard/state.svelte';
     import { uiPrefs } from '$lib/ui-prefs.svelte';
-    import { onMount } from 'svelte';
+    import { onMount, onDestroy } from 'svelte';
     import { slide } from 'svelte/transition';
     import { cubicInOut } from 'svelte/easing';
     import {
@@ -45,6 +45,9 @@
 
     let saved = $state(false);
     let maxWidthEnabled = $state(false);
+    let savedTimer: ReturnType<typeof setTimeout> | undefined;
+
+    onDestroy(() => clearTimeout(savedTimer));
 
     onMount(() => {
         const raw = localStorage.getItem(KEY);
@@ -70,7 +73,8 @@
         wizard.maxWidth = defaults.maxWidth;
         uiPrefs.showKeyHints = defaults.showKeyHints;
         saved = true;
-        setTimeout(() => (saved = false), 2000);
+        clearTimeout(savedTimer);
+        savedTimer = setTimeout(() => (saved = false), 2000);
     }
 
     const collapse = { duration: duration.base, easing: cubicInOut };

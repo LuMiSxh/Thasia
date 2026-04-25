@@ -4,7 +4,7 @@
     import { wizard } from '$lib/wizard/state.svelte';
     import { theme } from '$lib/theme.svelte';
     import { STEPS } from '$lib/wizard/steps';
-    import { page } from '$app/stores';
+    import { page } from '$app/state';
     import { SectionLabel } from '$components/ui/index';
     import { fade } from 'svelte/transition';
     import {
@@ -94,7 +94,7 @@
                     >
                         {#if sidebar.mode === 'nav'}
                             {#each navLinks as link (link.href)}
-                                {@const active = link.match($page.url.pathname)}
+                                {@const active = link.match(page.url.pathname)}
                                 {@const Icon = link.icon}
                                 <a
                                     href={link.href}

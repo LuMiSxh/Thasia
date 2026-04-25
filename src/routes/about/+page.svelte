@@ -70,7 +70,7 @@
             <p>
                 Thasia grew out of
                 <button
-                    onclick={() => openUrl('https://github.com/lumisxh/palaxy')}
+                    onclick={() => openUrl('https://github.com/lumisxh/palaxy').catch(() => {})}
                     class="inline-flex cursor-pointer items-center gap-1 font-medium text-thasia-accent underline-offset-3 transition-opacity duration-150 hover:opacity-70"
                 >
                     Palaxy <IconExternalLink size={11} class="relative top-px" />
@@ -99,6 +99,7 @@
         <!-- Pipeline -->
         <div class="flex flex-col gap-2">
             {#each pipeline as step, i (step.label)}
+                {@const Icon = step.icon}
                 <div class="flex items-start gap-4">
                     <!-- Step -->
                     <div
@@ -107,11 +108,7 @@
                         <div
                             class="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg border border-thasia-accent/20 bg-thasia-accent/8"
                         >
-                            <svelte:component
-                                this={step.icon}
-                                size={16}
-                                class="text-thasia-accent"
-                            />
+                            <Icon size={16} class="text-thasia-accent" />
                         </div>
                         <div class="min-w-0">
                             <div class="mb-0.5 text-sm font-bold text-thasia-text">
@@ -149,7 +146,7 @@
     <div class="flex flex-col gap-3">
         <h2 class="text-sm font-bold tracking-wider text-thasia-muted uppercase">Made by</h2>
         <button
-            onclick={() => openUrl('https://github.com/LuMisxh')}
+            onclick={() => openUrl('https://github.com/LuMisxh').catch(() => {})}
             class="group inline-flex w-fit cursor-pointer items-center gap-3 rounded-xl border border-thasia-border bg-thasia-surface px-4 py-3
                    transition-all duration-150 hover:border-thasia-accent/30 hover:bg-thasia-panel"
         >
