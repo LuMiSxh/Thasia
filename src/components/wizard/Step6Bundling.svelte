@@ -9,7 +9,12 @@
     import { keyboard } from '$lib/keyboard';
     import { mountedHint } from '$lib/keyhint.svelte';
 
-    let { onNext, onBack, nextDisabled = false, backDisabled = false }: {
+    let {
+        onNext,
+        onBack,
+        nextDisabled = false,
+        backDisabled = false,
+    }: {
         onNext: () => void;
         onBack: () => void;
         nextDisabled?: boolean;
@@ -21,10 +26,12 @@
     function handleNext() {
         if (wizard.bundle === 'flatten' && wizard.pageEdits.length > 1) {
             const firstNum = wizard.pageEdits[0]?.volumeNum ?? 1;
-            wizard.pageEdits = [{
-                volumeNum: firstNum,
-                pages: wizard.pageEdits.flatMap((ve) => ve.pages),
-            }];
+            wizard.pageEdits = [
+                {
+                    volumeNum: firstNum,
+                    pages: wizard.pageEdits.flatMap((ve) => ve.pages),
+                },
+            ];
         } else if (wizard.bundle === 'auto' && wizard.scanResult && wizard.pageEdits.length === 1) {
             wizard.pageEdits = wizard.scanResult.map((vol) => ({
                 volumeNum: vol.volume_num,
@@ -42,17 +49,37 @@
     let cleanupKb: (() => void) | undefined;
     onMount(() => {
         cleanupKb = keyboard.smartRegister([
-            ['keya', () => { wizard.bundle = 'auto'; return true; }],
-            ['keyf', () => { wizard.bundle = 'flatten'; return true; }],
+            [
+                'a',
+                () => {
+                    wizard.bundle = 'auto';
+                    return true;
+                },
+            ],
+            [
+                'f',
+                () => {
+                    wizard.bundle = 'flatten';
+                    return true;
+                },
+            ],
         ]);
     });
     onDestroy(() => cleanupKb?.());
 </script>
 
-<div class="flex h-full flex-col" use:mountedHint={[['keya', 'Auto'], ['keyf', 'Flatten']]}>
+<div
+    class="flex h-full flex-col"
+    use:mountedHint={[
+        ['keya', 'Auto'],
+        ['keyf', 'Flatten'],
+    ]}
+>
     <div class="flex-shrink-0 border-b border-thasia-border px-5 py-4">
         <h2 class="text-base font-bold">Bundling</h2>
-        <p class="mt-0.5 text-xs text-thasia-muted">How detected chapters are grouped into output volumes.</p>
+        <p class="mt-0.5 text-xs text-thasia-muted">
+            How detected chapters are grouped into output volumes.
+        </p>
     </div>
 
     <div class="flex flex-1 flex-col gap-3 overflow-y-auto px-5 py-5">
@@ -101,6 +128,8 @@
 
     <div class="flex flex-shrink-0 gap-2 border-t border-thasia-border px-5 py-4">
         <Button onclick={onBack} disabled={backDisabled}><IconArrowLeft size={15} /> Back</Button>
-        <Button onclick={handleNext} disabled={nextDisabled} class="ml-auto">Next <IconArrowRight size={15} /></Button>
+        <Button onclick={handleNext} disabled={nextDisabled} class="ml-auto"
+            >Next <IconArrowRight size={15} /></Button
+        >
     </div>
 </div>

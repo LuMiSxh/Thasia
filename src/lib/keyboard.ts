@@ -17,13 +17,14 @@ class KeyboardManager {
     register(
         combo: string,
         callback: (event: KeyboardEvent) => void | boolean,
-        id?: string,
+        id?: string
     ): string {
         combo = normalizeCombo(combo);
         if (!this.handlers.has(combo)) this.handlers.set(combo, []);
         id = id ?? this.generateId();
         const handlers = this.handlers.get(combo)!;
-        if (handlers.find((h) => h.id === id)) throw new Error(`Handler "${id}" already registered`);
+        if (handlers.find((h) => h.id === id))
+            throw new Error(`Handler "${id}" already registered`);
         handlers.push({ id, callback });
         return id;
     }
@@ -39,7 +40,9 @@ class KeyboardManager {
         }
     }
 
-    smartRegister(handlers: [string, (event: KeyboardEvent) => void | boolean, string?][]): () => void {
+    smartRegister(
+        handlers: [string, (event: KeyboardEvent) => void | boolean, string?][]
+    ): () => void {
         const ids = handlers.map((args) => this.register(...args));
         return () => ids.forEach((id) => this.unregister(id));
     }
@@ -57,9 +60,9 @@ class KeyboardManager {
             event.metaKey ? 'meta' : '',
         ].filter(Boolean);
 
-        const combo = normalizeCombo(
-            modifiers.length > 0 ? `${modifiers.join('+')}+${event.code}` : event.code,
-        );
+        const key = event.key === ' ' ? 'space' : event.key;
+
+        const combo = normalizeCombo(modifiers.length > 0 ? `${modifiers.join('+')}+${key}` : key);
 
         const handlers = this.handlers.get(combo) ?? [];
 
@@ -68,7 +71,7 @@ class KeyboardManager {
             event.target instanceof HTMLTextAreaElement ||
             (event.target instanceof HTMLElement && event.target.isContentEditable);
 
-        const isLetterCombo = /^key[a-z]$/.test(event.code);
+        const isLetterCombo = /^[a-z]$/i.test(key);
         const isArrow = event.code.startsWith('Arrow');
         const isAltArrow = event.altKey && isArrow;
         const isShiftArrow = event.shiftKey && isArrow;

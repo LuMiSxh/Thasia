@@ -6,7 +6,12 @@
     import { keyboard } from '$lib/keyboard';
     import { mountedHint } from '$lib/keyhint.svelte';
 
-    let { onNext, onBack, nextDisabled = false, backDisabled = false }: {
+    let {
+        onNext,
+        onBack,
+        nextDisabled = false,
+        backDisabled = false,
+    }: {
         onNext: () => void;
         onBack: () => void;
         nextDisabled?: boolean;
@@ -22,18 +27,45 @@
     let cleanupKb: (() => void) | undefined;
     onMount(() => {
         cleanupKb = keyboard.smartRegister([
-            ['keyc', () => { wizard.container = 'cbz'; return true; }],
-            ['keye', () => { wizard.container = 'epub'; return true; }],
-            ['keyr', () => { wizard.container = 'raw'; return true; }],
+            [
+                'c',
+                () => {
+                    wizard.container = 'cbz';
+                    return true;
+                },
+            ],
+            [
+                'e',
+                () => {
+                    wizard.container = 'epub';
+                    return true;
+                },
+            ],
+            [
+                'r',
+                () => {
+                    wizard.container = 'raw';
+                    return true;
+                },
+            ],
         ]);
     });
     onDestroy(() => cleanupKb?.());
 </script>
 
-<div class="flex h-full flex-col" use:mountedHint={[['keyc', 'CBZ'], ['keye', 'EPUB'], ['keyr', 'Raw']]}>
+<div
+    class="flex h-full flex-col"
+    use:mountedHint={[
+        ['keyc', 'CBZ'],
+        ['keye', 'EPUB'],
+        ['keyr', 'Raw'],
+    ]}
+>
     <div class="flex-shrink-0 border-b border-thasia-border px-5 py-4">
         <h2 class="text-base font-bold">Output Container</h2>
-        <p class="mt-0.5 text-xs text-thasia-muted">The file format used to package the converted images.</p>
+        <p class="mt-0.5 text-xs text-thasia-muted">
+            The file format used to package the converted images.
+        </p>
     </div>
 
     <div class="flex flex-1 flex-col gap-3 overflow-y-auto px-5 py-5">
@@ -58,6 +90,8 @@
 
     <div class="flex flex-shrink-0 gap-2 border-t border-thasia-border px-5 py-4">
         <Button onclick={onBack} disabled={backDisabled}><IconArrowLeft size={15} /> Back</Button>
-        <Button onclick={onNext} disabled={nextDisabled} class="ml-auto">Next <IconArrowRight size={15} /></Button>
+        <Button onclick={onNext} disabled={nextDisabled} class="ml-auto"
+            >Next <IconArrowRight size={15} /></Button
+        >
     </div>
 </div>

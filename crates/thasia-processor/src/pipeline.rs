@@ -4,8 +4,8 @@ use crate::{
 };
 use std::sync::Arc;
 use thasia_core::{
-    models::{ImageFormat, ParsedImage, ProcessedImage},
     ThasiaError,
+    models::{ImageFormat, ParsedImage, ProcessedImage},
 };
 use thasia_source::Source;
 use tokio::sync::mpsc;
@@ -40,8 +40,7 @@ pub async fn start_pipeline<S: Source + Send + Sync + 'static>(
 
     // Bounded channel: async fetch → sync Rayon encode.
     // Buffer = num_cores * 2 lets the fetch stage stay slightly ahead of encoding.
-    let (raw_tx, raw_rx) =
-        mpsc::channel::<(ParsedImage, Vec<u8>, String)>(num_cores * 2);
+    let (raw_tx, raw_rx) = mpsc::channel::<(ParsedImage, Vec<u8>, String)>(num_cores * 2);
 
     // ── Stage 1: async fetch ──────────────────────────────────────────────────
     let fetch_sem = Arc::new(tokio::sync::Semaphore::new(num_cores * 2));
@@ -92,16 +91,15 @@ pub async fn start_pipeline<S: Source + Send + Sync + 'static>(
                 let result_tx = result_tx_enc.clone();
                 let opts = opts.clone();
                 s.spawn(move |_| {
-                    let result =
-                        encode_image(bytes, &ext, &opts).map(|(data, enc_ext, w, h)| {
-                            ProcessedImage {
-                                parsed_data: parsed,
-                                image_data: data,
-                                ext: enc_ext,
-                                width: w,
-                                height: h,
-                            }
-                        });
+                    let result = encode_image(bytes, &ext, &opts).map(|(data, enc_ext, w, h)| {
+                        ProcessedImage {
+                            parsed_data: parsed,
+                            image_data: data,
+                            ext: enc_ext,
+                            width: w,
+                            height: h,
+                        }
+                    });
                     result_tx.blocking_send(result).ok();
                 });
             }

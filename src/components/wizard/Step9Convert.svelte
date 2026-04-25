@@ -75,10 +75,16 @@
         );
 
         cleanupKb = keyboard.smartRegister([
-            ['enter', () => {
-                if (status === 'done') { wizard.reset(); goto('/'); }
-                return true;
-            }],
+            [
+                'enter',
+                () => {
+                    if (status === 'done') {
+                        wizard.reset();
+                        goto('/');
+                    }
+                    return true;
+                },
+            ],
         ]);
 
         status = 'converting';
@@ -125,7 +131,10 @@
     let failedCount = $derived([...volumeMap.values()].filter((v) => v.done && !v.success).length);
 </script>
 
-<div class="flex h-full flex-col" use:mountedHint={status === 'done' ? [['enter', 'Start over']] : []}>
+<div
+    class="flex h-full flex-col"
+    use:mountedHint={status === 'done' ? [['enter', 'Start over']] : []}
+>
     <!-- Header -->
     <div class="flex-shrink-0 border-b border-thasia-border px-5 py-4">
         <h2 class="text-base font-bold">
@@ -153,7 +162,7 @@
     <div class="flex flex-1 flex-col gap-3 overflow-y-auto px-5 py-5">
         {#if volumeMap.size > 0}
             <div class="overflow-hidden rounded-xl border border-thasia-border bg-thasia-surface">
-                {#each [...volumeMap.entries()] as [_num, vol], i ([_num, vol])}
+                {#each [...volumeMap.entries()] as [_num, vol], i (_num)}
                     <div
                         class="flex flex-col gap-2 px-4 py-3 {i < volumeMap.size - 1
                             ? 'border-b border-thasia-border'

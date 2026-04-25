@@ -14,7 +14,11 @@
     import { keyboard } from '$lib/keyboard';
     import { mountedHint } from '$lib/keyhint.svelte';
 
-    let { onNext, onBack, nextDisabled = false, backDisabled = true }: {
+    let {
+        onNext,
+        onBack,
+        backDisabled = true,
+    }: {
         onNext: () => void;
         onBack: () => void;
         nextDisabled?: boolean;
@@ -24,15 +28,34 @@
     let error = $state('');
 
     let nextHints = $derived(
-        !!wizard.sourcePath ? [['shift+arrowright', 'Next step'] as [string, string]] : []
+        wizard.sourcePath ? [['shift+arrowright', 'Next step'] as [string, string]] : []
     );
 
     let cleanupKb: (() => void) | undefined;
     onMount(() => {
         cleanupKb = keyboard.smartRegister([
-            ['keyo', () => { pickSource(); return true; }],
-            ['keyz', () => { pickArchive(); return true; }],
-            ['shift+arrowright', (e) => { e.preventDefault(); handleNext(); return true; }],
+            [
+                'o',
+                () => {
+                    pickSource();
+                    return true;
+                },
+            ],
+            [
+                'z',
+                () => {
+                    pickArchive();
+                    return true;
+                },
+            ],
+            [
+                'shift+arrowright',
+                (e) => {
+                    e.preventDefault();
+                    handleNext();
+                    return true;
+                },
+            ],
         ]);
     });
     onDestroy(() => cleanupKb?.());
@@ -99,8 +122,11 @@
     }
 </script>
 
-<div class="flex h-full flex-col" use:mountedHint={[['keyo', 'Open folder'], ['keyz', 'Open archive'], ...nextHints]}>
-    <div class="flex-shrink-0 border-b border-thasia-border px-5 py-4">
+<div
+    class="flex h-full flex-col"
+    use:mountedHint={[['keyo', 'Open folder'], ['keyz', 'Open archive'], ...nextHints]}
+>
+    <div class="shrink-0 border-b border-thasia-border px-5 py-4">
         <h2 class="text-base font-bold">Source</h2>
         <p class="mt-0.5 text-xs text-thasia-muted">
             Select a folder, ZIP, or CBZ containing your manga images.

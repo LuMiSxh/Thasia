@@ -14,7 +14,12 @@
         IconFile,
     } from '@tabler/icons-svelte';
 
-    let { onNext, onBack, nextDisabled = false, backDisabled = false }: {
+    let {
+        onNext,
+        onBack,
+        nextDisabled = false,
+        backDisabled = false,
+    }: {
         onNext: () => void;
         onBack: () => void;
         nextDisabled?: boolean;

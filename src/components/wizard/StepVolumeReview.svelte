@@ -14,7 +14,11 @@
     import { keyboard } from '$lib/keyboard';
     import { mountedHint } from '$lib/keyhint.svelte';
 
-    let { onNext, onBack, backDisabled = false }: {
+    let {
+        onNext,
+        onBack,
+        backDisabled = false,
+    }: {
         onNext: () => void;
         onBack: () => void;
         backDisabled?: boolean;
@@ -23,7 +27,14 @@
     let cleanupKb: (() => void) | undefined;
     onMount(() => {
         cleanupKb = keyboard.smartRegister([
-            ['shift+arrowright', (e) => { e.preventDefault(); handleNext(); return true; }],
+            [
+                'shift+arrowright',
+                (e) => {
+                    e.preventDefault();
+                    handleNext();
+                    return true;
+                },
+            ],
         ]);
     });
     onDestroy(() => cleanupKb?.());

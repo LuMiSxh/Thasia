@@ -80,7 +80,9 @@ async fn main() -> Result<()> {
 
     // 1. Source — detect ZIP/CBZ and extract automatically
     let source = Arc::new(if LocalSource::is_archive(&args.source) {
-        LocalSource::from_archive(args.source.clone()).await.into_diagnostic()?
+        LocalSource::from_archive(args.source.clone())
+            .await
+            .into_diagnostic()?
     } else {
         LocalSource::new(args.source.clone())
     });
@@ -134,7 +136,9 @@ async fn main() -> Result<()> {
     } else {
         args.out.clone()
     };
-    tokio::fs::create_dir_all(&out_root).await.into_diagnostic()?;
+    tokio::fs::create_dir_all(&out_root)
+        .await
+        .into_diagnostic()?;
 
     // 7. Package each volume
     let total_volumes = volume_map.len();
@@ -149,7 +153,7 @@ async fn main() -> Result<()> {
             format!("{}{}{}", args.name, args.volume_separator, vol_num)
         };
 
-        let mut gen: Box<dyn Generator> = match args.output {
+        let mut pkg: Box<dyn Generator> = match args.output {
             OutputFormat::Cbz => Box::new(CbzGenerator::new()),
             OutputFormat::Epub => {
                 Box::new(EpubGenerator::new().with_direction(args.direction.clone()))
@@ -157,12 +161,12 @@ async fn main() -> Result<()> {
             OutputFormat::Raw => Box::new(RawGenerator::new()),
         };
 
-        gen.init(&out_root, &vol_name).await.into_diagnostic()?;
+        pkg.init(&out_root, &vol_name).await.into_diagnostic()?;
         for page in pages {
             total_pages += 1;
-            gen.add_page(page).await.into_diagnostic()?;
+            pkg.add_page(page).await.into_diagnostic()?;
         }
-        gen.finalize().await.into_diagnostic()?;
+        pkg.finalize().await.into_diagnostic()?;
         tracing::info!("Volume '{}' complete", vol_name);
     }
 

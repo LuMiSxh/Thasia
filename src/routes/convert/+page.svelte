@@ -2,7 +2,7 @@
     import { onMount, onDestroy } from 'svelte';
     import { sidebar } from '$lib/sidebar/state.svelte';
     import { wizard } from '$lib/wizard/state.svelte';
-    import { STEPS, activeSteps } from '$lib/wizard/steps';
+    import { activeSteps } from '$lib/wizard/steps';
     import { keyboard } from '$lib/keyboard';
     import { mountedHint } from '$lib/keyhint.svelte';
 
@@ -28,8 +28,24 @@
         document.addEventListener('wizard:goto', handleGoto);
 
         const cleanup = keyboard.smartRegister([
-            ['shift+arrowright', (e) => { if (!canGoNext) return false; e.preventDefault(); goNext(); return true; }],
-            ['shift+arrowleft', (e) => { if (!canGoBack) return false; e.preventDefault(); goBack(); return true; }],
+            [
+                'shift+arrowright',
+                (e) => {
+                    if (!canGoNext) return false;
+                    e.preventDefault();
+                    goNext();
+                    return true;
+                },
+            ],
+            [
+                'shift+arrowleft',
+                (e) => {
+                    if (!canGoBack) return false;
+                    e.preventDefault();
+                    goBack();
+                    return true;
+                },
+            ],
         ]);
 
         return () => {
@@ -51,15 +67,15 @@
     let currentStep = $derived(active.find((s) => s.id === wizard.currentStepId) ?? active[0]);
     let currentIndex = $derived(active.findIndex((s) => s.id === wizard.currentStepId));
 
-    // Steps that manage their own shift+arrowright (async/complex handleNext)
-    const selfManagedNext = new Set(['source', 'volume-review']);
+    // Steps that manage their own shift+arrowright (async/complex handleNext, or own arrow key usage)
+    const selfManagedNext = new Set(['source', 'volume-review', 'page-editor']);
 
     let canGoBack = $derived(currentIndex > 0 && currentStep?.id !== 'convert');
     let canGoNext = $derived(
         !!currentStep &&
-        !selfManagedNext.has(currentStep.id) &&
-        currentStep.id !== 'convert' &&
-        (currentStep.id !== 'destination' || (!!wizard.outputDir && !!wizard.outputName))
+            !selfManagedNext.has(currentStep.id) &&
+            currentStep.id !== 'convert' &&
+            (currentStep.id !== 'destination' || (!!wizard.outputDir && !!wizard.outputName))
     );
 
     let navHints = $derived([
@@ -70,6 +86,18 @@
     function goNext() {
         if (!currentStep) return;
         wizard.markComplete(currentStep.id);
+
+        // Flatten mode skips volume-review — merge all scan volumes into one output volume
+        // so the page editor and convert both see a single unified volume.
+        if (currentStep.id === 'bundling' && wizard.bundle === 'flatten') {
+            wizard.pageEdits = [
+                {
+                    volumeNum: 1,
+                    pages: wizard.pageEdits.flatMap((ve) => ve.pages),
+                },
+            ];
+        }
+
         const nextIndex = currentIndex + 1;
         if (nextIndex < active.length) wizard.currentStepId = active[nextIndex].id;
         if (active[nextIndex]?.id === 'convert') sidebar.collapseForConversion();

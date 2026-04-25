@@ -4,7 +4,7 @@ pub mod local;
 pub use local::LocalSource;
 
 use async_trait::async_trait;
-use thasia_core::{models::DiscoveredImage, Result};
+use thasia_core::{Result, models::DiscoveredImage};
 use tokio::sync::mpsc;
 
 #[async_trait]

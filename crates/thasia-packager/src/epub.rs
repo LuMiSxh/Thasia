@@ -4,8 +4,8 @@ use epub_builder::{EpubBuilder, EpubContent, EpubVersion, ZipLibrary};
 use std::io::{BufWriter, Cursor};
 use std::path::{Path, PathBuf};
 use thasia_core::{
-    models::{Direction, ProcessedImage},
     Result, ThasiaError,
+    models::{Direction, ProcessedImage},
 };
 
 const PAGE_XHTML: &str = include_str!("../templates/epub_page.xhtml");
@@ -53,7 +53,9 @@ impl Default for EpubGenerator {
 #[async_trait]
 impl Generator for EpubGenerator {
     async fn init(&mut self, output_dir: &Path, volume_name: &str) -> Result<()> {
-        tokio::fs::create_dir_all(output_dir).await.map_err(ThasiaError::Io)?;
+        tokio::fs::create_dir_all(output_dir)
+            .await
+            .map_err(ThasiaError::Io)?;
         self.output_dir = output_dir.to_path_buf();
         self.volume_name = volume_name.to_string();
         Ok(())
@@ -71,10 +73,9 @@ impl Generator for EpubGenerator {
         let mut pages = self.pages;
 
         tokio::task::spawn_blocking(move || -> Result<()> {
-            let mut epub = EpubBuilder::new(
-                ZipLibrary::new().map_err(|e| ThasiaError::Fatal(e.to_string()))?,
-            )
-            .map_err(|e| ThasiaError::Fatal(e.to_string()))?;
+            let mut epub =
+                EpubBuilder::new(ZipLibrary::new().map_err(|e| ThasiaError::Fatal(e.to_string()))?)
+                    .map_err(|e| ThasiaError::Fatal(e.to_string()))?;
 
             epub.epub_version(EpubVersion::V30);
             epub.metadata("rendition:layout", "pre-paginated")

@@ -9,7 +9,12 @@
     import { keyboard } from '$lib/keyboard';
     import { mountedHint } from '$lib/keyhint.svelte';
 
-    let { onNext, onBack, nextDisabled = false, backDisabled = false }: {
+    let {
+        onNext,
+        onBack,
+        nextDisabled = false,
+        backDisabled = false,
+    }: {
         onNext: () => void;
         onBack: () => void;
         nextDisabled?: boolean;
@@ -28,15 +33,40 @@
     let cleanupKb: (() => void) | undefined;
     onMount(() => {
         cleanupKb = keyboard.smartRegister([
-            ['keya', () => { wizard.imageFormat = 'avif'; return true; }],
-            ['keyw', () => { wizard.imageFormat = 'webp'; return true; }],
-            ['keyo', () => { wizard.imageFormat = 'original'; return true; }],
+            [
+                'a',
+                () => {
+                    wizard.imageFormat = 'avif';
+                    return true;
+                },
+            ],
+            [
+                'w',
+                () => {
+                    wizard.imageFormat = 'webp';
+                    return true;
+                },
+            ],
+            [
+                'o',
+                () => {
+                    wizard.imageFormat = 'original';
+                    return true;
+                },
+            ],
         ]);
     });
     onDestroy(() => cleanupKb?.());
 </script>
 
-<div class="flex h-full flex-col" use:mountedHint={[['keya', 'AVIF'], ['keyw', 'WebP'], ['keyo', 'Original']]}>
+<div
+    class="flex h-full flex-col"
+    use:mountedHint={[
+        ['keya', 'AVIF'],
+        ['keyw', 'WebP'],
+        ['keyo', 'Original'],
+    ]}
+>
     <div class="flex-shrink-0 border-b border-thasia-border px-5 py-4">
         <h2 class="text-base font-bold">Image Format</h2>
         <p class="mt-0.5 text-xs text-thasia-muted">
@@ -100,6 +130,8 @@
 
     <div class="flex flex-shrink-0 gap-2 border-t border-thasia-border px-5 py-4">
         <Button onclick={onBack} disabled={backDisabled}><IconArrowLeft size={15} /> Back</Button>
-        <Button onclick={onNext} disabled={nextDisabled} class="ml-auto">Next <IconArrowRight size={15} /></Button>
+        <Button onclick={onNext} disabled={nextDisabled} class="ml-auto"
+            >Next <IconArrowRight size={15} /></Button
+        >
     </div>
 </div>

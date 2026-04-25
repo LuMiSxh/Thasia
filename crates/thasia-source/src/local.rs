@@ -1,12 +1,13 @@
 use crate::Source;
 use async_trait::async_trait;
 use std::path::PathBuf;
-use thasia_core::{models::DiscoveredImage, Result, ThasiaError};
+use thasia_core::{Result, ThasiaError, models::DiscoveredImage};
 use tokio::sync::mpsc;
 use walkdir::WalkDir;
 
 const IMAGE_EXTENSIONS: &[&str] = &["jpg", "jpeg", "png", "webp", "avif"];
 
+#[derive(Debug, Default)]
 pub struct LocalSource {
     root: PathBuf,
     _temp_dir_handle: Option<tempfile::TempDir>,
@@ -14,13 +15,19 @@ pub struct LocalSource {
 
 impl LocalSource {
     pub fn new(root: PathBuf) -> Self {
-        Self { root, _temp_dir_handle: None }
+        Self {
+            root,
+            _temp_dir_handle: None,
+        }
     }
 
     /// Use this when source is a ZIP/CBZ that was extracted to a temp dir.
     pub fn from_temp_dir(temp: tempfile::TempDir) -> Self {
         let root = temp.path().to_path_buf();
-        Self { root, _temp_dir_handle: Some(temp) }
+        Self {
+            root,
+            _temp_dir_handle: Some(temp),
+        }
     }
 
     /// Extracts a ZIP or CBZ archive to a temp dir and returns a LocalSource over it.
@@ -46,7 +53,10 @@ impl LocalSource {
     /// Returns true if the given path looks like a ZIP or CBZ archive.
     pub fn is_archive(path: &std::path::Path) -> bool {
         matches!(
-            path.extension().and_then(|e| e.to_str()).map(|e| e.to_lowercase()).as_deref(),
+            path.extension()
+                .and_then(|e| e.to_str())
+                .map(|e| e.to_lowercase())
+                .as_deref(),
             Some("zip") | Some("cbz")
         )
     }
@@ -73,10 +83,7 @@ impl Source for LocalSource {
                 .collect();
 
             entries.sort_by(|a, b| {
-                natord::compare(
-                    &a.path().to_string_lossy(),
-                    &b.path().to_string_lossy(),
-                )
+                natord::compare(&a.path().to_string_lossy(), &b.path().to_string_lossy())
             });
 
             for entry in entries {
@@ -100,6 +107,8 @@ impl Source for LocalSource {
     }
 
     async fn fetch(&self, img: &DiscoveredImage) -> Result<Vec<u8>> {
-        tokio::fs::read(&img.absolute_path).await.map_err(ThasiaError::Io)
+        tokio::fs::read(&img.absolute_path)
+            .await
+            .map_err(ThasiaError::Io)
     }
 }

@@ -7,7 +7,10 @@ pub enum ThasiaError {
     // --- LEVEL 1: Item Level (Retryable) ---
     #[error("Failed to process image after retries: {file}")]
     #[diagnostic(code(thasia::item::process_failed))]
-    ItemProcessFailed { file: String, source: std::io::Error },
+    ItemProcessFailed {
+        file: String,
+        source: std::io::Error,
+    },
 
     // --- LEVEL 2: Volume Level (Skippable) ---
     #[error("Volume skipped due to critical failure: {volume}")]
@@ -43,13 +46,20 @@ pub struct SerializableError {
 impl From<&ThasiaError> for SerializableError {
     fn from(err: &ThasiaError) -> Self {
         use miette::Diagnostic as _;
-        let code = err.code().map(|c| c.to_string()).unwrap_or_else(|| "thasia::unknown".into());
+        let code = err
+            .code()
+            .map(|c| c.to_string())
+            .unwrap_or_else(|| "thasia::unknown".into());
         let severity = match err {
             ThasiaError::ItemProcessFailed { .. } => 1,
             ThasiaError::VolumeSkipped { .. } | ThasiaError::UnresolvedPath { .. } => 2,
             _ => 3,
         };
-        Self { code, message: err.to_string(), severity }
+        Self {
+            code,
+            message: err.to_string(),
+            severity,
+        }
     }
 }
 

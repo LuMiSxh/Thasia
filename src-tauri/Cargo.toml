@@ -1,9 +1,11 @@
-[workspace]
-
 [package]
-name = "thasia-tauri"
-version = "0.1.0"
-edition = "2021"
+name = "thasia"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+repository.workspace = true
 
 [lib]
 name = "thasia_tauri_lib"
@@ -20,17 +22,17 @@ thasia-processor = { path = "../crates/thasia-processor" }
 thasia-packager = { path = "../crates/thasia-packager" }
 
 tauri = { version = "2.10", features = [] }
-tauri-specta = { version = "=2.0.0-rc.21", features = ["derive", "typescript"] }
-specta = "=2.0.0-rc.22"
-specta-typescript = "0.0.9"
+tauri-specta = { version = "=2.0.0-rc.24", features = ["derive", "typescript"] }
+specta = { workspace = true }
+specta-typescript = "0.0.11"
 tauri-plugin-dialog = "2.4.2"
 tauri-plugin-opener = "2"
 
 serde = { version = "1", features = ["derive"] }
-tokio = { version = "1.52", features = ["full"] }
-tracing = "0.1"
+tokio = { workspace = true }
+tracing = { workspace = true }
 urlencoding = "2.1"
-tempfile = "3.27"
+tempfile = { workspace = true }
 
 [dev-dependencies]
 serde_json = "1"

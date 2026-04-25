@@ -6,7 +6,12 @@
     import { keyboard } from '$lib/keyboard';
     import { mountedHint } from '$lib/keyhint.svelte';
 
-    let { onNext, onBack, nextDisabled = false, backDisabled = false }: {
+    let {
+        onNext,
+        onBack,
+        nextDisabled = false,
+        backDisabled = false,
+    }: {
         onNext: () => void;
         onBack: () => void;
         nextDisabled?: boolean;
@@ -16,14 +21,32 @@
     let cleanupKb: (() => void) | undefined;
     onMount(() => {
         cleanupKb = keyboard.smartRegister([
-            ['keyl', () => { wizard.direction = 'ltr'; return true; }],
-            ['keyr', () => { wizard.direction = 'rtl'; return true; }],
+            [
+                'l',
+                () => {
+                    wizard.direction = 'ltr';
+                    return true;
+                },
+            ],
+            [
+                'r',
+                () => {
+                    wizard.direction = 'rtl';
+                    return true;
+                },
+            ],
         ]);
     });
     onDestroy(() => cleanupKb?.());
 </script>
 
-<div class="flex h-full flex-col" use:mountedHint={[['keyl', 'LTR'], ['keyr', 'RTL']]}>
+<div
+    class="flex h-full flex-col"
+    use:mountedHint={[
+        ['keyl', 'LTR'],
+        ['keyr', 'RTL'],
+    ]}
+>
     <div class="flex-shrink-0 border-b border-thasia-border px-5 py-4">
         <h2 class="text-base font-bold">Reading Direction</h2>
         <p class="mt-0.5 text-xs text-thasia-muted">Controls page order in the EPUB output.</p>
@@ -54,6 +77,8 @@
 
     <div class="flex flex-shrink-0 gap-2 border-t border-thasia-border px-5 py-4">
         <Button onclick={onBack} disabled={backDisabled}><IconArrowLeft size={15} /> Back</Button>
-        <Button onclick={onNext} disabled={nextDisabled} class="ml-auto">Next <IconArrowRight size={15} /></Button>
+        <Button onclick={onNext} disabled={nextDisabled} class="ml-auto"
+            >Next <IconArrowRight size={15} /></Button
+        >
     </div>
 </div>

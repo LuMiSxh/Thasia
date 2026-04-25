@@ -4,17 +4,12 @@ use std::sync::Arc;
 use thasia_core::models::{Direction, ImageFormat, OutputFormat, ParsedImage};
 
 /// Full runtime state — held in Tauri managed state, never serialized to frontend.
+#[derive(Debug, Default)]
 pub struct ConvState {
     /// Grouped scan result: (volume_num, ordered pages). Populated by scan_source.
     pub scan_result: Option<Vec<(u32, Vec<ParsedImage>)>>,
     /// Keeps the TempDir alive for ZIP/CBZ extractions.
     pub source: Option<Arc<thasia_source::LocalSource>>,
-}
-
-impl Default for ConvState {
-    fn default() -> Self {
-        Self { scan_result: None, source: None }
-    }
 }
 
 /// Sent from frontend to the convert command.

@@ -6,15 +6,35 @@
     const isMac = typeof navigator !== 'undefined' && navigator.platform.startsWith('Mac');
 
     const macSymbols: Record<string, string> = {
-        meta: '⌘', alt: '⌥', ctrl: '⌃', shift: '⇧',
-        arrowright: '→', arrowleft: '←', arrowup: '↑', arrowdown: '↓',
-        enter: '↩', escape: 'Esc', backspace: '⌫', tab: '⇥', space: '␣',
+        meta: '⌘',
+        alt: '⌥',
+        ctrl: '⌃',
+        shift: '⇧',
+        arrowright: '→',
+        arrowleft: '←',
+        arrowup: '↑',
+        arrowdown: '↓',
+        enter: '↩',
+        escape: 'Esc',
+        backspace: '⌫',
+        tab: '⇥',
+        space: '␣',
     };
 
     const winSymbols: Record<string, string> = {
-        meta: 'Win', alt: 'Alt', ctrl: 'Ctrl', shift: '⇧',
-        arrowright: '→', arrowleft: '←', arrowup: '↑', arrowdown: '↓',
-        enter: '↵', escape: 'Esc', backspace: '⌫', tab: '⇥', space: '␣',
+        meta: 'Win',
+        alt: 'Alt',
+        ctrl: 'Ctrl',
+        shift: '⇧',
+        arrowright: '→',
+        arrowleft: '←',
+        arrowup: '↑',
+        arrowdown: '↓',
+        enter: '↵',
+        escape: 'Esc',
+        backspace: '⌫',
+        tab: '⇥',
+        space: '␣',
     };
 
     function formatPart(part: string): string {

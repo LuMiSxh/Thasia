@@ -61,11 +61,14 @@ impl Resolver {
         }
 
         // 2. Depth mapping fallback (e.g. "1/14/001.jpg")
+        // Only map directory components — the filename itself is never a volume/chapter marker.
+        // A flat file like "001.webp" has no directories, so nothing is mapped here.
         if self.config.enable_depth_fallback && (volume.is_none() || chapter.is_none()) {
             let path = Path::new(&img.relative_path);
             let components: Vec<&str> = path.iter().filter_map(|s| s.to_str()).collect();
+            let dir_components = &components[..components.len().saturating_sub(1)];
 
-            for (depth, comp) in components.iter().enumerate() {
+            for (depth, comp) in dir_components.iter().enumerate() {
                 if let Some(level) = self.config.depth_mapping.get(depth) {
                     let n = Token::lexer(comp).filter_map(|r| r.ok()).find_map(|t| {
                         if let Token::Number(n) = t {
@@ -166,6 +169,19 @@ mod tests {
         let r = resolver();
         let p = r.resolve(img("Vol 2/Ch 10.5/001.png")).unwrap();
         assert_eq!(p.identifier.chapter, Some(10.5));
+    }
+
+    #[test]
+    fn test_flat_structure_all_same_volume() {
+        let r = resolver();
+        let p1 = r.resolve(img("001.webp")).unwrap();
+        let p2 = r.resolve(img("002.webp")).unwrap();
+        // Flat files have no directory structure — all should land in the same volume (None)
+        assert_eq!(p1.identifier.volume, None);
+        assert_eq!(p2.identifier.volume, None);
+        assert_eq!(p1.identifier.chapter, None);
+        assert_eq!(p1.page_number, 1);
+        assert_eq!(p2.page_number, 2);
     }
 
     #[test]

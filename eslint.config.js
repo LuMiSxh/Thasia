@@ -32,6 +32,13 @@ export default [
         },
     },
     {
-        ignores: ['src-tauri/', 'build/', '.svelte-kit/', 'node_modules/', '**/bindings.ts'],
+        ignores: [
+            'src-tauri/',
+            'build/',
+            '.svelte-kit/',
+            'node_modules/',
+            '**/bindings.ts',
+            'target',
+        ],
     },
 ];

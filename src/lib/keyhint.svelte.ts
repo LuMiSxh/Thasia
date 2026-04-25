@@ -16,6 +16,7 @@ class KeyHintState {
         });
         return () =>
             untrack(() => {
+                // eslint-disable-next-line @typescript-eslint/no-unused-vars
                 const { [id]: _, ...rest } = this.scopes;
                 this.scopes = rest;
             });
@@ -24,6 +25,7 @@ class KeyHintState {
     get(): [string, string][] {
         const allScopes = Object.values(this.scopes);
         const hasExclusive = allScopes.some((s) => s.exclusive);
+        // eslint-disable-next-line svelte/prefer-svelte-reactivity
         const merged = new Map<string, string>();
         allScopes.forEach((scope) => {
             if (hasExclusive && !scope.exclusive) return;
@@ -52,7 +54,7 @@ export function mountedHint(node: HTMLElement, keys: [string, string][]) {
 /** Registers hints only while the element is focused. */
 export function handleKeyHint(
     node: HTMLElement,
-    data: { keys: [string, string][]; exclusive?: boolean },
+    data: { keys: [string, string][]; exclusive?: boolean }
 ) {
     let unregister: (() => void) | null = null;
 

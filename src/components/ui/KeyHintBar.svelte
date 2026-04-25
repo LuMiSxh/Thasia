@@ -29,14 +29,13 @@
 </script>
 
 {#if uiPrefs.showKeyHints && hints.length > 0}
-    <div class="flex h-8 flex-shrink-0 items-center overflow-hidden border-t border-thasia-border bg-thasia-surface px-4">
+    <div
+        class="flex h-8 flex-shrink-0 items-center overflow-hidden border-t border-thasia-border bg-thasia-surface px-4"
+    >
         {#each hints as [combo, label] (combo)}
-            <div
-                class="mr-5 flex items-center gap-2"
-                transition:glassChip
-            >
+            <div class="mr-5 flex items-center gap-2" transition:glassChip>
                 <KeyComboDisplay {combo} />
-                <span class="whitespace-nowrap text-xs text-thasia-muted">{label}</span>
+                <span class="text-xs whitespace-nowrap text-thasia-muted">{label}</span>
             </div>
         {/each}
     </div>

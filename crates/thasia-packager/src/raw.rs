@@ -3,7 +3,7 @@
 use crate::Generator;
 use async_trait::async_trait;
 use std::path::{Path, PathBuf};
-use thasia_core::{models::ProcessedImage, Result, ThasiaError};
+use thasia_core::{Result, ThasiaError, models::ProcessedImage};
 
 pub struct RawGenerator {
     output_dir: PathBuf,
@@ -11,7 +11,9 @@ pub struct RawGenerator {
 
 impl RawGenerator {
     pub fn new() -> Self {
-        Self { output_dir: PathBuf::new() }
+        Self {
+            output_dir: PathBuf::new(),
+        }
     }
 }
 

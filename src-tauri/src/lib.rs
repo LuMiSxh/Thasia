@@ -8,7 +8,7 @@ use std::sync::RwLock;
 #[cfg(debug_assertions)]
 use specta_typescript::Typescript;
 use tauri::Builder;
-use tauri_specta::{collect_commands, collect_events, Builder as SpectaBuilder};
+use tauri_specta::{Builder as SpectaBuilder, collect_commands, collect_events};
 
 fn make_specta_builder() -> SpectaBuilder<tauri::Wry> {
     SpectaBuilder::<tauri::Wry>::new()
@@ -40,9 +40,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .manage(RwLock::new(state::ConvState::default()))
-        .register_uri_scheme_protocol("thasia", |_app, request| {
-            protocol::handle(request)
-        })
+        .register_uri_scheme_protocol("thasia", |_app, request| protocol::handle(request))
         .invoke_handler(invoke_handler)
         .setup(move |app| {
             builder_for_setup.mount_events(app);
@@ -59,8 +57,7 @@ mod tests {
     /// Generates src/types/bindings.ts. Run with `cargo test export_bindings`.
     #[test]
     fn export_bindings() {
-        let out = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../src/types/bindings.ts");
+        let out = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../src/types/bindings.ts");
         make_specta_builder()
             .export(Typescript::default(), &out)
             .expect("Failed to export TypeScript bindings");

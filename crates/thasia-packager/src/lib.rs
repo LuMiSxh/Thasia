@@ -8,7 +8,7 @@ pub use raw::RawGenerator;
 
 use async_trait::async_trait;
 use std::path::Path;
-use thasia_core::{models::ProcessedImage, Result};
+use thasia_core::{Result, models::ProcessedImage};
 
 #[async_trait]
 pub trait Generator {

@@ -9,7 +9,12 @@
     import { keyboard } from '$lib/keyboard';
     import { mountedHint } from '$lib/keyhint.svelte';
 
-    let { onNext, onBack, nextDisabled = false, backDisabled = false }: {
+    let {
+        onNext,
+        onBack,
+        nextDisabled = false,
+        backDisabled = false,
+    }: {
         onNext: () => void;
         onBack: () => void;
         nextDisabled?: boolean;
@@ -27,16 +32,39 @@
     let cleanupKb: (() => void) | undefined;
     onMount(() => {
         cleanupKb = keyboard.smartRegister([
-            ['arrowleft', (e) => {
-                e.preventDefault();
-                if (activeVolumeIndex > 0) activeVolumeIndex--;
-                return true;
-            }],
-            ['arrowright', (e) => {
-                e.preventDefault();
-                if (activeVolumeIndex < volumes.length - 1) activeVolumeIndex++;
-                return true;
-            }],
+            [
+                'arrowleft',
+                (e) => {
+                    e.preventDefault();
+                    if (activeVolumeIndex > 0) activeVolumeIndex--;
+                    return true;
+                },
+            ],
+            [
+                'arrowright',
+                (e) => {
+                    e.preventDefault();
+                    if (activeVolumeIndex < volumes.length - 1) activeVolumeIndex++;
+                    return true;
+                },
+            ],
+            [
+                'shift+arrowright',
+                (e) => {
+                    e.preventDefault();
+                    onNext();
+                    return true;
+                },
+            ],
+            [
+                'shift+arrowleft',
+                (e) => {
+                    if (backDisabled) return false;
+                    e.preventDefault();
+                    onBack();
+                    return true;
+                },
+            ],
         ]);
     });
     onDestroy(() => cleanupKb?.());
@@ -156,7 +184,15 @@
     }
 </script>
 
-<div class="flex h-full gap-0" use:mountedHint={[['arrowleft', 'Prev volume'], ['arrowright', 'Next volume']]}>
+<div
+    class="flex h-full gap-0"
+    use:mountedHint={[
+        ['arrowleft', 'Prev volume'],
+        ['arrowright', 'Next volume'],
+        ['shift+arrowright', 'Next step'],
+        ...(!backDisabled ? [['shift+arrowleft', 'Back'] as [string, string]] : []),
+    ]}
+>
     <!-- Volume list -->
     <div class="flex w-44 flex-shrink-0 flex-col overflow-hidden border-r border-thasia-border">
         <div
@@ -285,8 +321,12 @@
 
         <!-- Footer -->
         <div class="flex flex-shrink-0 gap-2 border-t border-thasia-border px-4 py-3">
-            <Button onclick={onBack} disabled={backDisabled}><IconArrowLeft size={15} /> Back</Button>
-            <Button onclick={onNext} disabled={nextDisabled} class="ml-auto">Next <IconArrowRight size={15} /></Button>
+            <Button onclick={onBack} disabled={backDisabled}
+                ><IconArrowLeft size={15} /> Back</Button
+            >
+            <Button onclick={onNext} disabled={nextDisabled} class="ml-auto"
+                >Next <IconArrowRight size={15} /></Button
+            >
         </div>
     </div>
 </div>

@@ -1,4 +1,4 @@
-use backoff::{future::retry, ExponentialBackoff};
+use backoff::{ExponentialBackoff, future::retry};
 use std::time::Duration;
 use thasia_core::ThasiaError;
 use tracing::{error, warn};

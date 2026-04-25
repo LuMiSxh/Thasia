@@ -14,20 +14,20 @@
     let { children } = $props();
 
     const navRoutes: [string, string, string][] = [
-        ['meta+digit1', 'Home', '/'],
-        ['meta+digit2', 'Convert', '/convert'],
-        ['meta+digit3', 'Settings', '/settings'],
-        ['meta+digit4', 'About', '/about'],
+        ['meta+1', 'Home', '/'],
+        ['meta+2', 'Convert', '/convert'],
+        ['meta+3', 'Settings', '/settings'],
+        ['meta+4', 'About', '/about'],
     ];
 
     let navHints = $derived(
-        (navRoutes
-            .filter(([, , route]) =>
-                route === '/' ? page.url.pathname !== '/' : !page.url.pathname.startsWith(route)
-            )
-            .map(([key, label]) => [key, label]) as [string, string][]).concat([
-            ['meta+keyb', 'Sidebar'],
-        ])
+        (
+            navRoutes
+                .filter(([, , route]) =>
+                    route === '/' ? page.url.pathname !== '/' : !page.url.pathname.startsWith(route)
+                )
+                .map(([key, label]) => [key, label]) as [string, string][]
+        ).concat([['meta+keyb', 'Sidebar']])
     );
 
     onMount(() => {
@@ -35,13 +35,46 @@
         uiPrefs.init();
         const unmount = keyboard.mount();
         const cleanup = keyboard.smartRegister([
-            ['meta+digit1', () => { goto('/'); return true; }],
-            ['meta+digit2', () => { goto('/convert'); return true; }],
-            ['meta+digit3', () => { goto('/settings'); return true; }],
-            ['meta+digit4', () => { goto('/about'); return true; }],
-            ['meta+keyb', () => { sidebar.toggle(); return true; }],
+            [
+                'meta+1',
+                () => {
+                    goto('/');
+                    return true;
+                },
+            ],
+            [
+                'meta+2',
+                () => {
+                    goto('/convert');
+                    return true;
+                },
+            ],
+            [
+                'meta+3',
+                () => {
+                    goto('/settings');
+                    return true;
+                },
+            ],
+            [
+                'meta+4',
+                () => {
+                    goto('/about');
+                    return true;
+                },
+            ],
+            [
+                'meta+keyb',
+                () => {
+                    sidebar.toggle();
+                    return true;
+                },
+            ],
         ]);
-        return () => { unmount(); cleanup(); };
+        return () => {
+            unmount();
+            cleanup();
+        };
     });
 </script>
 

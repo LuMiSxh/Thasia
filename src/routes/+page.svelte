@@ -5,7 +5,11 @@
 
     let version = $state('...');
     onMount(async () => {
-        try { version = await getVersion(); } catch { version = '?' }
+        try {
+            version = await getVersion();
+        } catch {
+            version = '?';
+        }
     });
 
     const cardClass =

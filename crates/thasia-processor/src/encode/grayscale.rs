@@ -12,7 +12,10 @@ const GRAY_THRESHOLD: f32 = 0.95;
 /// row-major order without downscaling.
 pub fn is_grayscale(img: &DynamicImage) -> bool {
     // Native grayscale formats — fast path
-    if matches!(img, DynamicImage::ImageLuma8(_) | DynamicImage::ImageLuma16(_)) {
+    if matches!(
+        img,
+        DynamicImage::ImageLuma8(_) | DynamicImage::ImageLuma16(_)
+    ) {
         return true;
     }
 
@@ -71,8 +74,7 @@ mod tests {
     #[test]
     fn test_color_image_is_not_grayscale() {
         // Red image
-        let img: image::RgbImage =
-            ImageBuffer::from_fn(100, 100, |_, _| Rgb([255u8, 0u8, 0u8]));
+        let img: image::RgbImage = ImageBuffer::from_fn(100, 100, |_, _| Rgb([255u8, 0u8, 0u8]));
         let dyn_img = DynamicImage::ImageRgb8(img);
         assert!(!is_grayscale(&dyn_img));
     }

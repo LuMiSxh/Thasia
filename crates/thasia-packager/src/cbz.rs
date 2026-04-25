@@ -1,8 +1,11 @@
 use crate::Generator;
 use async_trait::async_trait;
-use async_zip::{base::write::ZipFileWriter as BaseZipFileWriter, tokio::write::ZipFileWriter, Compression, ZipEntryBuilder};
+use async_zip::{
+    Compression, ZipEntryBuilder, base::write::ZipFileWriter as BaseZipFileWriter,
+    tokio::write::ZipFileWriter,
+};
 use std::path::Path;
-use thasia_core::{models::ProcessedImage, Result, ThasiaError};
+use thasia_core::{Result, ThasiaError, models::ProcessedImage};
 use tokio::fs::File;
 
 const COMIC_INFO: &str = include_str!("../templates/comic_info.xml");
@@ -15,7 +18,11 @@ pub struct CbzGenerator {
 
 impl CbzGenerator {
     pub fn new() -> Self {
-        Self { writer: None, volume_name: String::new(), page_count: 0 }
+        Self {
+            writer: None,
+            volume_name: String::new(),
+            page_count: 0,
+        }
     }
 }
 
@@ -28,7 +35,9 @@ impl Default for CbzGenerator {
 #[async_trait]
 impl Generator for CbzGenerator {
     async fn init(&mut self, output_dir: &Path, volume_name: &str) -> Result<()> {
-        tokio::fs::create_dir_all(output_dir).await.map_err(ThasiaError::Io)?;
+        tokio::fs::create_dir_all(output_dir)
+            .await
+            .map_err(ThasiaError::Io)?;
         let path = output_dir.join(format!("{volume_name}.cbz"));
         let file = File::create(&path).await.map_err(ThasiaError::Io)?;
         self.writer = Some(BaseZipFileWriter::with_tokio(file));
@@ -75,7 +84,10 @@ impl Generator for CbzGenerator {
             .await
             .map_err(|e| ThasiaError::Fatal(e.to_string()))?;
 
-        writer.close().await.map_err(|e| ThasiaError::Fatal(e.to_string()))?;
+        writer
+            .close()
+            .await
+            .map_err(|e| ThasiaError::Fatal(e.to_string()))?;
         Ok(())
     }
 }

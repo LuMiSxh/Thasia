@@ -8,9 +8,11 @@ use std::sync::{Arc, RwLock};
 use std::time::Instant;
 use tauri::{AppHandle, State};
 use tauri_specta::Event;
-use thasia_core::models::{ChapterIdentifier, DiscoveredImage, OutputFormat, ParsedImage, ProcessedImage};
+use thasia_core::models::{
+    ChapterIdentifier, DiscoveredImage, OutputFormat, ParsedImage, ProcessedImage,
+};
 use thasia_packager::{CbzGenerator, EpubGenerator, Generator, RawGenerator};
-use thasia_processor::{start_pipeline, EncodeOptions};
+use thasia_processor::{EncodeOptions, start_pipeline};
 use thasia_source::LocalSource;
 
 #[tauri::command]
@@ -121,8 +123,8 @@ pub async fn convert(
     // Use the stored source if available; otherwise create a minimal LocalSource.
     // LocalSource::fetch reads absolute_path directly, so the root only matters
     // for discover(), which is not called here.
-    let arc_source: Arc<LocalSource> = source
-        .unwrap_or_else(|| Arc::new(LocalSource::new(out_root.clone())));
+    let arc_source: Arc<LocalSource> =
+        source.unwrap_or_else(|| Arc::new(LocalSource::new(out_root.clone())));
 
     let mut successful = 0u32;
     let mut failed = 0u32;
@@ -184,6 +186,7 @@ pub async fn convert(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn convert_volume(
     pages: Vec<ParsedImage>,
     vol_name: String,
@@ -207,7 +210,7 @@ async fn convert_volume(
 
     let mut rx_processed = start_pipeline(source, rx_parsed, encode_opts).await;
 
-    let mut gen: Box<dyn Generator + Send> = match options.output_format {
+    let mut pkg: Box<dyn Generator + Send> = match options.output_format {
         OutputFormat::Cbz => Box::new(CbzGenerator::new()),
         OutputFormat::Epub => {
             Box::new(EpubGenerator::new().with_direction(options.direction.clone()))
@@ -215,27 +218,32 @@ async fn convert_volume(
         OutputFormat::Raw => Box::new(RawGenerator::new()),
     };
 
-    gen.init(out_root, &vol_name)
+    pkg.init(out_root, &vol_name)
         .await
         .map_err(|e| e.to_string())?;
 
     // Collect all encoded images before writing — Rayon processes pages in
     // parallel and returns them in completion order (non-deterministic), so we
     // sort by page_number (assigned sequentially in convert()) before writing.
-    let mut all_images: Vec<ProcessedImage> =
-        Vec::with_capacity(total as usize);
+    let mut all_images: Vec<ProcessedImage> = Vec::with_capacity(total as usize);
     let mut current = 0u32;
     while let Some(result) = rx_processed.recv().await {
         let img = result.map_err(|e| e.to_string())?;
         current += 1;
-        ImageProgressEvent { volume_num: vol_num, current, total }.emit(app).ok();
+        ImageProgressEvent {
+            volume_num: vol_num,
+            current,
+            total,
+        }
+        .emit(app)
+        .ok();
         all_images.push(img);
     }
     all_images.sort_by_key(|img| img.parsed_data.page_number);
     for img in all_images {
-        gen.add_page(img).await.map_err(|e| e.to_string())?;
+        pkg.add_page(img).await.map_err(|e| e.to_string())?;
     }
 
-    gen.finalize().await.map_err(|e| e.to_string())?;
+    pkg.finalize().await.map_err(|e| e.to_string())?;
     Ok(())
 }

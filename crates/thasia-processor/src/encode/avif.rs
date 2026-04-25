@@ -37,11 +37,7 @@ pub fn convert_to_avif(img: &image::DynamicImage) -> Result<Vec<u8>, ThasiaError
 
     trace!(
         "AVIF encode: {}x{} quality={} speed={} gray={}",
-        width,
-        height,
-        quality,
-        speed,
-        gray
+        width, height, quality, speed, gray
     );
 
     // Single thread per encode: rayon handles parallelism across images.

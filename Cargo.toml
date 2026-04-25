@@ -1,6 +1,13 @@
 [workspace]
-members = ["crates/*"]
+members = ["crates/*", "src-tauri"]
 resolver = "2"
+
+[workspace.package]
+edition = "2024"
+version = "0.1.0"
+authors = ["LuMiSxh"]
+license = "MIT"
+repository = "https://github.com/LuMiSxh/Thasia"
 
 [workspace.dependencies]
 tokio = { version = "1.52", features = ["full"] }
@@ -29,7 +36,7 @@ webp = "0.3"
 clap = { version = "4", features = ["derive"] }
 epub-builder = "0.8"
 zip = "8.5"
-specta = { version = "=2.0.0-rc.22", features = ["derive"] }
+specta = { version = "=2.0.0-rc.24", features = ["derive"] }
 
 [profile.release]
 lto = "fat"

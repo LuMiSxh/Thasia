@@ -17,7 +17,9 @@ pub async fn scan_source(
 
     // Build the source — handles both directories and ZIP/CBZ archives
     let source = if LocalSource::is_archive(&source_path) {
-        LocalSource::from_archive(source_path).await.map_err(|e| e.to_string())?
+        LocalSource::from_archive(source_path)
+            .await
+            .map_err(|e| e.to_string())?
     } else {
         LocalSource::new(source_path)
     };

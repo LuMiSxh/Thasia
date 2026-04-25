@@ -87,7 +87,9 @@
 </script>
 
 <div class="flex h-full flex-col overflow-hidden">
-    <div class="mx-auto flex min-h-0 w-full max-w-5xl flex-1 flex-col gap-6 overflow-y-auto px-8 py-8">
+    <div
+        class="mx-auto flex min-h-0 w-full max-w-5xl flex-1 flex-col gap-6 overflow-y-auto px-8 py-8"
+    >
         <!-- Header -->
         <div class="flex flex-shrink-0 items-center justify-between">
             <div>
@@ -105,9 +107,15 @@
         <!-- Two section panels -->
         <div class="grid grid-cols-2 gap-4">
             <!-- LEFT: Encoding -->
-            <div class="flex flex-col overflow-hidden rounded-xl border border-thasia-border bg-thasia-surface">
-                <div class="flex-shrink-0 border-b border-thasia-border bg-thasia-panel px-4 py-2.5">
-                    <span class="text-[10px] font-bold tracking-widest text-thasia-muted uppercase">Encoding</span>
+            <div
+                class="flex flex-col overflow-hidden rounded-xl border border-thasia-border bg-thasia-surface"
+            >
+                <div
+                    class="flex-shrink-0 border-b border-thasia-border bg-thasia-panel px-4 py-2.5"
+                >
+                    <span class="text-[10px] font-bold tracking-widest text-thasia-muted uppercase"
+                        >Encoding</span
+                    >
                 </div>
 
                 <div class="flex flex-col gap-2.5 px-4 py-4">
@@ -134,7 +142,9 @@
                             <IconRuler size={14} class="flex-shrink-0 text-thasia-muted" />
                             <div>
                                 <div class="text-sm font-medium">Max Width</div>
-                                <div class="text-xs text-thasia-muted">Downscale wider images (px)</div>
+                                <div class="text-xs text-thasia-muted">
+                                    Downscale wider images (px)
+                                </div>
                             </div>
                         </div>
                         <Toggle
@@ -160,9 +170,15 @@
             </div>
 
             <!-- RIGHT: Output -->
-            <div class="flex flex-col overflow-hidden rounded-xl border border-thasia-border bg-thasia-surface">
-                <div class="flex-shrink-0 border-b border-thasia-border bg-thasia-panel px-4 py-2.5">
-                    <span class="text-[10px] font-bold tracking-widest text-thasia-muted uppercase">Output</span>
+            <div
+                class="flex flex-col overflow-hidden rounded-xl border border-thasia-border bg-thasia-surface"
+            >
+                <div
+                    class="flex-shrink-0 border-b border-thasia-border bg-thasia-panel px-4 py-2.5"
+                >
+                    <span class="text-[10px] font-bold tracking-widest text-thasia-muted uppercase"
+                        >Output</span
+                    >
                 </div>
 
                 <div class="flex flex-col gap-2.5 px-4 py-4">
@@ -237,16 +253,22 @@
         </div>
 
         <!-- Interface panel -->
-        <div class="flex-shrink-0 overflow-hidden rounded-xl border border-thasia-border bg-thasia-surface">
+        <div
+            class="flex-shrink-0 overflow-hidden rounded-xl border border-thasia-border bg-thasia-surface"
+        >
             <div class="flex-shrink-0 border-b border-thasia-border bg-thasia-panel px-4 py-2.5">
-                <span class="text-[10px] font-bold tracking-widest text-thasia-muted uppercase">Interface</span>
+                <span class="text-[10px] font-bold tracking-widest text-thasia-muted uppercase"
+                    >Interface</span
+                >
             </div>
             <div class="flex items-center justify-between px-4 py-4">
                 <div class="flex items-center gap-2">
                     <IconKeyboard size={14} class="flex-shrink-0 text-thasia-muted" />
                     <div>
                         <div class="text-sm font-medium">Keyboard hint bar</div>
-                        <div class="text-xs text-thasia-muted">Show shortcut hints at the bottom of the window</div>
+                        <div class="text-xs text-thasia-muted">
+                            Show shortcut hints at the bottom of the window
+                        </div>
                     </div>
                 </div>
                 <Toggle bind:checked={defaults.showKeyHints} />
