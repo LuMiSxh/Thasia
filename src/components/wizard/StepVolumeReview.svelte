@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { onMount, onDestroy } from 'svelte';
     import { wizard } from '$lib/wizard/state.svelte';
     import type { VolumeEdit } from '$lib/wizard/state.svelte';
     import ProgressBar from '$components/ui/ProgressBar.svelte';
@@ -10,8 +11,22 @@
         IconBook,
         IconLayoutGrid,
     } from '@tabler/icons-svelte';
+    import { keyboard } from '$lib/keyboard';
+    import { mountedHint } from '$lib/keyhint.svelte';
 
-    let { onNext, onBack }: { onNext: () => void; onBack: () => void } = $props();
+    let { onNext, onBack, backDisabled = false }: {
+        onNext: () => void;
+        onBack: () => void;
+        backDisabled?: boolean;
+    } = $props();
+
+    let cleanupKb: (() => void) | undefined;
+    onMount(() => {
+        cleanupKb = keyboard.smartRegister([
+            ['alt+arrowright', (e) => { e.preventDefault(); handleNext(); return true; }],
+        ]);
+    });
+    onDestroy(() => cleanupKb?.());
 
     let scanVols = $derived(wizard.scanResult ?? []);
     let unit = $derived(scanVols.length > 1 ? 'chapter' : 'page');
@@ -135,7 +150,10 @@
     }
 </script>
 
-<div class="flex h-full flex-col">
+<div
+    class="flex h-full flex-col"
+    use:mountedHint={isValid ? [['alt+arrowright', 'Next step']] : []}
+>
     <!-- Header -->
     <div class="flex-shrink-0 border-b border-thasia-border px-5 py-4">
         <h2 class="text-base font-bold">Volume Assignment</h2>
@@ -367,7 +385,7 @@
 
     <!-- Footer -->
     <div class="flex flex-shrink-0 gap-2 border-t border-thasia-border px-5 py-4">
-        <Button onclick={onBack}><IconArrowLeft size={15} /> Back</Button>
+        <Button onclick={onBack} disabled={backDisabled}><IconArrowLeft size={15} /> Back</Button>
         <Button
             onclick={handleNext}
             disabled={!isValid}

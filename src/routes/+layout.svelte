@@ -2,6 +2,7 @@
     import '../app.css';
     import { onMount } from 'svelte';
     import { goto } from '$app/navigation';
+    import { page } from '$app/state';
     import Sidebar from '$components/Sidebar.svelte';
     import { KeyHintBar } from '$components/ui/index';
     import { theme } from '$lib/theme.svelte';
@@ -11,6 +12,23 @@
     import { sidebar } from '$lib/sidebar/state.svelte';
 
     let { children } = $props();
+
+    const navRoutes: [string, string, string][] = [
+        ['meta+digit1', 'Home', '/'],
+        ['meta+digit2', 'Convert', '/convert'],
+        ['meta+digit3', 'Settings', '/settings'],
+        ['meta+digit4', 'About', '/about'],
+    ];
+
+    let navHints = $derived(
+        (navRoutes
+            .filter(([, , route]) =>
+                route === '/' ? page.url.pathname !== '/' : !page.url.pathname.startsWith(route)
+            )
+            .map(([key, label]) => [key, label]) as [string, string][]).concat([
+            ['meta+keyb', 'Sidebar'],
+        ])
+    );
 
     onMount(() => {
         theme.init();
@@ -29,13 +47,7 @@
 
 <div
     class="flex h-screen flex-col overflow-hidden bg-thasia-bg text-thasia-text"
-    use:mountedHint={[
-        ['meta+digit1', 'Home'],
-        ['meta+digit2', 'Convert'],
-        ['meta+digit3', 'Settings'],
-        ['meta+digit4', 'About'],
-        ['meta+keyb', 'Sidebar'],
-    ]}
+    use:mountedHint={navHints}
 >
     <!-- macOS title bar: sits behind traffic lights, draggable -->
     <div

@@ -11,7 +11,12 @@
         IconFolderPlus,
     } from '@tabler/icons-svelte';
 
-    let { onNext, onBack }: { onNext: () => void; onBack: () => void } = $props();
+    let { onNext, onBack, nextDisabled = false, backDisabled = false }: {
+        onNext: () => void;
+        onBack: () => void;
+        nextDisabled?: boolean;
+        backDisabled?: boolean;
+    } = $props();
     let error = $state('');
 
     async function pickDir() {
@@ -97,7 +102,7 @@
     </div>
 
     <div class="flex flex-shrink-0 gap-2 border-t border-thasia-border px-5 py-4">
-        <Button onclick={onBack}><IconArrowLeft size={15} /> Back</Button>
-        <Button onclick={handleNext} class="ml-auto">Next <IconArrowRight size={15} /></Button>
+        <Button onclick={onBack} disabled={backDisabled}><IconArrowLeft size={15} /> Back</Button>
+        <Button onclick={handleNext} disabled={nextDisabled} class="ml-auto">Next <IconArrowRight size={15} /></Button>
     </div>
 </div>

@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { onMount, onDestroy } from 'svelte';
     import { wizard } from '$lib/wizard/state.svelte';
     import { open } from '@tauri-apps/plugin-dialog';
     import { commands } from '$types/bindings';
@@ -10,10 +11,31 @@
         IconArrowLeft,
         IconArrowRight,
     } from '@tabler/icons-svelte';
+    import { keyboard } from '$lib/keyboard';
+    import { mountedHint } from '$lib/keyhint.svelte';
 
-    let { onNext, onBack }: { onNext: () => void; onBack: () => void } = $props();
+    let { onNext, onBack, nextDisabled = false, backDisabled = true }: {
+        onNext: () => void;
+        onBack: () => void;
+        nextDisabled?: boolean;
+        backDisabled?: boolean;
+    } = $props();
     let loading = $state(false);
     let error = $state('');
+
+    let nextHints = $derived(
+        !!wizard.sourcePath ? [['alt+arrowright', 'Next step'] as [string, string]] : []
+    );
+
+    let cleanupKb: (() => void) | undefined;
+    onMount(() => {
+        cleanupKb = keyboard.smartRegister([
+            ['keyo', () => { pickSource(); return true; }],
+            ['keyz', () => { pickArchive(); return true; }],
+            ['alt+arrowright', (e) => { e.preventDefault(); handleNext(); return true; }],
+        ]);
+    });
+    onDestroy(() => cleanupKb?.());
 
     function inferOutputName(path: string) {
         const base = path.split(/[\\/]/).at(-1) ?? '';
@@ -77,7 +99,7 @@
     }
 </script>
 
-<div class="flex h-full flex-col">
+<div class="flex h-full flex-col" use:mountedHint={[['keyo', 'Open folder'], ['keyz', 'Open archive'], ...nextHints]}>
     <div class="flex-shrink-0 border-b border-thasia-border px-5 py-4">
         <h2 class="text-base font-bold">Source</h2>
         <p class="mt-0.5 text-xs text-thasia-muted">
@@ -129,7 +151,7 @@
     </div>
 
     <div class="flex flex-shrink-0 gap-2 border-t border-thasia-border px-5 py-4">
-        <Button onclick={onBack} disabled={true}><IconArrowLeft size={15} /> Back</Button>
+        <Button onclick={onBack} disabled={backDisabled}><IconArrowLeft size={15} /> Back</Button>
         <Button onclick={handleNext} disabled={loading || !wizard.sourcePath} class="ml-auto">
             {loading ? 'Scanning…' : 'Next'}
             <IconArrowRight size={15} />

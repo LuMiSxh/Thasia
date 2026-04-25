@@ -28,8 +28,8 @@
         document.addEventListener('wizard:goto', handleGoto);
 
         const cleanup = keyboard.smartRegister([
-            ['alt+arrowright', (e) => { e.preventDefault(); goNext(); return true; }],
-            ['alt+arrowleft', (e) => { e.preventDefault(); goBack(); return true; }],
+            ['alt+arrowright', (e) => { e.preventDefault(); if (canGoNext) goNext(); return true; }],
+            ['alt+arrowleft', (e) => { e.preventDefault(); if (canGoBack) goBack(); return true; }],
         ]);
 
         return () => {
@@ -51,6 +51,22 @@
     let currentStep = $derived(active.find((s) => s.id === wizard.currentStepId) ?? active[0]);
     let currentIndex = $derived(active.findIndex((s) => s.id === wizard.currentStepId));
 
+    // Steps that manage their own alt+arrowright (async/complex handleNext)
+    const selfManagedNext = new Set(['source', 'volume-review']);
+
+    let canGoBack = $derived(currentIndex > 0 && currentStep?.id !== 'convert');
+    let canGoNext = $derived(
+        !!currentStep &&
+        !selfManagedNext.has(currentStep.id) &&
+        currentStep.id !== 'convert' &&
+        (currentStep.id !== 'destination' || (!!wizard.outputDir && !!wizard.outputName))
+    );
+
+    let navHints = $derived([
+        ...(canGoNext ? [['alt+arrowright', 'Next step'] as [string, string]] : []),
+        ...(canGoBack ? [['alt+arrowleft', 'Back'] as [string, string]] : []),
+    ]);
+
     function goNext() {
         if (!currentStep) return;
         wizard.markComplete(currentStep.id);
@@ -64,16 +80,15 @@
     }
 </script>
 
-<div
-    class="flex h-full flex-col"
-    use:mountedHint={[
-        ['alt+arrowright', 'Next step'],
-        ['alt+arrowleft', 'Back'],
-    ]}
->
+<div class="flex h-full flex-col" use:mountedHint={navHints}>
     {#if currentStep}
         {#key currentStep.id}
-            <currentStep.component onNext={goNext} onBack={goBack} />
+            <currentStep.component
+                onNext={goNext}
+                onBack={goBack}
+                nextDisabled={!canGoNext}
+                backDisabled={!canGoBack}
+            />
         {/key}
     {/if}
 </div>

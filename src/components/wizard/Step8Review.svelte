@@ -14,7 +14,12 @@
         IconFile,
     } from '@tabler/icons-svelte';
 
-    let { onNext, onBack }: { onNext: () => void; onBack: () => void } = $props();
+    let { onNext, onBack, nextDisabled = false, backDisabled = false }: {
+        onNext: () => void;
+        onBack: () => void;
+        nextDisabled?: boolean;
+        backDisabled?: boolean;
+    } = $props();
 
     let totalPages = $derived(
         wizard.pageEdits.reduce((acc, vol) => acc + vol.pages.filter((p) => !p.excluded).length, 0)
@@ -68,8 +73,8 @@
     </div>
 
     <div class="flex flex-shrink-0 gap-2 border-t border-thasia-border px-5 py-4">
-        <Button onclick={onBack}><IconArrowLeft size={15} /> Back</Button>
-        <Button variant="primary" onclick={onNext} class="ml-auto"
+        <Button onclick={onBack} disabled={backDisabled}><IconArrowLeft size={15} /> Back</Button>
+        <Button variant="primary" onclick={onNext} disabled={nextDisabled} class="ml-auto"
             >Start Converting <IconArrowRight size={15} /></Button
         >
     </div>
