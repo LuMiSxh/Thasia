@@ -8,7 +8,7 @@ use std::sync::{Arc, RwLock};
 use std::time::Instant;
 use tauri::{AppHandle, State};
 use tauri_specta::Event;
-use thasia_core::models::{ChapterIdentifier, DiscoveredImage, OutputFormat, ParsedImage};
+use thasia_core::models::{ChapterIdentifier, DiscoveredImage, OutputFormat, ParsedImage, ProcessedImage};
 use thasia_packager::{CbzGenerator, EpubGenerator, Generator, RawGenerator};
 use thasia_processor::{start_pipeline, EncodeOptions};
 use thasia_source::LocalSource;
@@ -93,6 +93,13 @@ pub async fn convert(
                 options.output_name, options.volume_separator, edit.volume_num
             )
         };
+
+        // Assign sequential per-volume page numbers so filenames are unique and
+        // the sort in convert_volume produces the correct output order regardless
+        // of Rayon's non-deterministic completion order.
+        for (i, page) in final_pages.iter_mut().enumerate() {
+            page.page_number = i as u32;
+        }
 
         volumes.push((edit.volume_num, final_pages, vol_name));
     }
@@ -212,15 +219,21 @@ async fn convert_volume(
         .await
         .map_err(|e| e.to_string())?;
 
-    // Emit progress after each image is encoded and written — tracks real work.
+    // Collect all encoded images before writing — Rayon processes pages in
+    // parallel and returns them in completion order (non-deterministic), so we
+    // sort by page_number (assigned sequentially in convert()) before writing.
+    let mut all_images: Vec<ProcessedImage> =
+        Vec::with_capacity(total as usize);
     let mut current = 0u32;
     while let Some(result) = rx_processed.recv().await {
         let img = result.map_err(|e| e.to_string())?;
-        gen.add_page(img).await.map_err(|e| e.to_string())?;
         current += 1;
-        ImageProgressEvent { volume_num: vol_num, current, total }
-            .emit(app)
-            .ok();
+        ImageProgressEvent { volume_num: vol_num, current, total }.emit(app).ok();
+        all_images.push(img);
+    }
+    all_images.sort_by_key(|img| img.parsed_data.page_number);
+    for img in all_images {
+        gen.add_page(img).await.map_err(|e| e.to_string())?;
     }
 
     gen.finalize().await.map_err(|e| e.to_string())?;
