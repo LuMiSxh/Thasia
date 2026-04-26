@@ -1,6 +1,7 @@
 # Ruby related
 .bundle
 /target
+.DS_Store
 
 # Node related
 /node_modules

@@ -62,10 +62,25 @@ fn encode_gray(
     width: usize,
     height: usize,
 ) -> Result<Vec<u8>, ThasiaError> {
-    // Fast path: avoid allocating a luma buffer for RGB images — use the red
-    // channel as Y (exact for R=G=B grayscale; negligible error otherwise).
+    // Fast path: avoid allocating a luma buffer for RGB/RGBA images — use the
+    // red channel as Y (exact for R=G=B grayscale; negligible error otherwise).
     if let Some(rgb) = img.as_rgb8() {
         let planes = rgb.as_raw().chunks_exact(3).map(|p| [p[0], 128u8, 128u8]);
+        return encoder
+            .encode_raw_planes_8_bit(
+                width,
+                height,
+                planes,
+                None::<[u8; 0]>,
+                rav1e::prelude::PixelRange::Full,
+                ravif::MatrixCoefficients::BT601,
+            )
+            .map(|e| e.avif_file)
+            .map_err(|e| ThasiaError::Fatal(format!("AVIF gray encode failed: {e}")));
+    }
+
+    if let Some(rgba) = img.as_rgba8() {
+        let planes = rgba.as_raw().chunks_exact(4).map(|p| [p[0], 128u8, 128u8]);
         return encoder
             .encode_raw_planes_8_bit(
                 width,
@@ -146,5 +161,15 @@ mod tests {
         let (q_color, _) = auto_tune_avif(&DynamicImage::ImageRgb8(img.clone()), false);
         let (q_gray, _) = auto_tune_avif(&DynamicImage::ImageRgb8(img), true);
         assert!(q_gray < q_color);
+    }
+
+    #[test]
+    fn test_rgba_grayscale_fast_path() {
+        use image::Rgba;
+        let img = ImageBuffer::from_fn(100, 100, |_, _| Rgba([128u8, 128u8, 128u8, 255u8]));
+        let dyn_img = DynamicImage::ImageRgba8(img);
+        let result = convert_to_avif(&dyn_img);
+        assert!(result.is_ok());
+        assert!(!result.unwrap().is_empty());
     }
 }
