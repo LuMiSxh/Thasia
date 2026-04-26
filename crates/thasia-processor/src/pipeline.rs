@@ -86,10 +86,24 @@ pub async fn start_pipeline<S: Source + Send + Sync + 'static>(
     let opts = options;
     std::thread::spawn(move || {
         let mut raw_rx = raw_rx;
-        rayon::scope(|s| {
+
+        // Bound in-flight rayon tasks so the closure queue never accumulates
+        // thousands of raw image byte buffers when the result consumer is slow.
+        // We use a sync_channel as a counting semaphore: pre-fill N tokens,
+        // take one before spawning, return one after encoding (before blocking
+        // on result_tx so we don't deadlock when result_tx is at capacity).
+        let max_in_flight = num_cores * 4;
+        let (slot_tx, slot_rx) = std::sync::mpsc::sync_channel::<()>(max_in_flight);
+        for _ in 0..max_in_flight {
+            let _ = slot_tx.send(());
+        }
+
+        rayon::scope(move |s| {
             while let Some((parsed, bytes, ext)) = raw_rx.blocking_recv() {
+                slot_rx.recv().ok(); // acquire a slot; blocks when all are taken
                 let result_tx = result_tx_enc.clone();
                 let opts = opts.clone();
+                let slot_tx = slot_tx.clone();
                 s.spawn(move |_| {
                     let result = encode_image(bytes, &ext, &opts).map(|(data, enc_ext, w, h)| {
                         ProcessedImage {
@@ -100,6 +114,9 @@ pub async fn start_pipeline<S: Source + Send + Sync + 'static>(
                             height: h,
                         }
                     });
+                    // Release slot before blocking_send so the coordinator can
+                    // keep the encode pool fed even if result_tx is temporarily full.
+                    let _ = slot_tx.send(());
                     result_tx.blocking_send(result).ok();
                 });
             }
