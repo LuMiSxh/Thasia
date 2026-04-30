@@ -12,7 +12,7 @@ name = "thasia_tauri_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
-tauri-build = { version = "2.5", features = [] }
+tauri-build = { version = "2.6", features = [] }
 
 [dependencies]
 thasia-core = { path = "../crates/thasia-core", features = ["tauri"] }
@@ -21,11 +21,11 @@ thasia-parser = { path = "../crates/thasia-parser" }
 thasia-processor = { path = "../crates/thasia-processor" }
 thasia-packager = { path = "../crates/thasia-packager" }
 
-tauri = { version = "2.10", features = [] }
+tauri = { version = "2.11", features = [] }
 tauri-specta = { version = "=2.0.0-rc.24", features = ["derive", "typescript"] }
 specta = { workspace = true }
 specta-typescript = "0.0.11"
-tauri-plugin-dialog = "2.4.2"
+tauri-plugin-dialog = "2.7.0"
 tauri-plugin-opener = "2"
 
 serde = { version = "1", features = ["derive"] }

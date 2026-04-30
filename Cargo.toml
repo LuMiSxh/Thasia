@@ -35,7 +35,7 @@ rav1e = { version = "0.8", default-features = false }
 webp = "0.3"
 clap = { version = "4", features = ["derive"] }
 epub-builder = "0.8"
-zip = "8.5"
+zip = "8.6"
 specta = { version = "=2.0.0-rc.24", features = ["derive"] }
 
 [profile.release]
