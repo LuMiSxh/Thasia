@@ -3,10 +3,8 @@
     import { wizard } from '$lib/wizard/state.svelte';
     import { slide } from 'svelte/transition';
     import { cubicInOut } from 'svelte/easing';
-    import { Button, SegmentedControl, Input, Toggle } from '$components/ui/index';
+    import { Button, duration, Input, keyboard, SegmentedControl, Toggle } from 'anasthasia';
     import { IconArrowLeft, IconArrowRight, IconStack, IconSeparator } from '@tabler/icons-svelte';
-    import { duration } from '$lib/transitions';
-    import { keyboard } from '$lib/keyboard';
     import { mountedHint } from '$lib/keyhint.svelte';
 
     let {
@@ -75,19 +73,21 @@
         ['keyf', 'Flatten'],
     ]}
 >
-    <div class="flex-shrink-0 border-b border-thasia-border px-5 py-4">
+    <div class="flex-shrink-0 border-b border-anasthasia-border px-5 py-4">
         <h2 class="text-base font-bold">Bundling</h2>
-        <p class="mt-0.5 text-xs text-thasia-muted">
+        <p class="mt-0.5 text-xs text-anasthasia-muted">
             How detected chapters are grouped into output volumes.
         </p>
     </div>
 
     <div class="flex flex-1 flex-col gap-3 overflow-y-auto px-5 py-5">
-        <div class="overflow-hidden rounded-xl border border-thasia-border bg-thasia-surface">
+        <div
+            class="overflow-hidden rounded-xl border border-anasthasia-border bg-anasthasia-surface"
+        >
             <!-- Mode -->
             <div class="flex flex-col gap-2.5 px-4 py-4">
                 <div class="flex items-center gap-2">
-                    <IconStack size={14} class="flex-shrink-0 text-thasia-muted" />
+                    <IconStack size={14} class="flex-shrink-0 text-anasthasia-muted" />
                     <span class="text-sm font-medium">Mode</span>
                 </div>
                 <SegmentedControl
@@ -97,7 +97,7 @@
                     ]}
                     bind:value={wizard.bundle}
                 />
-                <p class="text-xs text-thasia-muted">
+                <p class="text-xs text-anasthasia-muted">
                     {wizard.bundle === 'auto'
                         ? 'Group chapters by detected volume number'
                         : 'Merge everything into a single output file'}
@@ -106,10 +106,10 @@
 
             {#if wizard.bundle === 'auto'}
                 <div transition:slide={collapse}>
-                    <div class="mx-4 border-t border-thasia-border"></div>
+                    <div class="mx-4 border-t border-anasthasia-border"></div>
                     <div class="flex flex-col gap-3 px-4 py-4">
                         <div class="flex items-center gap-2">
-                            <IconSeparator size={14} class="flex-shrink-0 text-thasia-muted" />
+                            <IconSeparator size={14} class="flex-shrink-0 text-anasthasia-muted" />
                             <span class="text-sm font-medium">Volume separator</span>
                         </div>
                         <Input
@@ -126,7 +126,7 @@
         </div>
     </div>
 
-    <div class="flex flex-shrink-0 gap-2 border-t border-thasia-border px-5 py-4">
+    <div class="flex flex-shrink-0 gap-2 border-t border-anasthasia-border px-5 py-4">
         <Button onclick={onBack} disabled={backDisabled}><IconArrowLeft size={15} /> Back</Button>
         <Button onclick={handleNext} disabled={nextDisabled} class="ml-auto"
             >Next <IconArrowRight size={15} /></Button

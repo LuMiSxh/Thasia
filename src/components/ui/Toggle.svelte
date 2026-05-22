@@ -31,8 +31,8 @@
     onclick={toggle}
     class="
     group inline-flex cursor-pointer items-center gap-2.5 select-none
-    focus-visible:ring-2 focus-visible:ring-thasia-accent
-    focus-visible:ring-offset-2 focus-visible:ring-offset-thasia-surface focus-visible:outline-none disabled:pointer-events-none disabled:opacity-40
+    focus-visible:ring-2 focus-visible:ring-anasthasia-accent
+    focus-visible:ring-offset-2 focus-visible:ring-offset-anasthasia-surface focus-visible:outline-none disabled:pointer-events-none disabled:opacity-40
     {className}
   "
 >
@@ -41,8 +41,8 @@
         class="
       relative inline-flex h-5 w-9 shrink-0 items-center rounded-md border transition-colors duration-200
       {checked
-            ? 'border-thasia-accent/50 bg-thasia-accent'
-            : 'border-thasia-border bg-thasia-bg group-hover:border-thasia-accent/40'}
+            ? 'border-anasthasia-accent/50 bg-anasthasia-accent'
+            : 'border-anasthasia-border bg-anasthasia-bg group-hover:border-anasthasia-accent/40'}
     "
     >
         <!-- Thumb -->
@@ -51,11 +51,11 @@
         absolute h-3.5 w-3.5 rounded-sm border shadow-sm transition-all duration-200
         {checked
                 ? 'translate-x-[18px] border-black/20 bg-black dark:bg-zinc-900'
-                : 'translate-x-0.5 border-thasia-border bg-thasia-muted group-hover:border-thasia-accent/40 group-hover:bg-thasia-accent/30'}
+                : 'translate-x-0.5 border-anasthasia-border bg-anasthasia-muted group-hover:border-anasthasia-accent/40 group-hover:bg-anasthasia-accent/30'}
       "
         ></span>
     </span>
     {#if label}
-        <span class="text-sm text-thasia-text">{label}</span>
+        <span class="text-sm text-anasthasia-text">{label}</span>
     {/if}
 </button>

@@ -12,12 +12,12 @@
     let { variant = 'default', class: className = '', children }: Props = $props();
 
     const variants: Record<Variant, string> = {
-        default: 'bg-thasia-panel border-thasia-border text-thasia-muted',
-        accent: 'bg-thasia-accent/10 border-thasia-accent/30 text-thasia-accent',
+        default: 'bg-anasthasia-panel border-anasthasia-border text-anasthasia-muted',
+        accent: 'bg-anasthasia-accent/10 border-anasthasia-accent/30 text-anasthasia-accent',
         success: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400',
         warning: 'bg-amber-500/10 border-amber-500/30 text-amber-400',
         danger: 'bg-red-500/10 border-red-500/30 text-red-400',
-        mono: 'bg-thasia-panel border-thasia-border text-thasia-text font-mono',
+        mono: 'bg-anasthasia-panel border-anasthasia-border text-anasthasia-text font-mono',
     };
 </script>
 

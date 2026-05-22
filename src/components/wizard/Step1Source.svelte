@@ -3,7 +3,7 @@
     import { wizard } from '$lib/wizard/state.svelte';
     import { open } from '@tauri-apps/plugin-dialog';
     import { commands } from '$types/bindings';
-    import { Button } from '$components/ui/index';
+    import { Button, keyboard } from 'anasthasia';
     import {
         IconFolderOpen,
         IconFileZip,
@@ -11,7 +11,6 @@
         IconArrowLeft,
         IconArrowRight,
     } from '@tabler/icons-svelte';
-    import { keyboard } from '$lib/keyboard';
     import { mountedHint } from '$lib/keyhint.svelte';
 
     let {
@@ -126,30 +125,32 @@
     class="flex h-full flex-col"
     use:mountedHint={[['keyo', 'Open folder'], ['keyz', 'Open archive'], ...nextHints]}
 >
-    <div class="shrink-0 border-b border-thasia-border px-5 py-4">
+    <div class="shrink-0 border-b border-anasthasia-border px-5 py-4">
         <h2 class="text-base font-bold">Source</h2>
-        <p class="mt-0.5 text-xs text-thasia-muted">
+        <p class="mt-0.5 text-xs text-anasthasia-muted">
             Select a folder, ZIP, or CBZ containing your manga images.
         </p>
     </div>
 
     <div class="flex flex-1 flex-col gap-3 overflow-y-auto px-5 py-5">
-        <div class="overflow-hidden rounded-xl border border-thasia-border bg-thasia-surface">
+        <div
+            class="overflow-hidden rounded-xl border border-anasthasia-border bg-anasthasia-surface"
+        >
             <!-- Path display -->
             <div class="flex flex-col gap-2.5 px-4 py-4">
                 <div class="flex items-center gap-2">
-                    <IconFolderOpen size={14} class="flex-shrink-0 text-thasia-muted" />
+                    <IconFolderOpen size={14} class="flex-shrink-0 text-anasthasia-muted" />
                     <span class="text-sm font-medium">Selected source</span>
                 </div>
                 <div
-                    class="rounded-lg border border-thasia-border bg-thasia-bg px-3 py-2 font-mono text-xs
-                            {wizard.sourcePath ? 'text-thasia-text' : 'text-thasia-muted'}"
+                    class="rounded-lg border border-anasthasia-border bg-anasthasia-bg px-3 py-2 font-mono text-xs
+                            {wizard.sourcePath ? 'text-anasthasia-text' : 'text-anasthasia-muted'}"
                 >
                     {wizard.sourcePath || 'No source selected'}
                 </div>
             </div>
 
-            <div class="mx-4 border-t border-thasia-border"></div>
+            <div class="mx-4 border-t border-anasthasia-border"></div>
 
             <!-- Browse buttons -->
             <div class="flex gap-2 px-4 py-4">
@@ -172,11 +173,11 @@
         {/if}
 
         {#if loading}
-            <p class="px-1 text-xs text-thasia-muted">Scanning source…</p>
+            <p class="px-1 text-xs text-anasthasia-muted">Scanning source…</p>
         {/if}
     </div>
 
-    <div class="flex flex-shrink-0 gap-2 border-t border-thasia-border px-5 py-4">
+    <div class="flex flex-shrink-0 gap-2 border-t border-anasthasia-border px-5 py-4">
         <Button onclick={onBack} disabled={backDisabled}><IconArrowLeft size={15} /> Back</Button>
         <Button onclick={handleNext} disabled={loading || !wizard.sourcePath} class="ml-auto">
             {loading ? 'Scanning…' : 'Next'}

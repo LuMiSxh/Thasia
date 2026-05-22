@@ -10,9 +10,9 @@
 
     let { class: className = '', children, onclick }: Props = $props();
 
-    const base = 'bg-thasia-surface border border-thasia-border rounded-xl p-4';
+    const base = 'bg-anasthasia-surface border border-anasthasia-border rounded-xl p-4';
     const interactive =
-        'cursor-pointer hover:border-thasia-accent/40 transition-colors duration-150 active:translate-y-px';
+        'cursor-pointer hover:border-anasthasia-accent/40 transition-colors duration-150 active:translate-y-px';
 </script>
 
 {#if onclick}

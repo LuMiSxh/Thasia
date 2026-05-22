@@ -21,7 +21,7 @@
 
     const base =
         'inline-flex items-center justify-center gap-2 font-bold rounded-lg border transition-all duration-150 select-none cursor-pointer ' +
-        'active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-thasia-accent focus-visible:ring-offset-2 focus-visible:ring-offset-thasia-surface ' +
+        'active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-anasthasia-accent focus-visible:ring-offset-2 focus-visible:ring-offset-anasthasia-surface ' +
         'disabled:opacity-40 disabled:pointer-events-none';
 
     const sizes: Record<Size, string> = {
@@ -36,11 +36,11 @@
             'bg-black hover:brightness-110 ' +
             'dark:bg-gold-metallic dark:hover:brightness-110 dark:bevel-dark',
         secondary:
-            'bg-thasia-bg border-thasia-border text-thasia-text ' +
-            'hover:border-thasia-accent/50 hover:text-thasia-text active:shadow-none',
+            'bg-anasthasia-bg border-anasthasia-border text-anasthasia-text ' +
+            'hover:border-anasthasia-accent/50 hover:text-anasthasia-text active:shadow-none',
         ghost:
-            'border-transparent bg-transparent text-thasia-muted ' +
-            'hover:text-thasia-text hover:bg-thasia-panel active:shadow-none',
+            'border-transparent bg-transparent text-anasthasia-muted ' +
+            'hover:text-anasthasia-text hover:bg-anasthasia-panel active:shadow-none',
         danger:
             'border-transparent bg-red-600/10 text-red-400 border border-red-500/30 ' +
             'hover:bg-red-600/20 hover:border-red-500/50 active:shadow-none',

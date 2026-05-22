@@ -3,11 +3,9 @@
     import { wizard } from '$lib/wizard/state.svelte';
     import { commands, events } from '$types/bindings';
     import { goto } from '$app/navigation';
-    import ProgressBar from '$components/ui/ProgressBar.svelte';
-    import { Button } from '$components/ui/index';
+    import { Button, keyboard, ProgressBar } from 'anasthasia';
     import { SvelteMap } from 'svelte/reactivity';
     import { IconArrowLeft, IconCheck, IconX, IconRefresh } from '@tabler/icons-svelte';
-    import { keyboard } from '$lib/keyboard';
     import { mountedHint } from '$lib/keyhint.svelte';
 
     let { onBack }: { onNext: () => void; onBack: () => void } = $props();
@@ -136,7 +134,7 @@
     use:mountedHint={status === 'done' ? [['enter', 'Start over']] : []}
 >
     <!-- Header -->
-    <div class="flex-shrink-0 border-b border-thasia-border px-5 py-4">
+    <div class="flex-shrink-0 border-b border-anasthasia-border px-5 py-4">
         <h2 class="text-base font-bold">
             {#if status === 'done'}
                 Conversion complete
@@ -146,7 +144,7 @@
                 Converting…
             {/if}
         </h2>
-        <p class="mt-0.5 text-xs text-thasia-muted">
+        <p class="mt-0.5 text-xs text-anasthasia-muted">
             {#if status === 'done'}
                 {doneCount} volume{doneCount !== 1 ? 's' : ''} written in {elapsed.toFixed(1)}s
                 {#if failedCount > 0}· {failedCount} failed{/if}
@@ -161,11 +159,13 @@
     <!-- Content -->
     <div class="flex flex-1 flex-col gap-3 overflow-y-auto px-5 py-5">
         {#if volumeMap.size > 0}
-            <div class="overflow-hidden rounded-xl border border-thasia-border bg-thasia-surface">
+            <div
+                class="overflow-hidden rounded-xl border border-anasthasia-border bg-anasthasia-surface"
+            >
                 {#each [...volumeMap.entries()] as [_num, vol], i (_num)}
                     <div
                         class="flex flex-col gap-2 px-4 py-3 {i < volumeMap.size - 1
-                            ? 'border-b border-thasia-border'
+                            ? 'border-b border-anasthasia-border'
                             : ''}"
                     >
                         <div class="flex items-center justify-between">
@@ -176,7 +176,7 @@
                                     ? 'text-emerald-500'
                                     : vol.done
                                       ? 'text-red-400'
-                                      : 'text-thasia-muted'}"
+                                      : 'text-anasthasia-muted'}"
                             >
                                 {#if vol.done && vol.success}
                                     <IconCheck size={12} /> Done
@@ -208,7 +208,7 @@
 
     <!-- Footer — only shown when there's an action to take -->
     {#if status === 'done' || status === 'error'}
-        <div class="flex flex-shrink-0 gap-2 border-t border-thasia-border px-5 py-4">
+        <div class="flex flex-shrink-0 gap-2 border-t border-anasthasia-border px-5 py-4">
             {#if status === 'error'}
                 <Button onclick={onBack}><IconArrowLeft size={15} /> Back</Button>
             {:else}

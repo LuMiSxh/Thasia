@@ -9,7 +9,7 @@
     let { value, variant = 'accent', color = '', class: className = '' }: Props = $props();
 
     const trackColors: Record<string, string> = {
-        accent: 'bg-thasia-accent',
+        accent: 'bg-anasthasia-accent',
         success: 'bg-emerald-500',
         warning: 'bg-amber-500',
         danger: 'bg-red-500',
@@ -19,7 +19,7 @@
 </script>
 
 <div
-    class="h-1.5 w-full overflow-hidden rounded-full border border-thasia-border bg-thasia-bg {className}"
+    class="h-1.5 w-full overflow-hidden rounded-full border border-anasthasia-border bg-anasthasia-bg {className}"
 >
     <div
         class="h-full rounded-full transition-[width] duration-200 {color

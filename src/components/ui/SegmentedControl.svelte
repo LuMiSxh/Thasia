@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { sendPill, receivePill } from '$lib/transitions';
+    import { receivePill, sendPill } from 'anasthasia';
 
     interface Option<T extends string = string> {
         value: T;
@@ -27,12 +27,13 @@
 
 <div class="flex flex-col gap-1.5 {className}">
     {#if label}
-        <span class="text-xs font-bold tracking-wider text-thasia-muted uppercase">{label}</span>
+        <span class="text-xs font-bold tracking-wider text-anasthasia-muted uppercase">{label}</span
+        >
     {/if}
 
     <div
-        class="inline-flex gap-0 rounded-lg border border-thasia-border bg-thasia-bg p-0.5
-              transition-colors duration-150 hover:border-thasia-accent/40"
+        class="inline-flex gap-0 rounded-lg border border-anasthasia-border bg-anasthasia-bg p-0.5
+              transition-colors duration-150 hover:border-anasthasia-accent/40"
     >
         {#each options as opt (opt.value)}
             <button
@@ -45,14 +46,16 @@
                 class="
           relative flex-1 rounded-md px-3 py-1 text-sm font-bold
           transition-colors duration-150
-          focus-visible:ring-1 focus-visible:ring-thasia-accent focus-visible:outline-none
+          focus-visible:ring-1 focus-visible:ring-anasthasia-accent focus-visible:outline-none
           disabled:pointer-events-none disabled:opacity-40
-          {value === opt.value ? 'text-thasia-accent' : 'text-thasia-muted hover:text-thasia-text'}
+          {value === opt.value
+                    ? 'text-anasthasia-accent'
+                    : 'text-anasthasia-muted hover:text-anasthasia-text'}
         "
             >
                 {#if value === opt.value}
                     <span
-                        class="absolute inset-0 rounded-md border border-thasia-accent/50 bg-thasia-surface shadow-sm"
+                        class="absolute inset-0 rounded-md border border-anasthasia-accent/50 bg-anasthasia-surface shadow-sm"
                         in:receivePill={{ key: 'pill' }}
                         out:sendPill={{ key: 'pill' }}
                     ></span>

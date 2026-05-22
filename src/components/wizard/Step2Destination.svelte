@@ -1,7 +1,7 @@
 <script lang="ts">
     import { wizard } from '$lib/wizard/state.svelte';
     import { open } from '@tauri-apps/plugin-dialog';
-    import { Button, Input, Toggle } from '$components/ui/index';
+    import { Button, Input, Toggle } from 'anasthasia';
     import {
         IconAlertCircle,
         IconArrowLeft,
@@ -43,23 +43,27 @@
 </script>
 
 <div class="flex h-full flex-col">
-    <div class="flex-shrink-0 border-b border-thasia-border px-5 py-4">
+    <div class="flex-shrink-0 border-b border-anasthasia-border px-5 py-4">
         <h2 class="text-base font-bold">Destination</h2>
-        <p class="mt-0.5 text-xs text-thasia-muted">Where to save the converted output.</p>
+        <p class="mt-0.5 text-xs text-anasthasia-muted">Where to save the converted output.</p>
     </div>
 
     <div class="flex flex-1 flex-col gap-3 overflow-y-auto px-5 py-5">
-        <div class="overflow-hidden rounded-xl border border-thasia-border bg-thasia-surface">
+        <div
+            class="overflow-hidden rounded-xl border border-anasthasia-border bg-anasthasia-surface"
+        >
             <!-- Output folder -->
             <div class="flex flex-col gap-2.5 px-4 py-4">
                 <div class="flex items-center gap-2">
-                    <IconFolderOpen size={14} class="flex-shrink-0 text-thasia-muted" />
+                    <IconFolderOpen size={14} class="flex-shrink-0 text-anasthasia-muted" />
                     <span class="text-sm font-medium">Output folder</span>
                 </div>
                 <div class="flex gap-2">
                     <div
-                        class="flex-1 rounded-lg border border-thasia-border bg-thasia-bg px-3 py-2 font-mono text-xs
-                                {wizard.outputDir ? 'text-thasia-text' : 'text-thasia-muted'}"
+                        class="flex-1 rounded-lg border border-anasthasia-border bg-anasthasia-bg px-3 py-2 font-mono text-xs
+                                {wizard.outputDir
+                            ? 'text-anasthasia-text'
+                            : 'text-anasthasia-muted'}"
                     >
                         {wizard.outputDir || 'No folder selected'}
                     </div>
@@ -67,12 +71,12 @@
                 </div>
             </div>
 
-            <div class="mx-4 border-t border-thasia-border"></div>
+            <div class="mx-4 border-t border-anasthasia-border"></div>
 
             <!-- Output name -->
             <div class="flex flex-col gap-2.5 px-4 py-4">
                 <div class="flex items-center gap-2">
-                    <IconTag size={14} class="flex-shrink-0 text-thasia-muted" />
+                    <IconTag size={14} class="flex-shrink-0 text-anasthasia-muted" />
                     <span class="text-sm font-medium">Output name</span>
                 </div>
                 <Input
@@ -81,15 +85,17 @@
                 />
             </div>
 
-            <div class="mx-4 border-t border-thasia-border"></div>
+            <div class="mx-4 border-t border-anasthasia-border"></div>
 
             <!-- Subdirectory toggle -->
             <div class="flex items-center justify-between gap-4 px-4 py-4">
                 <div class="flex items-center gap-2">
-                    <IconFolderPlus size={14} class="flex-shrink-0 text-thasia-muted" />
+                    <IconFolderPlus size={14} class="flex-shrink-0 text-anasthasia-muted" />
                     <div>
                         <div class="text-sm font-medium">Create subdirectory</div>
-                        <div class="text-xs text-thasia-muted">Wrap output in a named folder</div>
+                        <div class="text-xs text-anasthasia-muted">
+                            Wrap output in a named folder
+                        </div>
                     </div>
                 </div>
                 <Toggle bind:checked={wizard.createDirectory} />
@@ -106,7 +112,7 @@
         {/if}
     </div>
 
-    <div class="flex flex-shrink-0 gap-2 border-t border-thasia-border px-5 py-4">
+    <div class="flex flex-shrink-0 gap-2 border-t border-anasthasia-border px-5 py-4">
         <Button onclick={onBack} disabled={backDisabled}><IconArrowLeft size={15} /> Back</Button>
         <Button onclick={handleNext} disabled={nextDisabled} class="ml-auto"
             >Next <IconArrowRight size={15} /></Button

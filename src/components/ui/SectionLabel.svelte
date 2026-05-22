@@ -9,6 +9,6 @@
     let { class: className = '', children }: Props = $props();
 </script>
 
-<span class="text-xs font-bold tracking-wider text-thasia-muted uppercase {className}">
+<span class="text-xs font-bold tracking-wider text-anasthasia-muted uppercase {className}">
     {@render children()}
 </span>

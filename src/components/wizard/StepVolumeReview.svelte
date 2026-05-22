@@ -2,8 +2,7 @@
     import { onMount, onDestroy } from 'svelte';
     import { wizard } from '$lib/wizard/state.svelte';
     import type { VolumeEdit } from '$lib/wizard/state.svelte';
-    import ProgressBar from '$components/ui/ProgressBar.svelte';
-    import { Button } from '$components/ui/index';
+    import { Button, keyboard, ProgressBar } from 'anasthasia';
     import {
         IconArrowLeft,
         IconArrowRight,
@@ -11,7 +10,6 @@
         IconBook,
         IconLayoutGrid,
     } from '@tabler/icons-svelte';
-    import { keyboard } from '$lib/keyboard';
     import { mountedHint } from '$lib/keyhint.svelte';
 
     let {
@@ -93,7 +91,13 @@
         })()
     );
 
-    const slotColors = ['var(--accent)', '#10b981', '#3b82f6', '#f59e0b', '#ef4444'];
+    const slotColors = [
+        'var(--color-anasthasia-accent)',
+        '#10b981',
+        '#3b82f6',
+        '#f59e0b',
+        '#ef4444',
+    ];
     function slotColor(i: number): string {
         return slotColors[i % slotColors.length];
     }
@@ -166,9 +170,9 @@
     use:mountedHint={isValid ? [['shift+arrowright', 'Next step']] : []}
 >
     <!-- Header -->
-    <div class="flex-shrink-0 border-b border-thasia-border px-5 py-4">
+    <div class="flex-shrink-0 border-b border-anasthasia-border px-5 py-4">
         <h2 class="text-base font-bold">Volume Assignment</h2>
-        <p class="mt-0.5 text-xs text-thasia-muted">
+        <p class="mt-0.5 text-xs text-anasthasia-muted">
             Detected {total}
             {unit}{total !== 1 ? 's' : ''} — assign them to output volumes.
         </p>
@@ -178,20 +182,26 @@
     <div class="flex flex-1 flex-col gap-3 overflow-hidden px-5 py-5">
         <!-- Stat row -->
         <div class="grid flex-shrink-0 grid-cols-3 gap-2">
-            <div class="overflow-hidden rounded-xl border border-thasia-border bg-thasia-surface">
-                <div class="border-b border-thasia-border bg-thasia-panel px-4 py-2">
-                    <span class="text-[10px] font-bold tracking-widest text-thasia-muted uppercase"
+            <div
+                class="overflow-hidden rounded-xl border border-anasthasia-border bg-anasthasia-surface"
+            >
+                <div class="border-b border-anasthasia-border bg-anasthasia-panel px-4 py-2">
+                    <span
+                        class="text-[10px] font-bold tracking-widest text-anasthasia-muted uppercase"
                         >Detected</span
                     >
                 </div>
                 <div class="px-4 py-3">
                     <div class="text-2xl font-bold">{total}</div>
-                    <div class="text-xs text-thasia-muted">{unit}s</div>
+                    <div class="text-xs text-anasthasia-muted">{unit}s</div>
                 </div>
             </div>
-            <div class="overflow-hidden rounded-xl border border-thasia-border bg-thasia-surface">
-                <div class="border-b border-thasia-border bg-thasia-panel px-4 py-2">
-                    <span class="text-[10px] font-bold tracking-widest text-thasia-muted uppercase"
+            <div
+                class="overflow-hidden rounded-xl border border-anasthasia-border bg-anasthasia-surface"
+            >
+                <div class="border-b border-anasthasia-border bg-anasthasia-panel px-4 py-2">
+                    <span
+                        class="text-[10px] font-bold tracking-widest text-anasthasia-muted uppercase"
                         >Assigned</span
                     >
                 </div>
@@ -205,7 +215,7 @@
                     >
                         {used}
                     </div>
-                    <div class="text-xs text-thasia-muted">
+                    <div class="text-xs text-anasthasia-muted">
                         {remaining > 0
                             ? `${remaining} remaining`
                             : isOver
@@ -214,15 +224,18 @@
                     </div>
                 </div>
             </div>
-            <div class="overflow-hidden rounded-xl border border-thasia-border bg-thasia-surface">
-                <div class="border-b border-thasia-border bg-thasia-panel px-4 py-2">
-                    <span class="text-[10px] font-bold tracking-widest text-thasia-muted uppercase"
+            <div
+                class="overflow-hidden rounded-xl border border-anasthasia-border bg-anasthasia-surface"
+            >
+                <div class="border-b border-anasthasia-border bg-anasthasia-panel px-4 py-2">
+                    <span
+                        class="text-[10px] font-bold tracking-widest text-anasthasia-muted uppercase"
                         >Volumes</span
                     >
                 </div>
                 <div class="px-4 py-3">
                     <div class="text-2xl font-bold">{volumeSizes.length}</div>
-                    <div class="text-xs text-thasia-muted">output files</div>
+                    <div class="text-xs text-anasthasia-muted">output files</div>
                 </div>
             </div>
         </div>
@@ -231,30 +244,31 @@
         <div class="grid min-h-0 flex-1 gap-2" style="grid-template-columns: 1fr 220px;">
             <!-- Volume list -->
             <div
-                class="flex flex-col overflow-hidden rounded-xl border border-thasia-border bg-thasia-surface"
+                class="flex flex-col overflow-hidden rounded-xl border border-anasthasia-border bg-anasthasia-surface"
             >
                 <div
-                    class="flex flex-shrink-0 items-center gap-2 border-b border-thasia-border bg-thasia-panel px-4 py-2.5"
+                    class="flex flex-shrink-0 items-center gap-2 border-b border-anasthasia-border bg-anasthasia-panel px-4 py-2.5"
                 >
-                    <IconBook size={13} class="flex-shrink-0 text-thasia-muted" />
-                    <span class="text-[10px] font-bold tracking-widest text-thasia-muted uppercase"
+                    <IconBook size={13} class="flex-shrink-0 text-anasthasia-muted" />
+                    <span
+                        class="text-[10px] font-bold tracking-widest text-anasthasia-muted uppercase"
                         >Volumes</span
                     >
                 </div>
                 <div class="flex-1 overflow-y-auto p-2">
                     {#if volumeSizes.length === 0}
                         <div
-                            class="flex h-full items-center justify-center text-sm text-thasia-muted"
+                            class="flex h-full items-center justify-center text-sm text-anasthasia-muted"
                         >
                             No volumes yet — add one below
                         </div>
                     {:else}
                         {#each volumeSizes as count, i (i)}
                             <div
-                                class="mb-1.5 rounded-lg border bg-thasia-bg px-3 py-2.5 transition-colors duration-150
+                                class="mb-1.5 rounded-lg border bg-anasthasia-bg px-3 py-2.5 transition-colors duration-150
                                 {editingIndex === i
-                                    ? 'border-thasia-accent'
-                                    : 'border-thasia-border'}"
+                                    ? 'border-anasthasia-accent'
+                                    : 'border-anasthasia-border'}"
                             >
                                 <div class="flex items-center gap-2">
                                     <div
@@ -293,21 +307,21 @@
                                                 if (e.key === 'Enter' || e.key === 'Escape')
                                                     editingIndex = null;
                                             }}
-                                            class="h-8 w-14 rounded-md border border-thasia-accent bg-thasia-bg text-center text-sm text-thasia-text
-                                            focus:ring-1 focus:ring-thasia-accent focus:outline-none"
+                                            class="h-8 w-14 rounded-md border border-anasthasia-accent bg-anasthasia-bg text-center text-sm text-anasthasia-text
+                                            focus:ring-1 focus:ring-anasthasia-accent focus:outline-none"
                                         />
                                     {:else}
                                         <button
                                             onclick={() => (editingIndex = i)}
-                                            class="h-8 w-14 cursor-pointer rounded-md border border-thasia-border bg-thasia-bg text-center
-                                            text-sm font-medium text-thasia-text transition-colors duration-150 hover:border-thasia-accent"
+                                            class="h-8 w-14 cursor-pointer rounded-md border border-anasthasia-border bg-anasthasia-bg text-center
+                                            text-sm font-medium text-anasthasia-text transition-colors duration-150 hover:border-anasthasia-accent"
                                             title="Click to edit"
                                         >
                                             {count}
                                         </button>
                                     {/if}
 
-                                    <span class="text-xs whitespace-nowrap text-thasia-muted">
+                                    <span class="text-xs whitespace-nowrap text-anasthasia-muted">
                                         {unit}{count !== 1 ? 's' : ''}
                                     </span>
 
@@ -324,16 +338,16 @@
                 </div>
 
                 <!-- Add volume row -->
-                <div class="flex flex-shrink-0 gap-1.5 border-t border-thasia-border p-2">
+                <div class="flex flex-shrink-0 gap-1.5 border-t border-anasthasia-border p-2">
                     <input
                         type="number"
                         min="1"
                         placeholder="# of {unit}s"
                         bind:value={newVolumeInput}
                         onkeydown={handleAddKey}
-                        class="flex-1 rounded-md border border-thasia-border bg-thasia-bg px-2 py-1.5 text-sm text-thasia-text
-                        transition-colors duration-150 placeholder:text-thasia-muted focus:border-thasia-accent focus:ring-1
-                        focus:ring-thasia-accent focus:outline-none"
+                        class="flex-1 rounded-md border border-anasthasia-border bg-anasthasia-bg px-2 py-1.5 text-sm text-anasthasia-text
+                        transition-colors duration-150 placeholder:text-anasthasia-muted focus:border-anasthasia-accent focus:ring-1
+                        focus:ring-anasthasia-accent focus:outline-none"
                     />
                     <Button
                         variant="primary"
@@ -347,13 +361,14 @@
 
             <!-- Distribution sidebar -->
             <div
-                class="flex flex-col overflow-hidden rounded-xl border border-thasia-border bg-thasia-surface"
+                class="flex flex-col overflow-hidden rounded-xl border border-anasthasia-border bg-anasthasia-surface"
             >
                 <div
-                    class="flex flex-shrink-0 items-center gap-2 border-b border-thasia-border bg-thasia-panel px-4 py-2.5"
+                    class="flex flex-shrink-0 items-center gap-2 border-b border-anasthasia-border bg-anasthasia-panel px-4 py-2.5"
                 >
-                    <IconLayoutGrid size={13} class="flex-shrink-0 text-thasia-muted" />
-                    <span class="text-[10px] font-bold tracking-widest text-thasia-muted uppercase"
+                    <IconLayoutGrid size={13} class="flex-shrink-0 text-anasthasia-muted" />
+                    <span
+                        class="text-[10px] font-bold tracking-widest text-anasthasia-muted uppercase"
                         >Distribution</span
                     >
                 </div>
@@ -372,7 +387,7 @@
                     </div>
 
                     <!-- Item map -->
-                    <div class="mb-1.5 text-[11px] text-thasia-muted">
+                    <div class="mb-1.5 text-[11px] text-anasthasia-muted">
                         {unit === 'chapter' ? 'Chapter' : 'Page'} map
                     </div>
                     <div class="flex flex-wrap gap-0.5">
@@ -380,7 +395,7 @@
                             <div
                                 class="h-2.5 w-2.5 cursor-help rounded-sm transition-colors duration-150"
                                 style="background: {vIdx === -1
-                                    ? 'var(--border)'
+                                    ? 'var(--color-anasthasia-border)'
                                     : slotColor(vIdx)};"
                                 title="{unit === 'chapter' ? 'Chapter' : 'Page'} {itemI + 1}{vIdx >=
                                 0
@@ -395,7 +410,7 @@
     </div>
 
     <!-- Footer -->
-    <div class="flex flex-shrink-0 gap-2 border-t border-thasia-border px-5 py-4">
+    <div class="flex flex-shrink-0 gap-2 border-t border-anasthasia-border px-5 py-4">
         <Button onclick={onBack} disabled={backDisabled}><IconArrowLeft size={15} /> Back</Button>
         <Button
             onclick={handleNext}

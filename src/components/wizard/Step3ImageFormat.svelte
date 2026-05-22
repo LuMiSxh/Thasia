@@ -3,10 +3,8 @@
     import { wizard } from '$lib/wizard/state.svelte';
     import { slide } from 'svelte/transition';
     import { cubicInOut } from 'svelte/easing';
-    import { Button, SegmentedControl, Toggle, Input } from '$components/ui/index';
+    import { Button, duration, Input, keyboard, SegmentedControl, Toggle } from 'anasthasia';
     import { IconArrowLeft, IconArrowRight, IconPhoto, IconRuler } from '@tabler/icons-svelte';
-    import { duration } from '$lib/transitions';
-    import { keyboard } from '$lib/keyboard';
     import { mountedHint } from '$lib/keyhint.svelte';
 
     let {
@@ -67,19 +65,21 @@
         ['keyo', 'Original'],
     ]}
 >
-    <div class="flex-shrink-0 border-b border-thasia-border px-5 py-4">
+    <div class="flex-shrink-0 border-b border-anasthasia-border px-5 py-4">
         <h2 class="text-base font-bold">Image Format</h2>
-        <p class="mt-0.5 text-xs text-thasia-muted">
+        <p class="mt-0.5 text-xs text-anasthasia-muted">
             How each page image will be encoded in the output.
         </p>
     </div>
 
     <div class="flex flex-1 flex-col gap-3 overflow-y-auto px-5 py-5">
-        <div class="overflow-hidden rounded-xl border border-thasia-border bg-thasia-surface">
+        <div
+            class="overflow-hidden rounded-xl border border-anasthasia-border bg-anasthasia-surface"
+        >
             <!-- Format -->
             <div class="flex flex-col gap-2.5 px-4 py-4">
                 <div class="flex items-center gap-2">
-                    <IconPhoto size={14} class="flex-shrink-0 text-thasia-muted" />
+                    <IconPhoto size={14} class="flex-shrink-0 text-anasthasia-muted" />
                     <span class="text-sm font-medium">Format</span>
                 </div>
                 <SegmentedControl
@@ -90,19 +90,21 @@
                     ]}
                     bind:value={wizard.imageFormat}
                 />
-                <p class="text-xs text-thasia-muted">{formatHint[wizard.imageFormat]}</p>
+                <p class="text-xs text-anasthasia-muted">{formatHint[wizard.imageFormat]}</p>
             </div>
 
-            <div class="mx-4 border-t border-thasia-border"></div>
+            <div class="mx-4 border-t border-anasthasia-border"></div>
 
             <!-- Max width -->
             <div class="flex flex-col gap-2.5 px-4 py-4">
                 <div class="flex items-center justify-between">
                     <div class="flex items-center gap-2">
-                        <IconRuler size={14} class="flex-shrink-0 text-thasia-muted" />
+                        <IconRuler size={14} class="flex-shrink-0 text-anasthasia-muted" />
                         <div>
                             <div class="text-sm font-medium">Max Width</div>
-                            <div class="text-xs text-thasia-muted">Downscale wider images (px)</div>
+                            <div class="text-xs text-anasthasia-muted">
+                                Downscale wider images (px)
+                            </div>
                         </div>
                     </div>
                     <Toggle
@@ -128,7 +130,7 @@
         </div>
     </div>
 
-    <div class="flex flex-shrink-0 gap-2 border-t border-thasia-border px-5 py-4">
+    <div class="flex flex-shrink-0 gap-2 border-t border-anasthasia-border px-5 py-4">
         <Button onclick={onBack} disabled={backDisabled}><IconArrowLeft size={15} /> Back</Button>
         <Button onclick={onNext} disabled={nextDisabled} class="ml-auto"
             >Next <IconArrowRight size={15} /></Button

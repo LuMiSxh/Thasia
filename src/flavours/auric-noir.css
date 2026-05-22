@@ -1,0 +1,42 @@
+/* Auric Noir — generated one-off flavour for Thasia (pfp-inspired) */
+:root {
+    --color-anasthasia-bg: #fbf8f6;
+    --color-anasthasia-surface: #fdfcfb;
+    --color-anasthasia-panel: #faf6f3;
+    --color-anasthasia-border: rgba(20, 16, 12, 0.12);
+    --color-anasthasia-text: #2a201a;
+    --color-anasthasia-muted: #9c9691;
+    --color-anasthasia-accent: #c39a7d;
+    --color-anasthasia-accent-strong: #987862;
+
+    --background-image-accent-gradient: linear-gradient(
+        135deg,
+        #d8bdaa 0%,
+        #c39a7d 45%,
+        #987862 100%
+    );
+
+    --radius-sm: 0.375rem;
+    --radius-md: 0.5rem;
+    --radius-lg: 0.75rem;
+    --radius-xl: 1rem;
+    --radius-2xl: 1.25rem;
+}
+
+:root.dark {
+    --color-anasthasia-bg: #000000;
+    --color-anasthasia-surface: #141414;
+    --color-anasthasia-panel: #1f1f1f;
+    --color-anasthasia-border: rgba(255, 255, 255, 0.08);
+    --color-anasthasia-text: #faf7f0;
+    --color-anasthasia-muted: #adaba7;
+    --color-anasthasia-accent: #c39a7d;
+    --color-anasthasia-accent-strong: #cfae97;
+
+    --background-image-accent-gradient: linear-gradient(
+        135deg,
+        #d5b8a4 0%,
+        #c39a7d 45%,
+        #7f6451 100%
+    );
+}

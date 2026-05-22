@@ -1,14 +1,12 @@
 <script lang="ts">
+    import 'anasthasia/bootstrap';
     import '../app.css';
     import { onMount } from 'svelte';
     import { goto } from '$app/navigation';
     import { page } from '$app/state';
     import Sidebar from '$components/Sidebar.svelte';
-    import { KeyHintBar } from '$components/ui/index';
-    import { theme } from '$lib/theme.svelte';
-    import { keyboard } from '$lib/keyboard';
+    import { KeyHintBar, keyboard, theme, uiPrefs } from 'anasthasia';
     import { mountedHint } from '$lib/keyhint.svelte';
-    import { uiPrefs } from '$lib/ui-prefs.svelte';
     import { sidebar } from '$lib/sidebar/state.svelte';
 
     let { children } = $props();
@@ -32,7 +30,15 @@
 
     onMount(() => {
         theme.init();
-        uiPrefs.init();
+        const rawPrefs = localStorage.getItem('thasia:settings');
+        if (rawPrefs) {
+            try {
+                const parsed = JSON.parse(rawPrefs);
+                if (typeof parsed.showKeyHints === 'boolean') {
+                    uiPrefs.showKeyHints = parsed.showKeyHints;
+                }
+            } catch {}
+        }
         const unmount = keyboard.mount();
         const cleanup = keyboard.smartRegister([
             [
@@ -79,12 +85,12 @@
 </script>
 
 <div
-    class="flex h-screen flex-col overflow-hidden bg-thasia-bg text-thasia-text"
+    class="flex h-screen flex-col overflow-hidden bg-anasthasia-bg text-anasthasia-text"
     use:mountedHint={navHints}
 >
     <!-- macOS title bar: sits behind traffic lights, draggable -->
     <div
-        class="titlebar h-8 flex-shrink-0 border-b border-thasia-border bg-thasia-surface"
+        class="titlebar h-8 flex-shrink-0 border-b border-anasthasia-border bg-anasthasia-surface"
         data-tauri-drag-region
     ></div>
 

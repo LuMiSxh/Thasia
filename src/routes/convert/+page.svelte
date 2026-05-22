@@ -3,7 +3,7 @@
     import { sidebar } from '$lib/sidebar/state.svelte';
     import { wizard } from '$lib/wizard/state.svelte';
     import { activeSteps } from '$lib/wizard/steps';
-    import { keyboard } from '$lib/keyboard';
+    import { keyboard } from 'anasthasia';
     import { mountedHint } from '$lib/keyhint.svelte';
 
     onMount(() => {
@@ -78,6 +78,10 @@
             (currentStep.id !== 'destination' || (!!wizard.outputDir && !!wizard.outputName))
     );
 
+    let nextDisabled = $derived(
+        currentStep?.id === 'destination' ? !(wizard.outputDir && wizard.outputName) : false
+    );
+
     let navHints = $derived([
         ...(canGoNext ? [['shift+arrowright', 'Next step'] as [string, string]] : []),
         ...(canGoBack ? [['shift+arrowleft', 'Back'] as [string, string]] : []),
@@ -114,7 +118,7 @@
             <currentStep.component
                 onNext={goNext}
                 onBack={goBack}
-                nextDisabled={!canGoNext}
+                {nextDisabled}
                 backDisabled={!canGoBack}
             />
         {/key}

@@ -1,6 +1,6 @@
 <script lang="ts">
     import { wizard } from '$lib/wizard/state.svelte';
-    import { uiPrefs } from '$lib/ui-prefs.svelte';
+    import { Button, duration, Input, SegmentedControl, Toggle, uiPrefs } from 'anasthasia';
     import { onMount, onDestroy } from 'svelte';
     import { slide } from 'svelte/transition';
     import { cubicInOut } from 'svelte/easing';
@@ -14,8 +14,6 @@
         IconRuler,
         IconKeyboard,
     } from '@tabler/icons-svelte';
-    import { Button, Toggle, Input, SegmentedControl } from '$components/ui/index';
-    import { duration } from '$lib/transitions';
 
     const KEY = 'thasia:settings';
 
@@ -94,7 +92,7 @@
         <div class="flex flex-shrink-0 items-center justify-between">
             <div>
                 <h1 class="text-xl font-bold">Settings</h1>
-                <p class="mt-0.5 text-sm text-thasia-muted">
+                <p class="mt-0.5 text-sm text-anasthasia-muted">
                     Default values pre-filled in each new conversion
                 </p>
             </div>
@@ -108,19 +106,20 @@
         <div class="grid grid-cols-2 gap-4">
             <!-- LEFT: Encoding -->
             <div
-                class="flex flex-col overflow-hidden rounded-xl border border-thasia-border bg-thasia-surface"
+                class="flex flex-col overflow-hidden rounded-xl border border-anasthasia-border bg-anasthasia-surface"
             >
                 <div
-                    class="flex-shrink-0 border-b border-thasia-border bg-thasia-panel px-4 py-2.5"
+                    class="flex-shrink-0 border-b border-anasthasia-border bg-anasthasia-panel px-4 py-2.5"
                 >
-                    <span class="text-[10px] font-bold tracking-widest text-thasia-muted uppercase"
+                    <span
+                        class="text-[10px] font-bold tracking-widest text-anasthasia-muted uppercase"
                         >Encoding</span
                     >
                 </div>
 
                 <div class="flex flex-col gap-2.5 px-4 py-4">
                     <div class="flex items-center gap-2">
-                        <IconPhoto size={14} class="flex-shrink-0 text-thasia-muted" />
+                        <IconPhoto size={14} class="flex-shrink-0 text-anasthasia-muted" />
                         <span class="text-sm font-medium">Image Format</span>
                     </div>
                     <SegmentedControl
@@ -131,18 +130,18 @@
                         ]}
                         bind:value={defaults.imageFormat}
                     />
-                    <p class="text-xs text-thasia-muted">{formatHint[defaults.imageFormat]}</p>
+                    <p class="text-xs text-anasthasia-muted">{formatHint[defaults.imageFormat]}</p>
                 </div>
 
-                <div class="mx-4 border-t border-thasia-border"></div>
+                <div class="mx-4 border-t border-anasthasia-border"></div>
 
                 <div class="flex flex-col gap-2.5 px-4 py-4">
                     <div class="flex items-center justify-between">
                         <div class="flex items-center gap-2">
-                            <IconRuler size={14} class="flex-shrink-0 text-thasia-muted" />
+                            <IconRuler size={14} class="flex-shrink-0 text-anasthasia-muted" />
                             <div>
                                 <div class="text-sm font-medium">Max Width</div>
-                                <div class="text-xs text-thasia-muted">
+                                <div class="text-xs text-anasthasia-muted">
                                     Downscale wider images (px)
                                 </div>
                             </div>
@@ -171,19 +170,20 @@
 
             <!-- RIGHT: Output -->
             <div
-                class="flex flex-col overflow-hidden rounded-xl border border-thasia-border bg-thasia-surface"
+                class="flex flex-col overflow-hidden rounded-xl border border-anasthasia-border bg-anasthasia-surface"
             >
                 <div
-                    class="flex-shrink-0 border-b border-thasia-border bg-thasia-panel px-4 py-2.5"
+                    class="flex-shrink-0 border-b border-anasthasia-border bg-anasthasia-panel px-4 py-2.5"
                 >
-                    <span class="text-[10px] font-bold tracking-widest text-thasia-muted uppercase"
+                    <span
+                        class="text-[10px] font-bold tracking-widest text-anasthasia-muted uppercase"
                         >Output</span
                     >
                 </div>
 
                 <div class="flex flex-col gap-2.5 px-4 py-4">
                     <div class="flex items-center gap-2">
-                        <IconFileZip size={14} class="flex-shrink-0 text-thasia-muted" />
+                        <IconFileZip size={14} class="flex-shrink-0 text-anasthasia-muted" />
                         <span class="text-sm font-medium">Container</span>
                     </div>
                     <SegmentedControl
@@ -197,8 +197,11 @@
                     {#if defaults.container === 'epub'}
                         <div class="flex items-center justify-between" transition:slide={collapse}>
                             <div class="flex items-center gap-1.5">
-                                <IconDirection size={13} class="flex-shrink-0 text-thasia-muted" />
-                                <span class="text-xs text-thasia-muted">Reading direction</span>
+                                <IconDirection
+                                    size={13}
+                                    class="flex-shrink-0 text-anasthasia-muted"
+                                />
+                                <span class="text-xs text-anasthasia-muted">Reading direction</span>
                             </div>
                             <SegmentedControl
                                 options={[
@@ -211,11 +214,11 @@
                     {/if}
                 </div>
 
-                <div class="mx-4 border-t border-thasia-border"></div>
+                <div class="mx-4 border-t border-anasthasia-border"></div>
 
                 <div class="flex flex-col gap-2.5 px-4 py-4">
                     <div class="flex items-center gap-2">
-                        <IconStack size={14} class="flex-shrink-0 text-thasia-muted" />
+                        <IconStack size={14} class="flex-shrink-0 text-anasthasia-muted" />
                         <span class="text-sm font-medium">Bundling</span>
                     </div>
                     <SegmentedControl
@@ -240,11 +243,11 @@
                     {/if}
                 </div>
 
-                <div class="mx-4 border-t border-thasia-border"></div>
+                <div class="mx-4 border-t border-anasthasia-border"></div>
 
                 <div class="flex items-center justify-between gap-4 px-4 py-4">
                     <div class="flex items-center gap-2">
-                        <IconFolderPlus size={14} class="flex-shrink-0 text-thasia-muted" />
+                        <IconFolderPlus size={14} class="flex-shrink-0 text-anasthasia-muted" />
                         <span class="text-sm font-medium">Create subdirectory</span>
                     </div>
                     <Toggle bind:checked={defaults.createDirectory} />
@@ -254,19 +257,21 @@
 
         <!-- Interface panel -->
         <div
-            class="flex-shrink-0 overflow-hidden rounded-xl border border-thasia-border bg-thasia-surface"
+            class="flex-shrink-0 overflow-hidden rounded-xl border border-anasthasia-border bg-anasthasia-surface"
         >
-            <div class="flex-shrink-0 border-b border-thasia-border bg-thasia-panel px-4 py-2.5">
-                <span class="text-[10px] font-bold tracking-widest text-thasia-muted uppercase"
+            <div
+                class="flex-shrink-0 border-b border-anasthasia-border bg-anasthasia-panel px-4 py-2.5"
+            >
+                <span class="text-[10px] font-bold tracking-widest text-anasthasia-muted uppercase"
                     >Interface</span
                 >
             </div>
             <div class="flex items-center justify-between px-4 py-4">
                 <div class="flex items-center gap-2">
-                    <IconKeyboard size={14} class="flex-shrink-0 text-thasia-muted" />
+                    <IconKeyboard size={14} class="flex-shrink-0 text-anasthasia-muted" />
                     <div>
                         <div class="text-sm font-medium">Keyboard hint bar</div>
-                        <div class="text-xs text-thasia-muted">
+                        <div class="text-xs text-anasthasia-muted">
                             Show shortcut hints at the bottom of the window
                         </div>
                     </div>

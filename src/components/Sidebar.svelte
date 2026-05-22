@@ -1,11 +1,17 @@
 <script lang="ts">
-    import { sidebarSlide, sendPill, receivePill, slideUp, duration } from '$lib/transitions';
+    import {
+        duration,
+        receivePill,
+        SectionLabel,
+        sendPill,
+        sidebarSlide,
+        slideUp,
+        theme,
+    } from 'anasthasia';
     import { sidebar } from '$lib/sidebar/state.svelte';
     import { wizard } from '$lib/wizard/state.svelte';
-    import { theme } from '$lib/theme.svelte';
     import { STEPS } from '$lib/wizard/steps';
     import { page } from '$app/state';
-    import { SectionLabel } from '$components/ui/index';
     import { fade } from 'svelte/transition';
     import {
         IconHome,
@@ -67,20 +73,20 @@
     {#if sidebar.isOpen}
         <!-- Panel -->
         <nav
-            class="flex w-52 flex-col overflow-hidden border-r border-thasia-border bg-thasia-surface"
+            class="flex w-52 flex-col overflow-hidden border-r border-anasthasia-border bg-anasthasia-surface"
             transition:sidebarSlide
         >
             <!-- Wordmark -->
             <a
                 href="/"
-                class="group block flex-shrink-0 border-b border-thasia-border px-4 pt-5 pb-4 transition-colors duration-150 hover:bg-thasia-panel"
+                class="group block flex-shrink-0 border-b border-anasthasia-border px-4 pt-5 pb-4 transition-colors duration-150 hover:bg-anasthasia-panel"
             >
                 <div
-                    class="text-sm font-bold tracking-widest text-thasia-accent uppercase transition-opacity duration-150 group-hover:opacity-80"
+                    class="text-sm font-bold tracking-widest text-anasthasia-accent uppercase transition-opacity duration-150 group-hover:opacity-80"
                 >
                     Thasia
                 </div>
-                <div class="mt-0.5 text-[10px] tracking-wider text-thasia-muted uppercase">
+                <div class="mt-0.5 text-[10px] tracking-wider text-anasthasia-muted uppercase">
                     Engine
                 </div>
             </a>
@@ -100,17 +106,17 @@
                                     href={link.href}
                                     class="relative flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors duration-150
                                            {active
-                                        ? 'text-thasia-text'
-                                        : 'text-thasia-muted hover:bg-thasia-panel hover:text-thasia-text'}"
+                                        ? 'text-anasthasia-text'
+                                        : 'text-anasthasia-muted hover:bg-anasthasia-panel hover:text-anasthasia-text'}"
                                 >
                                     {#if active}
                                         <span
-                                            class="absolute inset-0 rounded-lg border border-thasia-accent/25 bg-thasia-accent/8"
+                                            class="absolute inset-0 rounded-lg border border-anasthasia-accent/25 bg-anasthasia-accent/8"
                                             in:receivePill={{ key: 'nav-active' }}
                                             out:sendPill={{ key: 'nav-active' }}
                                         ></span>
                                     {/if}
-                                    <span class="relative {active ? 'text-thasia-accent' : ''}">
+                                    <span class="relative {active ? 'text-anasthasia-accent' : ''}">
                                         <Icon size={15} />
                                     </span>
                                     <span class="relative">{link.label}</span>
@@ -121,7 +127,7 @@
                             <a
                                 href="/"
                                 class="mb-2 flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm
-                                       text-thasia-muted transition-colors duration-150 hover:bg-thasia-panel hover:text-thasia-text"
+                                       text-anasthasia-muted transition-colors duration-150 hover:bg-anasthasia-panel hover:text-anasthasia-text"
                             >
                                 <IconHome size={15} />
                                 Home
@@ -139,14 +145,14 @@
                                     class="relative flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm
                                            transition-colors duration-150
                                            {step.status === 'active'
-                                        ? 'text-thasia-text'
+                                        ? 'text-anasthasia-text'
                                         : step.status === 'done'
-                                          ? 'cursor-pointer text-thasia-muted hover:bg-thasia-panel hover:text-thasia-text'
-                                          : 'cursor-default text-thasia-muted opacity-40'}"
+                                          ? 'cursor-pointer text-anasthasia-muted hover:bg-anasthasia-panel hover:text-anasthasia-text'
+                                          : 'cursor-default text-anasthasia-muted opacity-40'}"
                                 >
                                     {#if step.status === 'active'}
                                         <span
-                                            class="absolute inset-0 rounded-lg border border-thasia-accent/25 bg-thasia-accent/8"
+                                            class="absolute inset-0 rounded-lg border border-anasthasia-accent/25 bg-anasthasia-accent/8"
                                             in:receivePill={{ key: 'step-active' }}
                                             out:sendPill={{ key: 'step-active' }}
                                         ></span>
@@ -158,12 +164,12 @@
                                     >
                                         {#if step.status === 'done'}
                                             <span
-                                                class="flex h-4 w-4 items-center justify-center rounded-full bg-thasia-accent"
+                                                class="flex h-4 w-4 items-center justify-center rounded-full bg-anasthasia-accent"
                                                 in:fade={{ duration: duration.fast }}
                                             >
                                                 <IconCheck
                                                     size={10}
-                                                    class="text-black dark:text-zinc-900"
+                                                    class="text-anasthasia-text"
                                                     stroke={3}
                                                 />
                                             </span>
@@ -172,19 +178,19 @@
                                                 class="relative flex h-4 w-4 items-center justify-center"
                                             >
                                                 <span
-                                                    class="absolute h-4 w-4 animate-ping rounded-full bg-thasia-accent/30"
+                                                    class="absolute h-4 w-4 animate-ping rounded-full bg-anasthasia-accent/30"
                                                 ></span>
                                                 <span
-                                                    class="h-2 w-2 rounded-full border-2 border-thasia-accent"
+                                                    class="h-2 w-2 rounded-full border-2 border-anasthasia-accent"
                                                 ></span>
                                             </span>
                                         {:else if step.status === 'conditional'}
                                             <span
-                                                class="h-3 w-3 rounded-full border border-dashed border-thasia-border"
+                                                class="h-3 w-3 rounded-full border border-dashed border-anasthasia-border"
                                             ></span>
                                         {:else}
                                             <span
-                                                class="h-3 w-3 rounded-full border border-thasia-border"
+                                                class="h-3 w-3 rounded-full border border-anasthasia-border"
                                             ></span>
                                         {/if}
                                     </span>
@@ -202,11 +208,11 @@
             </div>
 
             <!-- Bottom: theme toggle -->
-            <div class="flex-shrink-0 border-t border-thasia-border p-3">
+            <div class="flex-shrink-0 border-t border-anasthasia-border p-3">
                 <button
                     onclick={() => theme.toggle()}
-                    class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-thasia-muted
-                           transition-colors duration-150 hover:bg-thasia-panel hover:text-thasia-text"
+                    class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-anasthasia-muted
+                           transition-colors duration-150 hover:bg-anasthasia-panel hover:text-anasthasia-text"
                 >
                     {#if theme.dark}
                         <IconSun size={15} />
@@ -224,9 +230,9 @@
     <button
         onclick={() => sidebar.toggle()}
         aria-label="Toggle sidebar"
-        class="flex flex-shrink-0 items-center justify-center self-stretch border-r border-thasia-border
-               bg-thasia-surface text-thasia-muted transition-all duration-150
-               hover:bg-thasia-panel hover:text-thasia-accent
+        class="flex flex-shrink-0 items-center justify-center self-stretch border-r border-anasthasia-border
+               bg-anasthasia-surface text-anasthasia-muted transition-all duration-150
+               hover:bg-anasthasia-panel hover:text-anasthasia-accent
                {sidebar.isOpen ? 'w-4' : 'w-6'}"
     >
         {#if sidebar.isOpen}

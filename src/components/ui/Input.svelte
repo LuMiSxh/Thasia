@@ -12,23 +12,23 @@
 
 <label class="flex flex-col gap-1.5 {className}">
     {#if label}
-        <span class="text-xs font-bold tracking-wider text-thasia-muted uppercase">{label}</span>
+        <span class="text-xs font-bold tracking-wider text-anasthasia-muted uppercase">{label}</span>
     {/if}
     <input
         bind:value
         class="
-      w-full rounded-lg border border-thasia-border bg-thasia-bg px-3 py-1.5
+      w-full rounded-lg border border-anasthasia-border bg-anasthasia-bg px-3 py-1.5
       font-sans text-sm
-      text-thasia-text transition-colors
+      text-anasthasia-text transition-colors
       duration-150
       outline-none
-      placeholder:text-thasia-muted hover:border-thasia-accent/40 focus:border-thasia-accent
-      focus:ring-1 focus:ring-thasia-accent
+      placeholder:text-anasthasia-muted hover:border-anasthasia-accent/40 focus:border-anasthasia-accent
+      focus:ring-1 focus:ring-anasthasia-accent
       disabled:opacity-40
     "
         {...rest}
     />
     {#if hint}
-        <span class="text-xs text-thasia-muted">{hint}</span>
+        <span class="text-xs text-anasthasia-muted">{hint}</span>
     {/if}
 </label>
