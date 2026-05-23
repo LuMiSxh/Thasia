@@ -34,7 +34,11 @@ impl Generator for RawGenerator {
     }
 
     async fn add_page(&mut self, img: ProcessedImage) -> Result<()> {
-        let filename = format!("page_{:04}.{}", img.parsed_data.page_number + 1, img.ext);
+        let filename = format!(
+            "page_{:04}.{}",
+            (img.parsed_data.page_number as u32) + 1,
+            img.ext
+        );
         let dest = self.output_dir.join(filename);
         tokio::fs::write(dest, &img.image_data)
             .await

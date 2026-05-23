@@ -97,7 +97,7 @@ mod tests {
                 volume: vol,
                 chapter: None,
             },
-            page_number: page,
+            page_number: page as f32,
             is_cover: false,
         }
     }

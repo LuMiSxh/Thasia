@@ -170,7 +170,7 @@ fn resolve_edit_pages(
                     .to_string_lossy()
                     .into_owned();
                 let is_cover = final_pages.is_empty();
-                let page_number = final_pages.len() as u32;
+                let page_number = final_pages.len() as f32;
                 final_pages.push(ParsedImage {
                     source: DiscoveredImage {
                         absolute_path: path,
@@ -191,7 +191,7 @@ fn resolve_edit_pages(
     // the sort in convert_volume produces the correct output order regardless
     // of Rayon's non-deterministic completion order.
     for (i, page) in final_pages.iter_mut().enumerate() {
-        page.page_number = i as u32;
+        page.page_number = i as f32;
     }
     final_pages
 }
@@ -255,7 +255,8 @@ async fn convert_volume(
         .ok();
         all_images.push(img);
     }
-    all_images.sort_by_key(|img| img.parsed_data.page_number);
+    all_images
+        .sort_by(|a, b| a.parsed_data.page_number.total_cmp(&b.parsed_data.page_number));
     for img in all_images {
         pkg.add_page(img).await.map_err(|e| e.to_string())?;
     }

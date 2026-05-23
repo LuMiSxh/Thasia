@@ -51,7 +51,13 @@ impl Generator for CbzGenerator {
             .as_mut()
             .ok_or_else(|| ThasiaError::Fatal("CbzGenerator not initialized".into()))?;
 
-        let filename = format!("page_{:04}.{}", img.parsed_data.page_number + 1, img.ext);
+        // page_number is f32 (parser/sort key) but the caller reassigns it to
+        // sequential integers before this point, so cast back for filename formatting.
+        let filename = format!(
+            "page_{:04}.{}",
+            (img.parsed_data.page_number as u32) + 1,
+            img.ext
+        );
         // AVIF and WebP are already compressed — use Stored to avoid double compression.
         let compression = match img.ext.as_str() {
             "avif" | "webp" => Compression::Stored,

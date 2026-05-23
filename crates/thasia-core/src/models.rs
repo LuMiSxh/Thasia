@@ -28,7 +28,10 @@ pub struct DiscoveredImage {
 pub struct ParsedImage {
     pub source: DiscoveredImage,
     pub identifier: ChapterIdentifier,
-    pub page_number: u32,
+    /// Sort key within (volume, chapter). Float so insert pages (e.g. `p35.5`,
+    /// `p35.6` between `p35` and `p36`) and double-page spreads work naturally.
+    /// Sort with `f32::total_cmp` for a strict total order.
+    pub page_number: f32,
     pub is_cover: bool,
 }
 
