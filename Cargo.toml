@@ -39,6 +39,8 @@ zip = "8.6"
 specta = { version = "=2.0.0-rc.24", features = ["derive"] }
 ordered-float = "5"
 url = "2"
+regex = "1"
+natord = "1"
 
 [profile.release]
 lto = "fat"

@@ -84,19 +84,34 @@ async fn main() -> Result<()> {
     let resolver = Resolver::new(RuleConfig::default());
 
     // 3. Discover + parse — collect metadata only (tiny structs, ~300 bytes each).
+    // Batch-resolve so directories with unparseable filenames get a consistent
+    // natord-based ordering across siblings.
     let mut rx_discover = source.discover().await.into_diagnostic()?;
-    let mut parsed_images = Vec::new();
+    let mut discovered = Vec::new();
     while let Some(img) = rx_discover.recv().await {
-        match resolver.resolve(img) {
-            Ok(parsed) => parsed_images.push(parsed),
-            Err(e) => tracing::warn!("Parse failed: {}", e),
-        }
+        discovered.push(img);
     }
 
-    if parsed_images.is_empty() {
+    if discovered.is_empty() {
         tracing::warn!("No images were processed.");
         return Ok(());
     }
+
+    let mut parsed_images = resolver.resolve_batch(discovered);
+    // Within each volume we want covers first, then by page_number — apply a
+    // stable order before auto_group buckets pages by volume.
+    parsed_images.sort_by(|a, b| {
+        let av = a.identifier.volume.unwrap_or(1);
+        let bv = b.identifier.volume.unwrap_or(1);
+        av.cmp(&bv)
+            .then_with(|| b.is_cover.cmp(&a.is_cover))
+            .then_with(|| {
+                let ac = a.identifier.chapter.unwrap_or(0.0);
+                let bc = b.identifier.chapter.unwrap_or(0.0);
+                ac.total_cmp(&bc)
+            })
+            .then_with(|| a.page_number.total_cmp(&b.page_number))
+    });
 
     // 4. Build the conversion plan using the shared helpers.
     let naming = VolumeNaming {
@@ -172,7 +187,7 @@ async fn process_volume(
         all.push(result.into_diagnostic()?);
     }
     let count = all.len() as u32;
-    all.sort_by_key(|img| img.parsed_data.page_number);
+    all.sort_by(|a, b| a.parsed_data.page_number.total_cmp(&b.parsed_data.page_number));
     for img in all {
         pkg.add_page(img).await.into_diagnostic()?;
     }

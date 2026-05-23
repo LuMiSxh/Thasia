@@ -33,14 +33,13 @@ pub async fn scan_source(
         source.discover().await.map_err(|e| e.to_string())?
     };
 
-    // Parse each discovered image
-    let mut parsed_images = Vec::new();
+    // Collect discovered images for batch resolution (so natord-fallback can
+    // run across siblings for directories with unparseable filenames).
+    let mut discovered = Vec::new();
     while let Some(img) = rx.recv().await {
-        match resolver.resolve(img) {
-            Ok(parsed) => parsed_images.push(parsed),
-            Err(e) => tracing::warn!("Skipping unresolved image: {e}"),
-        }
+        discovered.push(img);
     }
+    let parsed_images = resolver.resolve_batch(discovered);
 
     // Group by (volume, chapter) to preserve per-chapter granularity.
     // OrderedFloat gives a real total order over f32 (NaN sorts after everything).
@@ -51,9 +50,13 @@ pub async fn scan_source(
         chapter_map.entry((vol, chapter)).or_default().push(parsed);
     }
 
-    // Sort pages within each chapter group by page number
+    // Sort pages within each chapter group: covers first, then by page_number.
     for pages in chapter_map.values_mut() {
-        pages.sort_by_key(|p| p.page_number);
+        pages.sort_by(|a, b| {
+            b.is_cover
+                .cmp(&a.is_cover)
+                .then_with(|| a.page_number.total_cmp(&b.page_number))
+        });
     }
 
     // Assign sequential scan indices (1, 2, …) as unique lookup keys.
