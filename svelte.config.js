@@ -9,6 +9,7 @@ const config = {
             $components: './src/components',
             $types: './src/types',
             $lib: './src/lib',
+            $assets: './src/assets',
         },
     },
 };

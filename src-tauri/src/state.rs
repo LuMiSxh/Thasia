@@ -1,15 +1,25 @@
 use serde::{Deserialize, Serialize};
 use specta::Type;
 use std::sync::Arc;
-use thasia_core::models::{Direction, ImageFormat, OutputFormat, ParsedImage};
+use std::sync::atomic::AtomicBool;
+use thasia_core::{
+    BundleMode,
+    models::{Direction, ImageFormat, OutputFormat, ParsedImage},
+};
+
+/// One scan-volume group: (sequential scan index, ordered pages).
+pub type ScanGroups = Vec<(u32, Vec<ParsedImage>)>;
 
 /// Full runtime state — held in Tauri managed state, never serialized to frontend.
 #[derive(Debug, Default)]
 pub struct ConvState {
-    /// Grouped scan result: (volume_num, ordered pages). Populated by scan_source.
-    pub scan_result: Option<Vec<(u32, Vec<ParsedImage>)>>,
+    /// Grouped scan result keyed by sequential scan index. Populated by scan_source.
+    pub scan_result: Option<ScanGroups>,
     /// Keeps the TempDir alive for ZIP/CBZ extractions.
     pub source: Option<Arc<thasia_source::LocalSource>>,
+    /// Cooperative cancellation flag — set by `cancel_conversion`, polled
+    /// between volumes (and at safe checkpoints) by `convert`.
+    pub cancel: Arc<AtomicBool>,
 }
 
 /// Sent from frontend to the convert command.
@@ -25,13 +35,6 @@ pub struct ConvertOptions {
     pub bundle: BundleMode,
     pub volume_separator: String,
     pub hide_single_volume: bool,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Type, PartialEq)]
-#[serde(rename_all = "snake_case")]
-pub enum BundleMode {
-    Auto,
-    Flatten,
 }
 
 /// Metadata for a single scanned page — sent to JS. No image bytes.
@@ -55,18 +58,27 @@ pub struct VolumeMeta {
     pub pages: Vec<PageMeta>,
 }
 
+/// Where a single page in the editor comes from. Tagged enum on the wire:
+/// `{ "kind": "original", "page_index": 3, "source_volume_num": 1 }` or
+/// `{ "kind": "custom",   "path": "/abs/path.png" }`.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum PageEditSource {
+    Original {
+        /// Index into the scan_result pages for `source_volume_num`.
+        page_index: u32,
+        /// Which scan volume to look up `page_index` in. None = parent VolumeEdit's volume.
+        source_volume_num: Option<u32>,
+    },
+    Custom {
+        path: String,
+    },
+}
+
 /// One page entry from the page editor — sent from JS to convert.
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct PageEditEntry {
-    /// Index into the original scan_result pages for this volume.
-    /// None if this is a user-added custom image.
-    pub original_page_index: Option<u32>,
-    /// Which scan volume to look up original_page_index in.
-    /// Defaults to the parent VolumeEdit.volume_num; set explicitly when a page
-    /// has been moved from a different scan volume (e.g. after manual merge).
-    pub source_volume_num: Option<u32>,
-    /// Set for user-added custom images; None for scanned pages.
-    pub custom_path: Option<String>,
+    pub source: PageEditSource,
     pub excluded: bool,
 }
 
@@ -83,23 +95,30 @@ mod tests {
     use super::*;
 
     #[test]
-    fn bundle_mode_serializes_snake_case() {
-        let json = serde_json::to_string(&BundleMode::Flatten).unwrap();
-        assert_eq!(json, r#""flatten""#);
-        let json = serde_json::to_string(&BundleMode::Auto).unwrap();
-        assert_eq!(json, r#""auto""#);
+    fn page_edit_entry_original_serializes_tagged() {
+        let entry = PageEditEntry {
+            source: PageEditSource::Original {
+                page_index: 3,
+                source_volume_num: Some(2),
+            },
+            excluded: false,
+        };
+        let json = serde_json::to_string(&entry).unwrap();
+        assert!(json.contains(r#""kind":"original""#));
+        assert!(json.contains(r#""page_index":3"#));
     }
 
     #[test]
-    fn page_edit_entry_custom_image() {
+    fn page_edit_entry_custom_serializes_tagged() {
         let entry = PageEditEntry {
-            original_page_index: None,
-            source_volume_num: None,
-            custom_path: Some("/tmp/cover.png".into()),
+            source: PageEditSource::Custom {
+                path: "/tmp/cover.png".into(),
+            },
             excluded: false,
         };
-        assert!(entry.original_page_index.is_none());
-        assert!(entry.custom_path.is_some());
+        let json = serde_json::to_string(&entry).unwrap();
+        assert!(json.contains(r#""kind":"custom""#));
+        assert!(json.contains(r#""path":"/tmp/cover.png""#));
     }
 
     #[test]

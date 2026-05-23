@@ -43,8 +43,42 @@ export class WizardStore {
     currentStepId = $state('source');
     completedStepIds = new SvelteSet<string>();
 
+    /** True while Step9 is actively converting — locks all navigation away. */
+    converting = $state(false);
+
     markComplete(id: string) {
         this.completedStepIds.add(id);
+    }
+
+    /** Reshape pageEdits to match the current bundle mode + scanResult.
+     * - auto: re-explode pageEdits per scan volume
+     * - flatten: merge all pages into a single output volume
+     */
+    reconcileBundling(): void {
+        if (this.bundle === 'flatten' && this.pageEdits.length > 1) {
+            const firstNum = this.pageEdits[0]?.volumeNum ?? 1;
+            this.pageEdits = [
+                {
+                    volumeNum: firstNum,
+                    pages: this.pageEdits.flatMap((ve) => ve.pages),
+                },
+            ];
+        } else if (
+            this.bundle === 'auto' &&
+            this.scanResult &&
+            this.pageEdits.length === 1 &&
+            this.scanResult.length > 1
+        ) {
+            this.pageEdits = this.scanResult.map((vol) => ({
+                volumeNum: vol.volume_num,
+                pages: vol.pages.map((_, i) => ({
+                    originalPageIndex: i,
+                    sourceVolumeNum: vol.volume_num,
+                    customPath: null,
+                    excluded: false,
+                })),
+            }));
+        }
     }
 
     reset() {
@@ -63,6 +97,7 @@ export class WizardStore {
         this.pageEdits = [];
         this.currentStepId = 'source';
         this.completedStepIds.clear();
+        this.converting = false;
     }
 }
 

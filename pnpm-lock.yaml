@@ -26,6 +26,9 @@ importers:
       '@tauri-apps/plugin-opener':
         specifier: ^2.5.3
         version: 2.5.3
+      anasthasia:
+        specifier: github:LuMiSxh/Anasthasia#v0.1.1
+        version: https://codeload.github.com/LuMiSxh/Anasthasia/tar.gz/7cd3380e82ce035865c15081c28b1758ba468637(svelte@5.55.4(@typescript-eslint/types@8.59.0))
     devDependencies:
       '@eslint/js':
         specifier: ^10.0.1
@@ -779,6 +782,12 @@ packages:
 
   ajv@6.14.0:
     resolution: {integrity: sha512-IWrosm/yrn43eiKqkfkHis7QioDleaXQHdDVPKg0FSwwd/DuvyX79TZnFOnYpB7dcsFAMmtFztZuXPDvSePkFw==}
+
+  anasthasia@https://codeload.github.com/LuMiSxh/Anasthasia/tar.gz/7cd3380e82ce035865c15081c28b1758ba468637:
+    resolution: {tarball: https://codeload.github.com/LuMiSxh/Anasthasia/tar.gz/7cd3380e82ce035865c15081c28b1758ba468637}
+    version: 0.1.1
+    peerDependencies:
+      svelte: ^5.0.0
 
   aria-query@5.3.1:
     resolution: {integrity: sha512-Z/ZeOgVl7bcSYZ/u/rh0fOpvEpq//LZmdbkXyc7syVzjPAhfOa9ebsdTSjEBDU4vs5nC98Kfduj1uFo0qyET3g==}
@@ -1972,6 +1981,13 @@ snapshots:
       fast-json-stable-stringify: 2.1.0
       json-schema-traverse: 0.4.1
       uri-js: 4.4.1
+
+  anasthasia@https://codeload.github.com/LuMiSxh/Anasthasia/tar.gz/7cd3380e82ce035865c15081c28b1758ba468637(svelte@5.55.4(@typescript-eslint/types@8.59.0)):
+    dependencies:
+      '@fontsource/geist-sans': 5.2.5
+      '@fontsource/jetbrains-mono': 5.2.8
+      '@tabler/icons-svelte': 3.41.1(svelte@5.55.4(@typescript-eslint/types@8.59.0))
+      svelte: 5.55.4(@typescript-eslint/types@8.59.0)
 
   aria-query@5.3.1: {}
 

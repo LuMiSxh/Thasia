@@ -1,68 +1,58 @@
 <script lang="ts">
+    import 'anasthasia/bootstrap';
     import '../app.css';
     import { onMount } from 'svelte';
     import { goto } from '$app/navigation';
     import { page } from '$app/state';
     import Sidebar from '$components/Sidebar.svelte';
-    import { KeyHintBar } from '$components/ui/index';
-    import { theme } from '$lib/theme.svelte';
-    import { keyboard } from '$lib/keyboard';
+    import { KeyHintBar, keyboard, theme } from 'anasthasia';
     import { mountedHint } from '$lib/keyhint.svelte';
-    import { uiPrefs } from '$lib/ui-prefs.svelte';
     import { sidebar } from '$lib/sidebar/state.svelte';
+    import { wizard } from '$lib/wizard/state.svelte';
+    import { applyUiPrefs, loadSettings } from '$lib/settings';
 
     let { children } = $props();
 
-    const navRoutes: [string, string, string][] = [
-        ['meta+1', 'Home', '/'],
-        ['meta+2', 'Convert', '/convert'],
-        ['meta+3', 'Settings', '/settings'],
-        ['meta+4', 'About', '/about'],
+    type NavRoute = { combo: string; label: string; route: string };
+
+    const navRoutes: NavRoute[] = [
+        { combo: 'meta+1', label: 'Home', route: '/' },
+        { combo: 'meta+2', label: 'Convert', route: '/convert' },
+        { combo: 'meta+3', label: 'Settings', route: '/settings' },
+        { combo: 'meta+4', label: 'About', route: '/about' },
     ];
 
     let navHints = $derived(
-        (
-            navRoutes
-                .filter(([, , route]) =>
-                    route === '/' ? page.url.pathname !== '/' : !page.url.pathname.startsWith(route)
-                )
-                .map(([key, label]) => [key, label]) as [string, string][]
-        ).concat([['meta+keyb', 'Sidebar']])
+        wizard.converting
+            ? ([['meta+keyb', 'Sidebar']] as [string, string][])
+            : (
+                  navRoutes
+                      .filter(({ route }) =>
+                          route === '/'
+                              ? page.url.pathname !== '/'
+                              : !page.url.pathname.startsWith(route)
+                      )
+                      .map(({ combo, label }) => [combo, label]) as [string, string][]
+              ).concat([['meta+keyb', 'Sidebar']])
     );
 
     onMount(() => {
         theme.init();
-        uiPrefs.init();
+        applyUiPrefs(loadSettings());
+
         const unmount = keyboard.mount();
         const cleanup = keyboard.smartRegister([
-            [
-                'meta+1',
-                () => {
-                    goto('/');
-                    return true;
-                },
-            ],
-            [
-                'meta+2',
-                () => {
-                    goto('/convert');
-                    return true;
-                },
-            ],
-            [
-                'meta+3',
-                () => {
-                    goto('/settings');
-                    return true;
-                },
-            ],
-            [
-                'meta+4',
-                () => {
-                    goto('/about');
-                    return true;
-                },
-            ],
+            ...navRoutes.map(
+                ({ combo, route }) =>
+                    [
+                        combo,
+                        () => {
+                            if (wizard.converting) return false;
+                            goto(route);
+                            return true;
+                        },
+                    ] as [string, () => boolean]
+            ),
             [
                 'meta+keyb',
                 () => {
@@ -79,12 +69,12 @@
 </script>
 
 <div
-    class="flex h-screen flex-col overflow-hidden bg-thasia-bg text-thasia-text"
+    class="flex h-screen flex-col overflow-hidden bg-anasthasia-bg text-anasthasia-text"
     use:mountedHint={navHints}
 >
     <!-- macOS title bar: sits behind traffic lights, draggable -->
     <div
-        class="titlebar h-8 flex-shrink-0 border-b border-thasia-border bg-thasia-surface"
+        class="titlebar h-8 flex-shrink-0 border-b border-anasthasia-border bg-anasthasia-surface"
         data-tauri-drag-region
     ></div>
 

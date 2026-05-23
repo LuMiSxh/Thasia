@@ -45,7 +45,7 @@ pub struct ProcessedImage {
 }
 
 /// Target image encoding format.
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 #[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
 #[cfg_attr(
     feature = "tauri",
@@ -62,7 +62,7 @@ pub enum ImageFormat {
 }
 
 /// Output container format.
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 #[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
 #[cfg_attr(
     feature = "tauri",
@@ -79,7 +79,7 @@ pub enum OutputFormat {
 }
 
 /// EPUB reading direction.
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 #[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
 #[cfg_attr(
     feature = "tauri",

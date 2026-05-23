@@ -3,10 +3,8 @@
     import { wizard } from '$lib/wizard/state.svelte';
     import { open } from '@tauri-apps/plugin-dialog';
     import { flip } from 'svelte/animate';
-    import { duration } from '$lib/transitions';
-    import { Button } from '$components/ui/index';
+    import { Button, duration, keyboard } from 'anasthasia';
     import { IconArrowLeft, IconArrowRight, IconPlus, IconRefresh } from '@tabler/icons-svelte';
-    import { keyboard } from '$lib/keyboard';
     import { mountedHint } from '$lib/keyhint.svelte';
 
     let {
@@ -28,6 +26,24 @@
     let firstNonExcluded = $derived(activeEdits.findIndex((e) => !e.excluded));
 
     let dragOverIndex = $state<number | null>(null);
+
+    type PageEdit = (typeof activeEdits)[number];
+
+    function getSourcePage(edit: PageEdit): { url: string; file_name: string } {
+        if (edit.customPath) {
+            return {
+                url: `thasia://image?path=${encodeURIComponent(edit.customPath)}`,
+                file_name: edit.customPath.split('/').at(-1) ?? 'custom',
+            };
+        }
+        if (edit.originalPageIndex !== null) {
+            const volNum = edit.sourceVolumeNum ?? wizard.pageEdits[activeVolumeIndex]?.volumeNum;
+            const srcVol = wizard.scanResult?.find((v) => v.volume_num === volNum);
+            const page = srcVol?.pages[edit.originalPageIndex];
+            return { url: page?.url ?? '', file_name: page?.file_name ?? '' };
+        }
+        return { url: '', file_name: '' };
+    }
 
     let cleanupKb: (() => void) | undefined;
     onMount(() => {
@@ -69,7 +85,7 @@
     });
     onDestroy(() => cleanupKb?.());
 
-    function pageKey(edit: (typeof activeEdits)[number]): string {
+    function pageKey(edit: PageEdit): string {
         if (edit.customPath) return 'custom:' + edit.customPath;
         return `${edit.sourceVolumeNum ?? 0}-${edit.originalPageIndex ?? 0}`;
     }
@@ -157,30 +173,12 @@
         wizard.pageEdits = updated;
     }
 
-    function imageUrl(edit: (typeof activeEdits)[number]): string {
-        if (edit.customPath) return `thasia://image?path=${encodeURIComponent(edit.customPath)}`;
-        if (edit.originalPageIndex !== null) {
-            const srcVol = wizard.scanResult?.find(
-                (v) =>
-                    v.volume_num ===
-                    (edit.sourceVolumeNum ?? wizard.pageEdits[activeVolumeIndex]?.volumeNum)
-            );
-            return srcVol?.pages[edit.originalPageIndex]?.url ?? '';
-        }
-        return '';
-    }
-
-    function fileName(edit: (typeof activeEdits)[number]): string {
-        if (edit.customPath) return edit.customPath.split('/').at(-1) ?? 'custom';
-        if (edit.originalPageIndex !== null) {
-            const srcVol = wizard.scanResult?.find(
-                (v) =>
-                    v.volume_num ===
-                    (edit.sourceVolumeNum ?? wizard.pageEdits[activeVolumeIndex]?.volumeNum)
-            );
-            return srcVol?.pages[edit.originalPageIndex]?.file_name ?? '';
-        }
-        return '';
+    function borderTone(i: number, edit: PageEdit): string {
+        if (i === firstNonExcluded) return 'border-anasthasia-accent';
+        if (dragOverIndex === i) return 'border-anasthasia-accent/50';
+        if (edit.excluded) return 'border-red-500/60';
+        if (edit.customPath) return 'border-anasthasia-accent-strong/60';
+        return 'border-anasthasia-border';
     }
 </script>
 
@@ -194,9 +192,9 @@
     ]}
 >
     <!-- Volume list -->
-    <div class="flex w-44 flex-shrink-0 flex-col overflow-hidden border-r border-thasia-border">
+    <div class="flex w-44 flex-shrink-0 flex-col overflow-hidden border-r border-anasthasia-border">
         <div
-            class="flex-shrink-0 border-b border-thasia-border px-3 py-2.5 text-[10px] font-bold tracking-wider text-thasia-muted uppercase"
+            class="flex-shrink-0 border-b border-anasthasia-border px-3 py-2.5 text-[10px] font-bold tracking-wider text-anasthasia-muted uppercase"
         >
             Volumes
         </div>
@@ -206,11 +204,11 @@
                     onclick={() => setActiveVolume(i)}
                     class="mb-1 w-full rounded-lg border px-3 py-2 text-left transition-colors duration-150
                            {i === activeVolumeIndex
-                        ? 'border-thasia-accent/40 bg-thasia-accent/8 text-thasia-text'
-                        : 'border-thasia-border bg-transparent text-thasia-muted hover:border-thasia-accent/25 hover:bg-thasia-panel hover:text-thasia-text'}"
+                        ? 'border-anasthasia-accent/40 bg-anasthasia-accent/8 text-anasthasia-text'
+                        : 'border-anasthasia-border bg-transparent text-anasthasia-muted hover:border-anasthasia-accent/25 hover:bg-anasthasia-panel hover:text-anasthasia-text'}"
                 >
                     <div class="text-sm font-bold">Vol {ve.volumeNum}</div>
-                    <div class="text-xs text-thasia-muted">
+                    <div class="text-xs text-anasthasia-muted">
                         {ve.pages.filter((p) => !p.excluded).length} pages
                     </div>
                 </button>
@@ -222,12 +220,12 @@
     <div class="flex flex-1 flex-col overflow-hidden">
         <!-- Toolbar -->
         <div
-            class="flex flex-shrink-0 items-center gap-3 border-b border-thasia-border px-4 py-2.5"
+            class="flex flex-shrink-0 items-center gap-3 border-b border-anasthasia-border px-4 py-2.5"
         >
             <span class="text-sm font-bold">
                 Volume {volumes[activeVolumeIndex]?.volumeNum ?? '—'}
             </span>
-            <span class="text-xs text-thasia-muted">
+            <span class="text-xs text-anasthasia-muted">
                 Drag to reorder · click to exclude · first image = cover
             </span>
             <Button onclick={addCustomImage} size="sm" class="ml-auto">
@@ -238,10 +236,10 @@
         <!-- Grid -->
         <div
             role="list"
-            class="flex-1 overflow-y-auto p-3"
-            style="display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:8px;align-content:start;"
+            class="grid flex-1 grid-cols-[repeat(auto-fill,minmax(90px,1fr))] content-start gap-2 overflow-y-auto p-3"
         >
             {#each activeEdits as edit, i (pageKey(edit))}
+                {@const src = getSourcePage(edit)}
                 <div
                     role="listitem"
                     draggable="true"
@@ -253,31 +251,14 @@
                     animate:flip={{ duration: duration.slow }}
                     class="relative {edit.excluded ? 'opacity-40' : ''}"
                 >
-                    <!-- Image card — click anywhere to toggle exclude -->
                     <button
                         onclick={() => toggleExclude(i)}
                         title={edit.excluded ? 'Click to include' : 'Click to exclude'}
-                        class="relative w-full overflow-hidden rounded-md transition-opacity duration-150"
-                        style="
-                            aspect-ratio: 2/3;
-                            display: block;
-                            border: 2px solid {i === firstNonExcluded
-                            ? 'var(--accent)'
-                            : dragOverIndex === i
-                              ? 'color-mix(in srgb, var(--accent) 50%, transparent)'
-                              : edit.excluded
-                                ? '#ef4444'
-                                : edit.customPath
-                                  ? '#10b981'
-                                  : 'var(--border)'};
-                            border-style: {edit.excluded ? 'dashed' : 'solid'};
-                            cursor: pointer;
-                            background: var(--panel);
-                        "
+                        class={`relative aspect-[2/3] w-full cursor-pointer overflow-hidden rounded-md border-2 bg-anasthasia-panel transition-opacity duration-150 ${borderTone(i, edit)} ${edit.excluded ? 'border-dashed' : 'border-solid'}`}
                     >
                         <img
-                            src={imageUrl(edit)}
-                            alt={fileName(edit)}
+                            src={src.url}
+                            alt={src.file_name}
                             draggable="false"
                             class="h-full w-full object-cover"
                             loading="lazy"
@@ -286,8 +267,7 @@
                         {#if i === firstNonExcluded}
                             <div
                                 class="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2
-                                       rounded-sm px-1.5 py-px text-[8px] font-bold text-black"
-                                style="background: var(--accent);"
+                                       rounded-sm bg-anasthasia-accent px-1.5 py-px text-[8px] font-bold text-anasthasia-text"
                             >
                                 COVER
                             </div>
@@ -296,8 +276,8 @@
                         {#if edit.customPath}
                             <div
                                 class="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-sm
-                                       bg-emerald-500 px-1.5 py-px text-[8px] font-bold text-white"
-                                style="top: {i === firstNonExcluded ? '16px' : '0'};"
+                                       bg-anasthasia-accent-strong px-1.5 py-px text-[8px] font-bold text-anasthasia-text"
+                                style:top={i === firstNonExcluded ? '16px' : '0'}
                             >
                                 ADDED
                             </div>
@@ -305,28 +285,28 @@
 
                         {#if edit.excluded}
                             <div class="absolute inset-0 flex items-center justify-center">
-                                <IconRefresh size={16} class="text-thasia-muted" />
+                                <IconRefresh size={16} class="text-anasthasia-muted" />
                             </div>
                         {/if}
                     </button>
 
                     <div
-                        class="mt-1 overflow-hidden text-center text-[8px] text-ellipsis whitespace-nowrap text-thasia-muted"
+                        class="mt-1 overflow-hidden text-center text-[8px] text-ellipsis whitespace-nowrap text-anasthasia-muted"
                     >
-                        {fileName(edit)}
+                        {src.file_name}
                     </div>
                 </div>
             {/each}
         </div>
 
         <!-- Footer -->
-        <div class="flex flex-shrink-0 gap-2 border-t border-thasia-border px-4 py-3">
-            <Button onclick={onBack} disabled={backDisabled}
-                ><IconArrowLeft size={15} /> Back</Button
-            >
-            <Button onclick={onNext} disabled={nextDisabled} class="ml-auto"
-                >Next <IconArrowRight size={15} /></Button
-            >
+        <div class="flex flex-shrink-0 gap-2 border-t border-anasthasia-border px-4 py-3">
+            <Button onclick={onBack} disabled={backDisabled}>
+                <IconArrowLeft size={15} /> Back
+            </Button>
+            <Button onclick={onNext} disabled={nextDisabled} class="ml-auto">
+                Next <IconArrowRight size={15} />
+            </Button>
         </div>
     </div>
 </div>

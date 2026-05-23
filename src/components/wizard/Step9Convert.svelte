@@ -3,12 +3,10 @@
     import { wizard } from '$lib/wizard/state.svelte';
     import { commands, events } from '$types/bindings';
     import { goto } from '$app/navigation';
-    import ProgressBar from '$components/ui/ProgressBar.svelte';
-    import { Button } from '$components/ui/index';
+    import { Alert, Button, keyboard, ProgressBar } from 'anasthasia';
     import { SvelteMap } from 'svelte/reactivity';
-    import { IconArrowLeft, IconCheck, IconX, IconRefresh } from '@tabler/icons-svelte';
-    import { keyboard } from '$lib/keyboard';
-    import { mountedHint } from '$lib/keyhint.svelte';
+    import { IconArrowLeft, IconCheck, IconX, IconRefresh, IconPlayerStop } from '@tabler/icons-svelte';
+    import WizardStep from './WizardStep.svelte';
 
     let { onBack }: { onNext: () => void; onBack: () => void } = $props();
 
@@ -28,9 +26,9 @@
     let unlisteners: Array<() => void> = [];
     let cleanupKb: (() => void) | undefined;
 
-    function capitalize(s: string): string {
-        return s.charAt(0).toUpperCase() + s.slice(1);
-    }
+    const IMAGE_FORMAT = { avif: 'Avif', webp: 'Webp', original: 'Original' } as const;
+    const OUTPUT_FORMAT = { cbz: 'Cbz', epub: 'Epub', raw: 'Raw' } as const;
+    const DIRECTION = { ltr: 'Ltr', rtl: 'Rtl' } as const;
 
     onMount(async () => {
         unlisteners.push(
@@ -78,26 +76,24 @@
             [
                 'enter',
                 () => {
-                    if (status === 'done') {
-                        wizard.reset();
-                        goto('/');
-                    }
+                    if (status === 'done') startOver();
                     return true;
                 },
             ],
         ]);
 
         status = 'converting';
+        wizard.converting = true;
         try {
             const result = await commands.convert(
                 {
                     output_dir: wizard.outputDir,
                     output_name: wizard.outputName,
                     create_directory: wizard.createDirectory,
-                    image_format: capitalize(wizard.imageFormat) as 'Avif' | 'Webp' | 'Original',
+                    image_format: IMAGE_FORMAT[wizard.imageFormat],
                     max_width: wizard.maxWidth,
-                    output_format: capitalize(wizard.container) as 'Cbz' | 'Epub' | 'Raw',
-                    direction: capitalize(wizard.direction) as 'Ltr' | 'Rtl',
+                    output_format: OUTPUT_FORMAT[wizard.container],
+                    direction: DIRECTION[wizard.direction],
                     bundle: wizard.bundle,
                     volume_separator: wizard.volumeSeparator,
                     hide_single_volume: wizard.hideSingleVolume,
@@ -105,9 +101,14 @@
                 wizard.pageEdits.map((vol) => ({
                     volume_num: vol.volumeNum,
                     pages: vol.pages.map((p) => ({
-                        original_page_index: p.originalPageIndex,
-                        source_volume_num: p.sourceVolumeNum,
-                        custom_path: p.customPath,
+                        source:
+                            p.customPath !== null
+                                ? { kind: 'custom' as const, path: p.customPath }
+                                : {
+                                      kind: 'original' as const,
+                                      page_index: p.originalPageIndex ?? 0,
+                                      source_volume_num: p.sourceVolumeNum,
+                                  },
                         excluded: p.excluded,
                     })),
                 }))
@@ -119,109 +120,113 @@
         } catch (e) {
             status = 'error';
             errorMessage = String(e);
+        } finally {
+            wizard.converting = false;
         }
     });
 
     onDestroy(() => {
         unlisteners.forEach((u) => u());
         cleanupKb?.();
+        wizard.converting = false;
     });
+
+    function startOver() {
+        wizard.reset();
+        goto('/');
+    }
+
+    let cancelling = $state(false);
+    async function cancel() {
+        if (cancelling) return;
+        cancelling = true;
+        await commands.cancelConversion().catch(() => {});
+    }
 
     let doneCount = $derived([...volumeMap.values()].filter((v) => v.done && v.success).length);
     let failedCount = $derived([...volumeMap.values()].filter((v) => v.done && !v.success).length);
+
+    let title = $derived(
+        status === 'done'
+            ? 'Conversion complete'
+            : status === 'error'
+              ? 'Conversion failed'
+              : 'Converting…'
+    );
+    let description = $derived(
+        status === 'done'
+            ? `${doneCount} volume${doneCount !== 1 ? 's' : ''} written in ${elapsed.toFixed(1)}s${failedCount > 0 ? ` · ${failedCount} failed` : ''}`
+            : status === 'error'
+              ? 'An error occurred during conversion'
+              : 'Processing pages and packaging output…'
+    );
+    let extraHints = $derived(
+        status === 'done' ? ([['enter', 'Start over']] as [string, string][]) : []
+    );
 </script>
 
-<div
-    class="flex h-full flex-col"
-    use:mountedHint={status === 'done' ? [['enter', 'Start over']] : []}
->
-    <!-- Header -->
-    <div class="flex-shrink-0 border-b border-thasia-border px-5 py-4">
-        <h2 class="text-base font-bold">
-            {#if status === 'done'}
-                Conversion complete
-            {:else if status === 'error'}
-                Conversion failed
-            {:else}
-                Converting…
-            {/if}
-        </h2>
-        <p class="mt-0.5 text-xs text-thasia-muted">
-            {#if status === 'done'}
-                {doneCount} volume{doneCount !== 1 ? 's' : ''} written in {elapsed.toFixed(1)}s
-                {#if failedCount > 0}· {failedCount} failed{/if}
-            {:else if status === 'error'}
-                An error occurred during conversion
-            {:else}
-                Processing pages and packaging output…
-            {/if}
-        </p>
-    </div>
-
-    <!-- Content -->
-    <div class="flex flex-1 flex-col gap-3 overflow-y-auto px-5 py-5">
-        {#if volumeMap.size > 0}
-            <div class="overflow-hidden rounded-xl border border-thasia-border bg-thasia-surface">
-                {#each [...volumeMap.entries()] as [_num, vol], i (_num)}
-                    <div
-                        class="flex flex-col gap-2 px-4 py-3 {i < volumeMap.size - 1
-                            ? 'border-b border-thasia-border'
-                            : ''}"
-                    >
-                        <div class="flex items-center justify-between">
-                            <span class="text-sm font-medium">{vol.name}</span>
-                            <span
-                                class="inline-flex items-center gap-1 text-xs {vol.done &&
-                                vol.success
-                                    ? 'text-emerald-500'
-                                    : vol.done
-                                      ? 'text-red-400'
-                                      : 'text-thasia-muted'}"
-                            >
-                                {#if vol.done && vol.success}
-                                    <IconCheck size={12} /> Done
-                                {:else if vol.done}
-                                    <IconX size={12} /> Failed
-                                {:else}
-                                    {vol.current}/{vol.total}
-                                {/if}
-                            </span>
-                        </div>
-                        <ProgressBar
-                            value={vol.total ? vol.current / vol.total : 0}
-                            variant={vol.done ? (vol.success ? 'success' : 'danger') : 'accent'}
-                            class="h-1.5"
-                        />
-                    </div>
-                {/each}
-            </div>
-        {/if}
-
-        {#if status === 'error'}
-            <div
-                class="overflow-hidden rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3"
-            >
-                <p class="text-xs text-red-400">{errorMessage}</p>
-            </div>
-        {/if}
-    </div>
-
-    <!-- Footer — only shown when there's an action to take -->
-    {#if status === 'done' || status === 'error'}
-        <div class="flex flex-shrink-0 gap-2 border-t border-thasia-border px-5 py-4">
-            {#if status === 'error'}
-                <Button onclick={onBack}><IconArrowLeft size={15} /> Back</Button>
-            {:else}
-                <Button
-                    variant="primary"
-                    onclick={() => {
-                        wizard.reset();
-                        goto('/');
-                    }}
+<WizardStep {title} {description} {extraHints} showFooter>
+    {#if volumeMap.size > 0}
+        <div
+            class="overflow-hidden rounded-xl border border-anasthasia-border bg-anasthasia-surface"
+        >
+            {#each [...volumeMap.entries()] as [_num, vol], i (_num)}
+                <div
+                    class="flex flex-col gap-2 px-4 py-3 {i < volumeMap.size - 1
+                        ? 'border-b border-anasthasia-border'
+                        : ''}"
                 >
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm font-medium">{vol.name}</span>
+                        <span
+                            class="inline-flex items-center gap-1 text-xs {vol.done && vol.success
+                                ? 'text-emerald-500'
+                                : vol.done
+                                  ? 'text-red-400'
+                                  : 'text-anasthasia-muted'}"
+                        >
+                            {#if vol.done && vol.success}
+                                <IconCheck size={12} /> Done
+                            {:else if vol.done}
+                                <IconX size={12} /> Failed
+                            {:else}
+                                {vol.current}/{vol.total}
+                            {/if}
+                        </span>
+                    </div>
+                    <ProgressBar
+                        value={vol.total ? vol.current / vol.total : 0}
+                        variant={vol.done ? (vol.success ? 'success' : 'danger') : 'accent'}
+                        class="h-1.5"
+                    />
+                </div>
+            {/each}
+        </div>
+    {/if}
+
+    {#if status === 'error'}
+        <Alert variant="danger" title="Failed">{errorMessage}</Alert>
+    {/if}
+
+    {#snippet footer()}
+        <div class="flex flex-shrink-0 gap-2 border-t border-anasthasia-border px-5 py-4">
+            {#if status === 'converting'}
+                <Button
+                    variant="danger"
+                    onclick={cancel}
+                    loading={cancelling}
+                    loadingLabel="Stopping…"
+                    class="ml-auto"
+                >
+                    <IconPlayerStop size={15} /> Cancel
+                </Button>
+            {:else if status === 'error'}
+                <Button onclick={onBack}><IconArrowLeft size={15} /> Back</Button>
+            {:else if status === 'done'}
+                <Button variant="primary" onclick={startOver}>
                     <IconRefresh size={15} /> Start over
                 </Button>
             {/if}
         </div>
-    {/if}
-</div>
+    {/snippet}
+</WizardStep>
