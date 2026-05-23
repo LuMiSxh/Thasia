@@ -3,27 +3,14 @@
     import { sidebar } from '$lib/sidebar/state.svelte';
     import { wizard } from '$lib/wizard/state.svelte';
     import { activeSteps } from '$lib/wizard/steps';
+    import { applyToWizard, loadSettings } from '$lib/settings';
     import { keyboard } from 'anasthasia';
     import { mountedHint } from '$lib/keyhint.svelte';
 
     onMount(() => {
         sidebar.enterWizard();
         if (!wizard.currentStepId) wizard.currentStepId = 'source';
-
-        const raw = localStorage.getItem('thasia:settings');
-        if (raw && !wizard.sourcePath) {
-            try {
-                const d = JSON.parse(raw);
-                if (d.imageFormat) wizard.imageFormat = d.imageFormat;
-                if (d.container) wizard.container = d.container;
-                if (d.direction) wizard.direction = d.direction;
-                if (d.bundle) wizard.bundle = d.bundle;
-                if (d.volumeSeparator !== undefined) wizard.volumeSeparator = d.volumeSeparator;
-                if (d.hideSingleVolume !== undefined) wizard.hideSingleVolume = d.hideSingleVolume;
-                if (d.createDirectory !== undefined) wizard.createDirectory = d.createDirectory;
-                if (d.maxWidth !== undefined) wizard.maxWidth = d.maxWidth;
-            } catch {}
-        }
+        applyToWizard(loadSettings());
 
         document.addEventListener('wizard:goto', handleGoto);
 
@@ -67,19 +54,9 @@
     let currentStep = $derived(active.find((s) => s.id === wizard.currentStepId) ?? active[0]);
     let currentIndex = $derived(active.findIndex((s) => s.id === wizard.currentStepId));
 
-    // Steps that manage their own shift+arrowright (async/complex handleNext, or own arrow key usage)
-    const selfManagedNext = new Set(['source', 'volume-review', 'page-editor']);
-
     let canGoBack = $derived(currentIndex > 0 && currentStep?.id !== 'convert');
     let canGoNext = $derived(
-        !!currentStep &&
-            !selfManagedNext.has(currentStep.id) &&
-            currentStep.id !== 'convert' &&
-            (currentStep.id !== 'destination' || (!!wizard.outputDir && !!wizard.outputName))
-    );
-
-    let nextDisabled = $derived(
-        currentStep?.id === 'destination' ? !(wizard.outputDir && wizard.outputName) : false
+        !!currentStep && !currentStep.selfManagedNext && currentStep.id !== 'convert'
     );
 
     let navHints = $derived([
@@ -90,17 +67,6 @@
     function goNext() {
         if (!currentStep) return;
         wizard.markComplete(currentStep.id);
-
-        // Flatten mode skips volume-review — merge all scan volumes into one output volume
-        // so the page editor and convert both see a single unified volume.
-        if (currentStep.id === 'bundling' && wizard.bundle === 'flatten') {
-            wizard.pageEdits = [
-                {
-                    volumeNum: 1,
-                    pages: wizard.pageEdits.flatMap((ve) => ve.pages),
-                },
-            ];
-        }
 
         const nextIndex = currentIndex + 1;
         if (nextIndex < active.length) wizard.currentStepId = active[nextIndex].id;
@@ -115,12 +81,7 @@
 <div class="flex h-full flex-col" use:mountedHint={navHints}>
     {#if currentStep}
         {#key currentStep.id}
-            <currentStep.component
-                onNext={goNext}
-                onBack={goBack}
-                {nextDisabled}
-                backDisabled={!canGoBack}
-            />
+            <currentStep.component onNext={goNext} onBack={goBack} backDisabled={!canGoBack} />
         {/key}
     {/if}
 </div>

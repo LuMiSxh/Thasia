@@ -1,9 +1,6 @@
 <script lang="ts">
     import { wizard } from '$lib/wizard/state.svelte';
-    import { Button } from 'anasthasia';
     import {
-        IconArrowLeft,
-        IconArrowRight,
         IconFolderOpen,
         IconFolderPlus,
         IconPhoto,
@@ -13,11 +10,11 @@
         IconBook,
         IconFile,
     } from '@tabler/icons-svelte';
+    import WizardStep from './WizardStep.svelte';
 
     let {
         onNext,
         onBack,
-        nextDisabled = false,
         backDisabled = false,
     }: {
         onNext: () => void;
@@ -52,38 +49,29 @@
     ]);
 </script>
 
-<div class="flex h-full flex-col">
-    <div class="flex-shrink-0 border-b border-anasthasia-border px-5 py-4">
-        <h2 class="text-base font-bold">Review</h2>
-        <p class="mt-0.5 text-xs text-anasthasia-muted">Confirm your settings before converting.</p>
+<WizardStep
+    title="Review"
+    description="Confirm your settings before converting."
+    {onNext}
+    {onBack}
+    {backDisabled}
+    nextLabel="Start Converting"
+    nextVariant="primary"
+>
+    <div class="overflow-hidden rounded-xl border border-anasthasia-border bg-anasthasia-surface">
+        {#each rows as row, i (row.label)}
+            {@const Icon = row.icon}
+            <div
+                class="flex items-center gap-3 px-4 py-3 {i !== rows.length - 1
+                    ? 'border-b border-anasthasia-border'
+                    : ''}"
+            >
+                <Icon size={14} class="flex-shrink-0 text-anasthasia-muted" />
+                <span class="w-28 flex-shrink-0 text-xs text-anasthasia-muted">{row.label}</span>
+                <span class="min-w-0 flex-1 truncate text-sm font-medium" title={row.value}>
+                    {row.value}
+                </span>
+            </div>
+        {/each}
     </div>
-
-    <div class="flex flex-1 flex-col overflow-y-auto px-5 py-5">
-        <div
-            class="overflow-hidden rounded-xl border border-anasthasia-border bg-anasthasia-surface"
-        >
-            {#each rows as row, i (row.label)}
-                {@const Icon = row.icon}
-                <div
-                    class="flex items-center gap-3 px-4 py-3 {i !== rows.length - 1
-                        ? 'border-b border-anasthasia-border'
-                        : ''}"
-                >
-                    <Icon size={14} class="flex-shrink-0 text-anasthasia-muted" />
-                    <span class="w-28 flex-shrink-0 text-xs text-anasthasia-muted">{row.label}</span
-                    >
-                    <span class="min-w-0 flex-1 truncate text-sm font-medium" title={row.value}
-                        >{row.value}</span
-                    >
-                </div>
-            {/each}
-        </div>
-    </div>
-
-    <div class="flex flex-shrink-0 gap-2 border-t border-anasthasia-border px-5 py-4">
-        <Button onclick={onBack} disabled={backDisabled}><IconArrowLeft size={15} /> Back</Button>
-        <Button variant="primary" onclick={onNext} disabled={nextDisabled} class="ml-auto"
-            >Start Converting <IconArrowRight size={15} /></Button
-        >
-    </div>
-</div>
+</WizardStep>

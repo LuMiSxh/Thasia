@@ -3,14 +3,8 @@
     import { wizard } from '$lib/wizard/state.svelte';
     import type { VolumeEdit } from '$lib/wizard/state.svelte';
     import { Button, keyboard, ProgressBar } from 'anasthasia';
-    import {
-        IconArrowLeft,
-        IconArrowRight,
-        IconX,
-        IconBook,
-        IconLayoutGrid,
-    } from '@tabler/icons-svelte';
-    import { mountedHint } from '$lib/keyhint.svelte';
+    import { IconX, IconBook, IconLayoutGrid } from '@tabler/icons-svelte';
+    import WizardStep from './WizardStep.svelte';
 
     let {
         onNext,
@@ -21,21 +15,6 @@
         onBack: () => void;
         backDisabled?: boolean;
     } = $props();
-
-    let cleanupKb: (() => void) | undefined;
-    onMount(() => {
-        cleanupKb = keyboard.smartRegister([
-            [
-                'shift+arrowright',
-                (e) => {
-                    e.preventDefault();
-                    handleNext();
-                    return true;
-                },
-            ],
-        ]);
-    });
-    onDestroy(() => cleanupKb?.());
 
     let scanVols = $derived(wizard.scanResult ?? []);
     let unit = $derived(scanVols.length > 1 ? 'chapter' : 'page');
@@ -91,15 +70,8 @@
         })()
     );
 
-    const slotColors = [
-        'var(--color-anasthasia-accent)',
-        '#10b981',
-        '#3b82f6',
-        '#f59e0b',
-        '#ef4444',
-    ];
     function slotColor(i: number): string {
-        return slotColors[i % slotColors.length];
+        return `var(--color-volume-slot-${(i % 5) + 1})`;
     }
     function slotBg(i: number): string {
         return `color-mix(in srgb, ${slotColor(i)} 15%, transparent)`;
@@ -121,9 +93,15 @@
         if (e.key === 'Enter') addVolume();
     }
 
-    function handleNext() {
-        if (!isValid) return;
+    function validate() {
+        if (volumeSizes.length === 0) return 'Add at least one output volume.';
+        if (remaining > 0) return `Assign the remaining ${remaining} ${unit}${remaining !== 1 ? 's' : ''} to a volume.`;
+        if (isOver) return `Reduce the volume sizes — ${-remaining} ${unit}${-remaining !== 1 ? 's' : ''} over the total.`;
+        if (volumeSizes.some((n) => n <= 0)) return 'Each volume must contain at least one item.';
+        return null;
+    }
 
+    function handleNext() {
         let newEdits: VolumeEdit[];
 
         if (unit === 'chapter') {
@@ -163,262 +141,250 @@
         wizard.pageEdits = newEdits;
         onNext();
     }
+
+    let cleanupKb: (() => void) | undefined;
+    onMount(() => {
+        cleanupKb = keyboard.smartRegister([
+            [
+                'shift+arrowright',
+                (e) => {
+                    e.preventDefault();
+                    // WizardStep's validate+next flow will fire via the wrapper handler
+                    // — but since we set selfManagedNext we drive it here so validate runs.
+                    const issues = validate();
+                    if (issues) return false;
+                    handleNext();
+                    return true;
+                },
+            ],
+        ]);
+    });
+    onDestroy(() => cleanupKb?.());
 </script>
 
-<div
-    class="flex h-full flex-col"
-    use:mountedHint={isValid ? [['shift+arrowright', 'Next step']] : []}
+<WizardStep
+    title="Volume Assignment"
+    description={`Detected ${total} ${unit}${total !== 1 ? 's' : ''} — assign them to output volumes.`}
+    onNext={handleNext}
+    {onBack}
+    {backDisabled}
+    {validate}
+    selfManagedNext
 >
-    <!-- Header -->
-    <div class="flex-shrink-0 border-b border-anasthasia-border px-5 py-4">
-        <h2 class="text-base font-bold">Volume Assignment</h2>
-        <p class="mt-0.5 text-xs text-anasthasia-muted">
-            Detected {total}
-            {unit}{total !== 1 ? 's' : ''} — assign them to output volumes.
-        </p>
-    </div>
-
-    <!-- Content -->
-    <div class="flex flex-1 flex-col gap-3 overflow-hidden px-5 py-5">
-        <!-- Stat row -->
-        <div class="grid flex-shrink-0 grid-cols-3 gap-2">
-            <div
-                class="overflow-hidden rounded-xl border border-anasthasia-border bg-anasthasia-surface"
-            >
-                <div class="border-b border-anasthasia-border bg-anasthasia-panel px-4 py-2">
-                    <span
-                        class="text-[10px] font-bold tracking-widest text-anasthasia-muted uppercase"
-                        >Detected</span
-                    >
-                </div>
-                <div class="px-4 py-3">
-                    <div class="text-2xl font-bold">{total}</div>
-                    <div class="text-xs text-anasthasia-muted">{unit}s</div>
-                </div>
+    <!-- Stat row -->
+    <div class="grid flex-shrink-0 grid-cols-3 gap-2">
+        <div class="overflow-hidden rounded-xl border border-anasthasia-border bg-anasthasia-surface">
+            <div class="border-b border-anasthasia-border bg-anasthasia-panel px-4 py-2">
+                <span class="text-[10px] font-bold tracking-widest text-anasthasia-muted uppercase">
+                    Detected
+                </span>
             </div>
-            <div
-                class="overflow-hidden rounded-xl border border-anasthasia-border bg-anasthasia-surface"
-            >
-                <div class="border-b border-anasthasia-border bg-anasthasia-panel px-4 py-2">
-                    <span
-                        class="text-[10px] font-bold tracking-widest text-anasthasia-muted uppercase"
-                        >Assigned</span
-                    >
-                </div>
-                <div class="px-4 py-3">
-                    <div
-                        class="text-2xl font-bold {isValid
-                            ? 'text-emerald-500'
-                            : isOver
-                              ? 'text-red-400'
-                              : 'text-amber-400'}"
-                    >
-                        {used}
-                    </div>
-                    <div class="text-xs text-anasthasia-muted">
-                        {remaining > 0
-                            ? `${remaining} remaining`
-                            : isOver
-                              ? `${-remaining} over`
-                              : 'all assigned'}
-                    </div>
-                </div>
+            <div class="px-4 py-3">
+                <div class="text-2xl font-bold">{total}</div>
+                <div class="text-xs text-anasthasia-muted">{unit}s</div>
             </div>
-            <div
-                class="overflow-hidden rounded-xl border border-anasthasia-border bg-anasthasia-surface"
-            >
-                <div class="border-b border-anasthasia-border bg-anasthasia-panel px-4 py-2">
-                    <span
-                        class="text-[10px] font-bold tracking-widest text-anasthasia-muted uppercase"
-                        >Volumes</span
-                    >
+        </div>
+        <div class="overflow-hidden rounded-xl border border-anasthasia-border bg-anasthasia-surface">
+            <div class="border-b border-anasthasia-border bg-anasthasia-panel px-4 py-2">
+                <span class="text-[10px] font-bold tracking-widest text-anasthasia-muted uppercase">
+                    Assigned
+                </span>
+            </div>
+            <div class="px-4 py-3">
+                <div
+                    class="text-2xl font-bold {isValid
+                        ? 'text-emerald-500'
+                        : isOver
+                          ? 'text-red-400'
+                          : 'text-amber-400'}"
+                >
+                    {used}
                 </div>
-                <div class="px-4 py-3">
-                    <div class="text-2xl font-bold">{volumeSizes.length}</div>
-                    <div class="text-xs text-anasthasia-muted">output files</div>
+                <div class="text-xs text-anasthasia-muted">
+                    {remaining > 0
+                        ? `${remaining} remaining`
+                        : isOver
+                          ? `${-remaining} over`
+                          : 'all assigned'}
                 </div>
             </div>
         </div>
+        <div class="overflow-hidden rounded-xl border border-anasthasia-border bg-anasthasia-surface">
+            <div class="border-b border-anasthasia-border bg-anasthasia-panel px-4 py-2">
+                <span class="text-[10px] font-bold tracking-widest text-anasthasia-muted uppercase">
+                    Volumes
+                </span>
+            </div>
+            <div class="px-4 py-3">
+                <div class="text-2xl font-bold">{volumeSizes.length}</div>
+                <div class="text-xs text-anasthasia-muted">output files</div>
+            </div>
+        </div>
+    </div>
 
-        <!-- Main area -->
-        <div class="grid min-h-0 flex-1 gap-2" style="grid-template-columns: 1fr 220px;">
-            <!-- Volume list -->
+    <!-- Main area -->
+    <div class="grid min-h-0 flex-1 gap-2" style="grid-template-columns: 1fr 220px;">
+        <!-- Volume list -->
+        <div
+            class="flex flex-col overflow-hidden rounded-xl border border-anasthasia-border bg-anasthasia-surface"
+        >
             <div
-                class="flex flex-col overflow-hidden rounded-xl border border-anasthasia-border bg-anasthasia-surface"
+                class="flex flex-shrink-0 items-center gap-2 border-b border-anasthasia-border bg-anasthasia-panel px-4 py-2.5"
             >
-                <div
-                    class="flex flex-shrink-0 items-center gap-2 border-b border-anasthasia-border bg-anasthasia-panel px-4 py-2.5"
-                >
-                    <IconBook size={13} class="flex-shrink-0 text-anasthasia-muted" />
-                    <span
-                        class="text-[10px] font-bold tracking-widest text-anasthasia-muted uppercase"
-                        >Volumes</span
+                <IconBook size={13} class="flex-shrink-0 text-anasthasia-muted" />
+                <span class="text-[10px] font-bold tracking-widest text-anasthasia-muted uppercase">
+                    Volumes
+                </span>
+            </div>
+            <div class="flex-1 overflow-y-auto p-2">
+                {#if volumeSizes.length === 0}
+                    <div
+                        class="flex h-full items-center justify-center text-sm text-anasthasia-muted"
                     >
-                </div>
-                <div class="flex-1 overflow-y-auto p-2">
-                    {#if volumeSizes.length === 0}
+                        No volumes yet — add one below
+                    </div>
+                {:else}
+                    {#each volumeSizes as count, i (i)}
                         <div
-                            class="flex h-full items-center justify-center text-sm text-anasthasia-muted"
-                        >
-                            No volumes yet — add one below
-                        </div>
-                    {:else}
-                        {#each volumeSizes as count, i (i)}
-                            <div
-                                class="mb-1.5 rounded-lg border bg-anasthasia-bg px-3 py-2.5 transition-colors duration-150
+                            class="mb-1.5 rounded-lg border bg-anasthasia-bg px-3 py-2.5 transition-colors duration-150
                                 {editingIndex === i
-                                    ? 'border-anasthasia-accent'
-                                    : 'border-anasthasia-border'}"
-                            >
-                                <div class="flex items-center gap-2">
-                                    <div
-                                        class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full"
-                                        style="background: {slotBg(i)};"
-                                    >
-                                        <span
-                                            class="text-xs font-bold"
-                                            style="color: {slotColor(i)};">{i + 1}</span
-                                        >
-                                    </div>
-
-                                    <div class="min-w-0 flex-1">
-                                        <div class="mb-1.5 text-sm font-medium">Volume {i + 1}</div>
-                                        <ProgressBar
-                                            value={count / total}
-                                            color={slotColor(i)}
-                                            class="h-1"
-                                        />
-                                    </div>
-
-                                    {#if editingIndex === i}
-                                        <input
-                                            type="number"
-                                            min="1"
-                                            max={total}
-                                            value={count}
-                                            oninput={(e) => {
-                                                volumeSizes[i] =
-                                                    parseInt(
-                                                        (e.target as HTMLInputElement).value
-                                                    ) || 0;
-                                            }}
-                                            onblur={() => (editingIndex = null)}
-                                            onkeydown={(e) => {
-                                                if (e.key === 'Enter' || e.key === 'Escape')
-                                                    editingIndex = null;
-                                            }}
-                                            class="h-8 w-14 rounded-md border border-anasthasia-accent bg-anasthasia-bg text-center text-sm text-anasthasia-text
-                                            focus:ring-1 focus:ring-anasthasia-accent focus:outline-none"
-                                        />
-                                    {:else}
-                                        <button
-                                            onclick={() => (editingIndex = i)}
-                                            class="h-8 w-14 cursor-pointer rounded-md border border-anasthasia-border bg-anasthasia-bg text-center
-                                            text-sm font-medium text-anasthasia-text transition-colors duration-150 hover:border-anasthasia-accent"
-                                            title="Click to edit"
-                                        >
-                                            {count}
-                                        </button>
-                                    {/if}
-
-                                    <span class="text-xs whitespace-nowrap text-anasthasia-muted">
-                                        {unit}{count !== 1 ? 's' : ''}
+                                ? 'border-anasthasia-accent'
+                                : 'border-anasthasia-border'}"
+                        >
+                            <div class="flex items-center gap-2">
+                                <div
+                                    class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full"
+                                    style="background: {slotBg(i)};"
+                                >
+                                    <span class="text-xs font-bold" style="color: {slotColor(i)};">
+                                        {i + 1}
                                     </span>
-
-                                    <Button
-                                        variant="danger"
-                                        size="sm"
-                                        onclick={() => deleteVolume(i)}
-                                        class="h-7 w-7 p-0"><IconX size={13} /></Button
-                                    >
                                 </div>
-                            </div>
-                        {/each}
-                    {/if}
-                </div>
 
-                <!-- Add volume row -->
-                <div class="flex flex-shrink-0 gap-1.5 border-t border-anasthasia-border p-2">
-                    <input
-                        type="number"
-                        min="1"
-                        placeholder="# of {unit}s"
-                        bind:value={newVolumeInput}
-                        onkeydown={handleAddKey}
-                        class="flex-1 rounded-md border border-anasthasia-border bg-anasthasia-bg px-2 py-1.5 text-sm text-anasthasia-text
+                                <div class="min-w-0 flex-1">
+                                    <div class="mb-1.5 text-sm font-medium">Volume {i + 1}</div>
+                                    <ProgressBar
+                                        value={count / total}
+                                        color={slotColor(i)}
+                                        class="h-1"
+                                    />
+                                </div>
+
+                                {#if editingIndex === i}
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        max={total}
+                                        value={count}
+                                        oninput={(e) => {
+                                            volumeSizes[i] =
+                                                parseInt(
+                                                    (e.target as HTMLInputElement).value
+                                                ) || 0;
+                                        }}
+                                        onblur={() => (editingIndex = null)}
+                                        onkeydown={(e) => {
+                                            if (e.key === 'Enter' || e.key === 'Escape')
+                                                editingIndex = null;
+                                        }}
+                                        class="h-8 w-14 rounded-md border border-anasthasia-accent bg-anasthasia-bg text-center text-sm text-anasthasia-text
+                                            focus:ring-1 focus:ring-anasthasia-accent focus:outline-none"
+                                    />
+                                {:else}
+                                    <button
+                                        onclick={() => (editingIndex = i)}
+                                        class="h-8 w-14 cursor-pointer rounded-md border border-anasthasia-border bg-anasthasia-bg text-center
+                                            text-sm font-medium text-anasthasia-text transition-colors duration-150 hover:border-anasthasia-accent"
+                                        title="Click to edit"
+                                    >
+                                        {count}
+                                    </button>
+                                {/if}
+
+                                <span class="text-xs whitespace-nowrap text-anasthasia-muted">
+                                    {unit}{count !== 1 ? 's' : ''}
+                                </span>
+
+                                <Button
+                                    variant="danger"
+                                    size="sm"
+                                    onclick={() => deleteVolume(i)}
+                                    class="h-7 w-7 p-0"
+                                >
+                                    <IconX size={13} />
+                                </Button>
+                            </div>
+                        </div>
+                    {/each}
+                {/if}
+            </div>
+
+            <!-- Add volume row -->
+            <div class="flex flex-shrink-0 gap-1.5 border-t border-anasthasia-border p-2">
+                <input
+                    type="number"
+                    min="1"
+                    placeholder="# of {unit}s"
+                    bind:value={newVolumeInput}
+                    onkeydown={handleAddKey}
+                    class="flex-1 rounded-md border border-anasthasia-border bg-anasthasia-bg px-2 py-1.5 text-sm text-anasthasia-text
                         transition-colors duration-150 placeholder:text-anasthasia-muted focus:border-anasthasia-accent focus:ring-1
                         focus:ring-anasthasia-accent focus:outline-none"
-                    />
-                    <Button
-                        variant="primary"
-                        onclick={addVolume}
-                        disabled={!newVolumeInput || Number(newVolumeInput) <= 0}
-                    >
-                        Add
-                    </Button>
-                </div>
-            </div>
-
-            <!-- Distribution sidebar -->
-            <div
-                class="flex flex-col overflow-hidden rounded-xl border border-anasthasia-border bg-anasthasia-surface"
-            >
-                <div
-                    class="flex flex-shrink-0 items-center gap-2 border-b border-anasthasia-border bg-anasthasia-panel px-4 py-2.5"
+                />
+                <Button
+                    variant="primary"
+                    onclick={addVolume}
+                    disabled={!newVolumeInput || Number(newVolumeInput) <= 0}
                 >
-                    <IconLayoutGrid size={13} class="flex-shrink-0 text-anasthasia-muted" />
-                    <span
-                        class="text-[10px] font-bold tracking-widest text-anasthasia-muted uppercase"
-                        >Distribution</span
-                    >
-                </div>
-                <div class="flex-1 overflow-y-auto p-3">
-                    <!-- Usage bar -->
-                    <div class="mb-3">
-                        <div class="mb-1 flex justify-between text-xs">
-                            <span>Usage</span>
-                            <span class="font-mono">{used}/{total}</span>
-                        </div>
-                        <ProgressBar
-                            value={used / Math.max(total, 1)}
-                            variant={usageVariant}
-                            class="h-1.5"
-                        />
-                    </div>
+                    Add
+                </Button>
+            </div>
+        </div>
 
-                    <!-- Item map -->
-                    <div class="mb-1.5 text-[11px] text-anasthasia-muted">
-                        {unit === 'chapter' ? 'Chapter' : 'Page'} map
+        <!-- Distribution sidebar -->
+        <div
+            class="flex flex-col overflow-hidden rounded-xl border border-anasthasia-border bg-anasthasia-surface"
+        >
+            <div
+                class="flex flex-shrink-0 items-center gap-2 border-b border-anasthasia-border bg-anasthasia-panel px-4 py-2.5"
+            >
+                <IconLayoutGrid size={13} class="flex-shrink-0 text-anasthasia-muted" />
+                <span class="text-[10px] font-bold tracking-widest text-anasthasia-muted uppercase">
+                    Distribution
+                </span>
+            </div>
+            <div class="flex-1 overflow-y-auto p-3">
+                <!-- Usage bar -->
+                <div class="mb-3">
+                    <div class="mb-1 flex justify-between text-xs">
+                        <span>Usage</span>
+                        <span class="font-mono">{used}/{total}</span>
                     </div>
-                    <div class="flex flex-wrap gap-0.5">
-                        {#each itemVolumeMap as vIdx, itemI (itemI)}
-                            <div
-                                class="h-2.5 w-2.5 cursor-help rounded-sm transition-colors duration-150"
-                                style="background: {vIdx === -1
-                                    ? 'var(--color-anasthasia-border)'
-                                    : slotColor(vIdx)};"
-                                title="{unit === 'chapter' ? 'Chapter' : 'Page'} {itemI + 1}{vIdx >=
-                                0
-                                    ? ` → Volume ${vIdx + 1}`
-                                    : ' (unassigned)'}"
-                            ></div>
-                        {/each}
-                    </div>
+                    <ProgressBar
+                        value={used / Math.max(total, 1)}
+                        variant={usageVariant}
+                        class="h-1.5"
+                    />
+                </div>
+
+                <!-- Item map -->
+                <div class="mb-1.5 text-[11px] text-anasthasia-muted">
+                    {unit === 'chapter' ? 'Chapter' : 'Page'} map
+                </div>
+                <div class="flex flex-wrap gap-0.5">
+                    {#each itemVolumeMap as vIdx, itemI (itemI)}
+                        <div
+                            class="h-2.5 w-2.5 cursor-help rounded-sm transition-colors duration-150"
+                            style="background: {vIdx === -1
+                                ? 'var(--color-anasthasia-border)'
+                                : slotColor(vIdx)};"
+                            title="{unit === 'chapter' ? 'Chapter' : 'Page'} {itemI + 1}{vIdx >= 0
+                                ? ` → Volume ${vIdx + 1}`
+                                : ' (unassigned)'}"
+                        ></div>
+                    {/each}
                 </div>
             </div>
         </div>
     </div>
-
-    <!-- Footer -->
-    <div class="flex flex-shrink-0 gap-2 border-t border-anasthasia-border px-5 py-4">
-        <Button onclick={onBack} disabled={backDisabled}><IconArrowLeft size={15} /> Back</Button>
-        <Button
-            onclick={handleNext}
-            disabled={!isValid}
-            class="ml-auto"
-            title={!isValid
-                ? `${remaining > 0 ? remaining + ' unassigned' : 'over by ' + -remaining} — assign all ${unit}s first`
-                : ''}>Next <IconArrowRight size={15} /></Button
-        >
-    </div>
-</div>
+</WizardStep>

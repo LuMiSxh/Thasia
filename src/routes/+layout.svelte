@@ -5,70 +5,54 @@
     import { goto } from '$app/navigation';
     import { page } from '$app/state';
     import Sidebar from '$components/Sidebar.svelte';
-    import { KeyHintBar, keyboard, theme, uiPrefs } from 'anasthasia';
+    import { KeyHintBar, keyboard, theme } from 'anasthasia';
     import { mountedHint } from '$lib/keyhint.svelte';
     import { sidebar } from '$lib/sidebar/state.svelte';
+    import { wizard } from '$lib/wizard/state.svelte';
+    import { applyUiPrefs, loadSettings } from '$lib/settings';
 
     let { children } = $props();
 
-    const navRoutes: [string, string, string][] = [
-        ['meta+1', 'Home', '/'],
-        ['meta+2', 'Convert', '/convert'],
-        ['meta+3', 'Settings', '/settings'],
-        ['meta+4', 'About', '/about'],
+    type NavRoute = { combo: string; label: string; route: string };
+
+    const navRoutes: NavRoute[] = [
+        { combo: 'meta+1', label: 'Home', route: '/' },
+        { combo: 'meta+2', label: 'Convert', route: '/convert' },
+        { combo: 'meta+3', label: 'Settings', route: '/settings' },
+        { combo: 'meta+4', label: 'About', route: '/about' },
     ];
 
     let navHints = $derived(
-        (
-            navRoutes
-                .filter(([, , route]) =>
-                    route === '/' ? page.url.pathname !== '/' : !page.url.pathname.startsWith(route)
-                )
-                .map(([key, label]) => [key, label]) as [string, string][]
-        ).concat([['meta+keyb', 'Sidebar']])
+        wizard.converting
+            ? ([['meta+keyb', 'Sidebar']] as [string, string][])
+            : (
+                  navRoutes
+                      .filter(({ route }) =>
+                          route === '/'
+                              ? page.url.pathname !== '/'
+                              : !page.url.pathname.startsWith(route)
+                      )
+                      .map(({ combo, label }) => [combo, label]) as [string, string][]
+              ).concat([['meta+keyb', 'Sidebar']])
     );
 
     onMount(() => {
         theme.init();
-        const rawPrefs = localStorage.getItem('thasia:settings');
-        if (rawPrefs) {
-            try {
-                const parsed = JSON.parse(rawPrefs);
-                if (typeof parsed.showKeyHints === 'boolean') {
-                    uiPrefs.showKeyHints = parsed.showKeyHints;
-                }
-            } catch {}
-        }
+        applyUiPrefs(loadSettings());
+
         const unmount = keyboard.mount();
         const cleanup = keyboard.smartRegister([
-            [
-                'meta+1',
-                () => {
-                    goto('/');
-                    return true;
-                },
-            ],
-            [
-                'meta+2',
-                () => {
-                    goto('/convert');
-                    return true;
-                },
-            ],
-            [
-                'meta+3',
-                () => {
-                    goto('/settings');
-                    return true;
-                },
-            ],
-            [
-                'meta+4',
-                () => {
-                    goto('/about');
-                    return true;
-                },
-            ],
+            ...navRoutes.map(
+                ({ combo, route }) =>
+                    [
+                        combo,
+                        () => {
+                            if (wizard.converting) return false;
+                            goto(route);
+                            return true;
+                        },
+                    ] as [string, () => boolean]
+            ),
             [
                 'meta+keyb',
                 () => {

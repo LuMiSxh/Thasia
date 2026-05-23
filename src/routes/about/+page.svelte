@@ -9,6 +9,7 @@
         IconBrandGithub,
         IconExternalLink,
     } from '@tabler/icons-svelte';
+    import pfpUrl from '$assets/pfp.avif';
 
     const pipeline = [
         {
@@ -41,21 +42,34 @@
 
 <div class="mx-auto flex max-w-2xl flex-col gap-14 px-8 py-12">
     <!-- Hero -->
-    <div class="flex flex-col gap-4">
-        <div class="flex items-baseline gap-3">
-            <h1 class="text-4xl font-bold tracking-tight text-anasthasia-text">Thasia</h1>
-            <span
-                class="rounded-md border border-anasthasia-accent/30 bg-anasthasia-accent/8 px-2 py-0.5 text-xs font-bold tracking-wider text-anasthasia-accent uppercase"
-            >
-                Manga Processing Engine
-            </span>
+    <div class="flex items-start gap-6">
+        <div class="relative flex-shrink-0">
+            <div
+                class="absolute -inset-2 rounded-2xl bg-anasthasia-accent/15 blur-xl"
+                aria-hidden="true"
+            ></div>
+            <img
+                src={pfpUrl}
+                alt="Thasia avatar"
+                class="relative h-16 w-16 rounded-xl border border-anasthasia-border bg-anasthasia-panel object-cover"
+            />
         </div>
-        <p class="text-base leading-relaxed text-anasthasia-muted">
-            From <span class="italic">Anastasia</span> — meaning
-            <span class="font-medium text-anasthasia-text">"resurrection"</span> or
-            <span class="font-medium text-anasthasia-text">"rise again"</span>. A name that fits: Thasia
-            is a complete rebuild of something that came before.
-        </p>
+        <div class="flex flex-col gap-3">
+            <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                <h1 class="text-accent-gradient text-4xl font-bold tracking-tight">Thasia</h1>
+                <span
+                    class="rounded-md border border-anasthasia-accent/30 bg-anasthasia-accent/8 px-2 py-0.5 text-xs font-bold tracking-wider text-anasthasia-accent uppercase"
+                >
+                    Manga Processing Engine
+                </span>
+            </div>
+            <p class="text-base leading-relaxed text-anasthasia-muted">
+                From <span class="italic">Anastasia</span> — meaning
+                <span class="font-medium text-anasthasia-text">"resurrection"</span> or
+                <span class="font-medium text-anasthasia-text">"rise again"</span>. A name that
+                fits: Thasia is a complete rebuild of something that came before.
+            </p>
+        </div>
     </div>
 
     <!-- Divider -->

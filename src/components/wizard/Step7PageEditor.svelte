@@ -27,6 +27,24 @@
 
     let dragOverIndex = $state<number | null>(null);
 
+    type PageEdit = (typeof activeEdits)[number];
+
+    function getSourcePage(edit: PageEdit): { url: string; file_name: string } {
+        if (edit.customPath) {
+            return {
+                url: `thasia://image?path=${encodeURIComponent(edit.customPath)}`,
+                file_name: edit.customPath.split('/').at(-1) ?? 'custom',
+            };
+        }
+        if (edit.originalPageIndex !== null) {
+            const volNum = edit.sourceVolumeNum ?? wizard.pageEdits[activeVolumeIndex]?.volumeNum;
+            const srcVol = wizard.scanResult?.find((v) => v.volume_num === volNum);
+            const page = srcVol?.pages[edit.originalPageIndex];
+            return { url: page?.url ?? '', file_name: page?.file_name ?? '' };
+        }
+        return { url: '', file_name: '' };
+    }
+
     let cleanupKb: (() => void) | undefined;
     onMount(() => {
         cleanupKb = keyboard.smartRegister([
@@ -67,7 +85,7 @@
     });
     onDestroy(() => cleanupKb?.());
 
-    function pageKey(edit: (typeof activeEdits)[number]): string {
+    function pageKey(edit: PageEdit): string {
         if (edit.customPath) return 'custom:' + edit.customPath;
         return `${edit.sourceVolumeNum ?? 0}-${edit.originalPageIndex ?? 0}`;
     }
@@ -155,33 +173,7 @@
         wizard.pageEdits = updated;
     }
 
-    function imageUrl(edit: (typeof activeEdits)[number]): string {
-        if (edit.customPath) return `thasia://image?path=${encodeURIComponent(edit.customPath)}`;
-        if (edit.originalPageIndex !== null) {
-            const srcVol = wizard.scanResult?.find(
-                (v) =>
-                    v.volume_num ===
-                    (edit.sourceVolumeNum ?? wizard.pageEdits[activeVolumeIndex]?.volumeNum)
-            );
-            return srcVol?.pages[edit.originalPageIndex]?.url ?? '';
-        }
-        return '';
-    }
-
-    function fileName(edit: (typeof activeEdits)[number]): string {
-        if (edit.customPath) return edit.customPath.split('/').at(-1) ?? 'custom';
-        if (edit.originalPageIndex !== null) {
-            const srcVol = wizard.scanResult?.find(
-                (v) =>
-                    v.volume_num ===
-                    (edit.sourceVolumeNum ?? wizard.pageEdits[activeVolumeIndex]?.volumeNum)
-            );
-            return srcVol?.pages[edit.originalPageIndex]?.file_name ?? '';
-        }
-        return '';
-    }
-
-    function borderTone(i: number, edit: (typeof activeEdits)[number]): string {
+    function borderTone(i: number, edit: PageEdit): string {
         if (i === firstNonExcluded) return 'border-anasthasia-accent';
         if (dragOverIndex === i) return 'border-anasthasia-accent/50';
         if (edit.excluded) return 'border-red-500/60';
@@ -244,10 +236,10 @@
         <!-- Grid -->
         <div
             role="list"
-            class="flex-1 overflow-y-auto p-3"
-            style="display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:8px;align-content:start;"
+            class="grid flex-1 grid-cols-[repeat(auto-fill,minmax(90px,1fr))] content-start gap-2 overflow-y-auto p-3"
         >
             {#each activeEdits as edit, i (pageKey(edit))}
+                {@const src = getSourcePage(edit)}
                 <div
                     role="listitem"
                     draggable="true"
@@ -259,15 +251,14 @@
                     animate:flip={{ duration: duration.slow }}
                     class="relative {edit.excluded ? 'opacity-40' : ''}"
                 >
-                    <!-- Image card — click anywhere to toggle exclude -->
                     <button
                         onclick={() => toggleExclude(i)}
                         title={edit.excluded ? 'Click to include' : 'Click to exclude'}
                         class={`relative aspect-[2/3] w-full cursor-pointer overflow-hidden rounded-md border-2 bg-anasthasia-panel transition-opacity duration-150 ${borderTone(i, edit)} ${edit.excluded ? 'border-dashed' : 'border-solid'}`}
                     >
                         <img
-                            src={imageUrl(edit)}
-                            alt={fileName(edit)}
+                            src={src.url}
+                            alt={src.file_name}
                             draggable="false"
                             class="h-full w-full object-cover"
                             loading="lazy"
@@ -302,7 +293,7 @@
                     <div
                         class="mt-1 overflow-hidden text-center text-[8px] text-ellipsis whitespace-nowrap text-anasthasia-muted"
                     >
-                        {fileName(edit)}
+                        {src.file_name}
                     </div>
                 </div>
             {/each}
@@ -310,12 +301,12 @@
 
         <!-- Footer -->
         <div class="flex flex-shrink-0 gap-2 border-t border-anasthasia-border px-4 py-3">
-            <Button onclick={onBack} disabled={backDisabled}
-                ><IconArrowLeft size={15} /> Back</Button
-            >
-            <Button onclick={onNext} disabled={nextDisabled} class="ml-auto"
-                >Next <IconArrowRight size={15} /></Button
-            >
+            <Button onclick={onBack} disabled={backDisabled}>
+                <IconArrowLeft size={15} /> Back
+            </Button>
+            <Button onclick={onNext} disabled={nextDisabled} class="ml-auto">
+                Next <IconArrowRight size={15} />
+            </Button>
         </div>
     </div>
 </div>

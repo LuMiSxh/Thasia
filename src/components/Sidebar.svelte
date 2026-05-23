@@ -24,6 +24,7 @@
         IconSun,
         IconMoon,
     } from '@tabler/icons-svelte';
+    import pfpUrl from '$assets/pfp.avif';
 
     let sidebarSteps = $derived(
         STEPS.map((s) => ({
@@ -66,6 +67,12 @@
             document.dispatchEvent(new CustomEvent('wizard:goto', { detail: id }));
         }
     }
+
+    let locked = $derived(wizard.converting);
+
+    function preventIfLocked(e: Event) {
+        if (locked) e.preventDefault();
+    }
 </script>
 
 <!-- Sidebar container: tab always visible, panel slides in beside it -->
@@ -79,15 +86,27 @@
             <!-- Wordmark -->
             <a
                 href="/"
-                class="group block flex-shrink-0 border-b border-anasthasia-border px-4 pt-5 pb-4 transition-colors duration-150 hover:bg-anasthasia-panel"
+                onclick={preventIfLocked}
+                aria-disabled={locked}
+                tabindex={locked ? -1 : 0}
+                class="group flex flex-shrink-0 items-center gap-2.5 border-b border-anasthasia-border px-4 pt-5 pb-4 transition-colors duration-150 hover:bg-anasthasia-panel
+                       {locked ? 'pointer-events-none opacity-40' : ''}"
             >
-                <div
-                    class="text-sm font-bold tracking-widest text-anasthasia-accent uppercase transition-opacity duration-150 group-hover:opacity-80"
-                >
-                    Thasia
-                </div>
-                <div class="mt-0.5 text-[10px] tracking-wider text-anasthasia-muted uppercase">
-                    Engine
+                <img
+                    src={pfpUrl}
+                    alt=""
+                    class="h-8 w-8 flex-shrink-0 rounded-lg border border-anasthasia-border bg-anasthasia-panel object-cover transition-transform duration-150 group-hover:scale-105"
+                    aria-hidden="true"
+                />
+                <div class="min-w-0">
+                    <div
+                        class="text-sm font-bold tracking-widest text-anasthasia-accent uppercase transition-opacity duration-150 group-hover:opacity-80"
+                    >
+                        Thasia
+                    </div>
+                    <div class="mt-0.5 text-[10px] tracking-wider text-anasthasia-muted uppercase">
+                        Engine
+                    </div>
                 </div>
             </a>
 
@@ -104,10 +123,14 @@
                                 {@const Icon = link.icon}
                                 <a
                                     href={link.href}
+                                    onclick={preventIfLocked}
+                                    aria-disabled={locked}
+                                    tabindex={locked ? -1 : 0}
                                     class="relative flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors duration-150
                                            {active
                                         ? 'text-anasthasia-text'
-                                        : 'text-anasthasia-muted hover:bg-anasthasia-panel hover:text-anasthasia-text'}"
+                                        : 'text-anasthasia-muted hover:bg-anasthasia-panel hover:text-anasthasia-text'}
+                                           {locked && !active ? 'pointer-events-none opacity-40' : ''}"
                                 >
                                     {#if active}
                                         <span
@@ -126,8 +149,13 @@
                             <!-- Exit wizard -->
                             <a
                                 href="/"
+                                onclick={preventIfLocked}
+                                aria-disabled={locked}
+                                tabindex={locked ? -1 : 0}
                                 class="mb-2 flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm
-                                       text-anasthasia-muted transition-colors duration-150 hover:bg-anasthasia-panel hover:text-anasthasia-text"
+                                       text-anasthasia-muted transition-colors duration-150 hover:bg-anasthasia-panel hover:text-anasthasia-text
+                                       {locked ? 'pointer-events-none opacity-40' : ''}"
+                                title={locked ? 'Conversion in progress…' : ''}
                             >
                                 <IconHome size={15} />
                                 Home
@@ -140,7 +168,8 @@
                             {#each sidebarSteps as step (step.id)}
                                 <button
                                     onclick={() => handleStepClick(step.id, step.status)}
-                                    disabled={step.status === 'locked' ||
+                                    disabled={locked ||
+                                        step.status === 'locked' ||
                                         step.status === 'conditional'}
                                     class="relative flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm
                                            transition-colors duration-150
