@@ -54,12 +54,6 @@
             icon: IconSettings,
             match: (p: string) => p.startsWith('/settings'),
         },
-        {
-            href: '/about',
-            label: 'About',
-            icon: IconInfoCircle,
-            match: (p: string) => p.startsWith('/about'),
-        },
     ];
 
     function handleStepClick(id: string, status: string) {
@@ -105,7 +99,7 @@
                         Thasia
                     </div>
                     <div class="mt-0.5 text-[10px] tracking-wider text-anasthasia-muted uppercase">
-                        Engine
+                        Conversion Engine
                     </div>
                 </div>
             </a>
@@ -130,7 +124,9 @@
                                            {active
                                         ? 'text-anasthasia-text'
                                         : 'text-anasthasia-muted hover:bg-anasthasia-panel hover:text-anasthasia-text'}
-                                           {locked && !active ? 'pointer-events-none opacity-40' : ''}"
+                                           {locked && !active
+                                        ? 'pointer-events-none opacity-40'
+                                        : ''}"
                                 >
                                     {#if active}
                                         <span

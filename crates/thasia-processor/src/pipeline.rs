@@ -11,6 +11,7 @@ use thasia_source::Source;
 use tokio::sync::mpsc;
 use tracing::warn;
 
+#[derive(Debug, Clone, Copy)]
 pub struct EncodeOptions {
     pub format: ImageFormat,
     pub max_width: Option<u32>,
@@ -27,10 +28,10 @@ pub struct EncodeOptions {
 ///
 /// This matches Palaxy's approach: N cores are always busy encoding; no thread
 /// thrashing from spawning one blocking task per image.
-pub async fn start_pipeline<S: Source + Send + Sync + 'static>(
+pub async fn start_pipeline<S: Source + 'static>(
     source: Arc<S>,
     mut parsed_rx: mpsc::Receiver<ParsedImage>,
-    options: Arc<EncodeOptions>,
+    options: EncodeOptions,
 ) -> mpsc::Receiver<thasia_core::Result<ProcessedImage>> {
     let (result_tx, result_rx) = mpsc::channel(64);
 
@@ -43,16 +44,22 @@ pub async fn start_pipeline<S: Source + Send + Sync + 'static>(
     let (raw_tx, raw_rx) = mpsc::channel::<(ParsedImage, Vec<u8>, String)>(num_cores * 2);
 
     // ── Stage 1: async fetch ──────────────────────────────────────────────────
-    let fetch_sem = Arc::new(tokio::sync::Semaphore::new(num_cores * 2));
+    // Source advertises its preferred concurrency; local FS sources stay small
+    // to avoid disk thrashing while archive/network sources can ask for more.
+    let fetch_concurrency = source.fetch_concurrency_hint();
+    let fetch_sem = Arc::new(tokio::sync::Semaphore::new(fetch_concurrency));
     tokio::spawn(async move {
         while let Some(parsed) = parsed_rx.recv().await {
-            let permit = fetch_sem.clone().acquire_owned().await.unwrap();
+            let permit = fetch_sem
+                .clone()
+                .acquire_owned()
+                .await
+                .expect("fetch semaphore was unexpectedly closed");
             let source = source.clone();
             let raw_tx = raw_tx.clone();
 
             tokio::spawn(async move {
                 let _permit = permit;
-                let path = parsed.source.relative_path.clone();
                 let ext = parsed
                     .source
                     .absolute_path
@@ -61,7 +68,8 @@ pub async fn start_pipeline<S: Source + Send + Sync + 'static>(
                     .unwrap_or("jpg")
                     .to_lowercase();
 
-                match with_retries(&format!("fetch:{path}"), || async {
+                let label = || parsed.source.relative_path.clone();
+                match with_retries(&label(), || async {
                     source
                         .fetch(&parsed.source)
                         .await
@@ -72,7 +80,7 @@ pub async fn start_pipeline<S: Source + Send + Sync + 'static>(
                     Ok(bytes) => {
                         let _ = raw_tx.send((parsed, bytes, ext)).await;
                     }
-                    Err(e) => warn!("Skipping {} (fetch failed): {}", path, e),
+                    Err(e) => warn!("Skipping {} (fetch failed): {}", label(), e),
                 }
             });
         }
@@ -102,10 +110,9 @@ pub async fn start_pipeline<S: Source + Send + Sync + 'static>(
             while let Some((parsed, bytes, ext)) = raw_rx.blocking_recv() {
                 slot_rx.recv().ok(); // acquire a slot; blocks when all are taken
                 let result_tx = result_tx_enc.clone();
-                let opts = opts.clone();
                 let slot_tx = slot_tx.clone();
                 s.spawn(move |_| {
-                    let result = encode_image(bytes, &ext, &opts).map(|(data, enc_ext, w, h)| {
+                    let result = encode_image(bytes, &ext, opts).map(|(data, enc_ext, w, h)| {
                         ProcessedImage {
                             parsed_data: parsed,
                             image_data: data,
@@ -130,12 +137,17 @@ pub async fn start_pipeline<S: Source + Send + Sync + 'static>(
 fn encode_image(
     bytes: Vec<u8>,
     original_ext: &str,
-    opts: &EncodeOptions,
+    opts: EncodeOptions,
 ) -> thasia_core::Result<(Vec<u8>, String, u32, u32)> {
     if opts.format == ImageFormat::Original {
-        let img = image::load_from_memory(&bytes)
-            .map_err(|e| ThasiaError::Fatal(format!("Failed to load image: {e}")))?;
-        return Ok((bytes, original_ext.to_string(), img.width(), img.height()));
+        // Header-only dimension read — orders of magnitude faster than a full
+        // decode, which is critical for the "no re-encoding" fast path.
+        let (w, h) = image::ImageReader::new(std::io::Cursor::new(&bytes))
+            .with_guessed_format()
+            .map_err(|e| ThasiaError::Fatal(format!("Failed to probe image: {e}")))?
+            .into_dimensions()
+            .map_err(|e| ThasiaError::Fatal(format!("Failed to read dimensions: {e}")))?;
+        return Ok((bytes, original_ext.to_string(), w, h));
     }
 
     let mut img = image::load_from_memory(&bytes)

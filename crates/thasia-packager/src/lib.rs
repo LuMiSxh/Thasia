@@ -11,7 +11,7 @@ use std::path::Path;
 use thasia_core::{Result, models::ProcessedImage};
 
 #[async_trait]
-pub trait Generator {
+pub trait Generator: Send {
     async fn init(&mut self, output_dir: &Path, volume_name: &str) -> Result<()>;
     async fn add_page(&mut self, image: ProcessedImage) -> Result<()>;
     async fn finalize(self: Box<Self>) -> Result<()>;

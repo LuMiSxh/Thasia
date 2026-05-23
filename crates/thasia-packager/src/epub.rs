@@ -69,8 +69,10 @@ impl Generator for EpubGenerator {
     async fn finalize(self: Box<Self>) -> Result<()> {
         let output_path = self.output_dir.join(format!("{}.epub", self.volume_name));
         let volume_name = self.volume_name.clone();
-        let direction = self.direction.clone();
-        let mut pages = self.pages;
+        let direction = self.direction;
+        // Pages already arrive in order — convert.rs (Tauri) and the CLI both
+        // feed add_page sequentially after sorting. No internal sort needed.
+        let pages = self.pages;
 
         tokio::task::spawn_blocking(move || -> Result<()> {
             let mut epub =
@@ -92,8 +94,6 @@ impl Generator for EpubGenerator {
 
             epub.stylesheet(Cursor::new(PAGE_CSS))
                 .map_err(|e| ThasiaError::Fatal(e.to_string()))?;
-
-            pages.sort_by_key(|p| p.parsed_data.page_number);
 
             for (i, img) in pages.iter().enumerate() {
                 let page_num = i + 1;

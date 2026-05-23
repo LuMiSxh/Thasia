@@ -119,25 +119,6 @@
                     class="text-anasthasia-border transition-colors duration-150 group-hover:text-anasthasia-accent"
                 />
             </a>
-
-            <a href="/about" class={secondaryCard}>
-                <div
-                    class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-anasthasia-border bg-anasthasia-panel"
-                >
-                    <IconInfoCircle
-                        size={16}
-                        class="text-anasthasia-muted transition-colors duration-150 group-hover:text-anasthasia-accent"
-                    />
-                </div>
-                <div class="min-w-0 flex-1">
-                    <div class="text-sm font-bold text-anasthasia-text">About</div>
-                    <div class="truncate text-xs text-anasthasia-muted">The story</div>
-                </div>
-                <IconChevronRight
-                    size={14}
-                    class="text-anasthasia-border transition-colors duration-150 group-hover:text-anasthasia-accent"
-                />
-            </a>
         </div>
 
         <!-- Keyboard hint -->

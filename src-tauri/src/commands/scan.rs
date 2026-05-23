@@ -1,5 +1,6 @@
 use crate::protocol::image_url;
 use crate::state::{ConvState, PageMeta, VolumeMeta};
+use ordered_float::OrderedFloat;
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::sync::RwLock;
@@ -42,13 +43,12 @@ pub async fn scan_source(
     }
 
     // Group by (volume, chapter) to preserve per-chapter granularity.
-    // chapter f32 is converted to bits for BTreeMap ordering — safe for
-    // non-negative chapter numbers (which the parser always produces).
-    let mut chapter_map: BTreeMap<(u32, u32), Vec<_>> = BTreeMap::new();
+    // OrderedFloat gives a real total order over f32 (NaN sorts after everything).
+    let mut chapter_map: BTreeMap<(u32, OrderedFloat<f32>), Vec<_>> = BTreeMap::new();
     for parsed in parsed_images {
         let vol = parsed.identifier.volume.unwrap_or(1).max(1);
-        let ch_bits = parsed.identifier.chapter.map(f32::to_bits).unwrap_or(0);
-        chapter_map.entry((vol, ch_bits)).or_default().push(parsed);
+        let chapter = OrderedFloat(parsed.identifier.chapter.unwrap_or(0.0));
+        chapter_map.entry((vol, chapter)).or_default().push(parsed);
     }
 
     // Sort pages within each chapter group by page number
@@ -61,7 +61,7 @@ pub async fn scan_source(
     let mut result: Vec<VolumeMeta> = Vec::new();
     let mut scan_result_for_state: Vec<(u32, Vec<_>)> = Vec::new();
 
-    for ((source_vol, _ch_bits), pages) in chapter_map {
+    for ((source_vol, _chapter), pages) in chapter_map {
         let scan_num = (result.len() as u32) + 1;
 
         let page_metas: Vec<PageMeta> = pages

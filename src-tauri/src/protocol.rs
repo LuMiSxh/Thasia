@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 use tauri::http::{Request, Response};
+use url::Url;
 
 /// Build a `thasia://image?path={url_encoded_path}` URL for a given absolute path.
 pub fn image_url(absolute_path: &std::path::Path) -> String {
@@ -12,7 +13,6 @@ pub fn image_url(absolute_path: &std::path::Path) -> String {
 pub fn handle(request: Request<Vec<u8>>) -> Response<Vec<u8>> {
     let uri = request.uri().to_string();
 
-    // Extract the `path` query parameter
     let path_str = match extract_path_param(&uri) {
         Some(p) => p,
         None => return error_response(400, "missing path param"),
@@ -39,14 +39,12 @@ pub fn handle(request: Request<Vec<u8>>) -> Response<Vec<u8>> {
 }
 
 fn extract_path_param(uri: &str) -> Option<String> {
-    // URI looks like: thasia://image?path=%2Ftmp%2Ffoo.jpg
-    let query = uri.split('?').nth(1)?;
-    for pair in query.split('&') {
-        if let Some(val) = pair.strip_prefix("path=") {
-            return urlencoding::decode(val).ok().map(|s| s.into_owned());
-        }
-    }
-    None
+    // Url::parse handles percent-decoding and edge cases (encoded `=`, etc.)
+    // that a hand-rolled split('&') parser gets wrong.
+    let url = Url::parse(uri).ok()?;
+    url.query_pairs()
+        .find(|(k, _)| k == "path")
+        .map(|(_, v)| v.into_owned())
 }
 
 fn mime_for_path(path: &std::path::Path) -> &'static str {
@@ -86,6 +84,12 @@ mod tests {
     fn extract_path_param_decodes() {
         let uri = "thasia://image?path=%2Ftmp%2Ffoo.jpg";
         assert_eq!(extract_path_param(uri), Some("/tmp/foo.jpg".into()));
+    }
+
+    #[test]
+    fn extract_path_param_handles_encoded_equals_in_path() {
+        let uri = "thasia://image?path=%2Ftmp%2Ffoo%3Dbar.jpg";
+        assert_eq!(extract_path_param(uri), Some("/tmp/foo=bar.jpg".into()));
     }
 
     #[test]

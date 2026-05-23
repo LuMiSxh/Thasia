@@ -7,6 +7,14 @@ import * as __TAURI_EVENT from "@tauri-apps/api/event";
 export const commands = {
 	scanSource: (path: string) => typedError<VolumeMeta[], string>(__TAURI_INVOKE("scan_source", { path })),
 	convert: (options: ConvertOptions, edits: VolumeEdit[]) => typedError<null, string>(__TAURI_INVOKE("convert", { options, edits })),
+	/**
+	 *  Request cooperative cancellation of an in-flight `convert`.
+	 * 
+	 *  Cancellation is checked between volumes and between encoded-image deliveries
+	 *  inside a volume, so the request takes effect within ~one image's encode time
+	 *  in the worst case (not mid-encode).
+	 */
+	cancelConversion: () => typedError<null, string>(__TAURI_INVOKE("cancel_conversion")),
 };
 
 /** Events */
@@ -19,7 +27,12 @@ export const events = {
 };
 
 /* Types */
-export type BundleMode = "auto" | "flatten";
+// How chapters/scan-volumes are grouped into output volumes.
+export type BundleMode = 
+// Group pages by detected volume number.
+"auto" | 
+// Merge everything into a single output volume.
+"flatten";
 
 // Emitted when all volumes are done.
 export type ConversionCompleteEvent = {
@@ -76,21 +89,20 @@ export type OutputFormat =
 
 // One page entry from the page editor — sent from JS to convert.
 export type PageEditEntry = {
-	/**
-	 *  Index into the original scan_result pages for this volume.
-	 *  None if this is a user-added custom image.
-	 */
-	original_page_index: number | null,
-	/**
-	 *  Which scan volume to look up original_page_index in.
-	 *  Defaults to the parent VolumeEdit.volume_num; set explicitly when a page
-	 *  has been moved from a different scan volume (e.g. after manual merge).
-	 */
-	source_volume_num: number | null,
-	// Set for user-added custom images; None for scanned pages.
-	custom_path: string | null,
+	source: PageEditSource,
 	excluded: boolean,
 };
+
+/**
+ *  Where a single page in the editor comes from. Tagged enum on the wire:
+ *  `{ "kind": "original", "page_index": 3, "source_volume_num": 1 }` or
+ *  `{ "kind": "custom",   "path": "/abs/path.png" }`.
+ */
+export type PageEditSource = { kind: "original"; 
+// Index into the scan_result pages for `source_volume_num`.
+page_index: number; 
+// Which scan volume to look up `page_index` in. None = parent VolumeEdit's volume.
+source_volume_num: number | null } | { kind: "custom"; path: string };
 
 // Metadata for a single scanned page — sent to JS. No image bytes.
 export type PageMeta = {

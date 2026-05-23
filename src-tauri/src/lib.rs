@@ -15,6 +15,7 @@ fn make_specta_builder() -> SpectaBuilder<tauri::Wry> {
         .commands(collect_commands![
             commands::scan::scan_source,
             commands::convert::convert,
+            commands::cancel::cancel_conversion,
         ])
         .events(collect_events![
             events::ScanProgressEvent,

@@ -5,7 +5,7 @@
     import { goto } from '$app/navigation';
     import { Alert, Button, keyboard, ProgressBar } from 'anasthasia';
     import { SvelteMap } from 'svelte/reactivity';
-    import { IconArrowLeft, IconCheck, IconX, IconRefresh } from '@tabler/icons-svelte';
+    import { IconArrowLeft, IconCheck, IconX, IconRefresh, IconPlayerStop } from '@tabler/icons-svelte';
     import WizardStep from './WizardStep.svelte';
 
     let { onBack }: { onNext: () => void; onBack: () => void } = $props();
@@ -101,9 +101,14 @@
                 wizard.pageEdits.map((vol) => ({
                     volume_num: vol.volumeNum,
                     pages: vol.pages.map((p) => ({
-                        original_page_index: p.originalPageIndex,
-                        source_volume_num: p.sourceVolumeNum,
-                        custom_path: p.customPath,
+                        source:
+                            p.customPath !== null
+                                ? { kind: 'custom' as const, path: p.customPath }
+                                : {
+                                      kind: 'original' as const,
+                                      page_index: p.originalPageIndex ?? 0,
+                                      source_volume_num: p.sourceVolumeNum,
+                                  },
                         excluded: p.excluded,
                     })),
                 }))
@@ -131,6 +136,13 @@
         goto('/');
     }
 
+    let cancelling = $state(false);
+    async function cancel() {
+        if (cancelling) return;
+        cancelling = true;
+        await commands.cancelConversion().catch(() => {});
+    }
+
     let doneCount = $derived([...volumeMap.values()].filter((v) => v.done && v.success).length);
     let failedCount = $derived([...volumeMap.values()].filter((v) => v.done && !v.success).length);
 
@@ -153,7 +165,7 @@
     );
 </script>
 
-<WizardStep {title} {description} {extraHints} showFooter={status === 'done' || status === 'error'}>
+<WizardStep {title} {description} {extraHints} showFooter>
     {#if volumeMap.size > 0}
         <div
             class="overflow-hidden rounded-xl border border-anasthasia-border bg-anasthasia-surface"
@@ -198,7 +210,17 @@
 
     {#snippet footer()}
         <div class="flex flex-shrink-0 gap-2 border-t border-anasthasia-border px-5 py-4">
-            {#if status === 'error'}
+            {#if status === 'converting'}
+                <Button
+                    variant="danger"
+                    onclick={cancel}
+                    loading={cancelling}
+                    loadingLabel="Stopping…"
+                    class="ml-auto"
+                >
+                    <IconPlayerStop size={15} /> Cancel
+                </Button>
+            {:else if status === 'error'}
                 <Button onclick={onBack}><IconArrowLeft size={15} /> Back</Button>
             {:else if status === 'done'}
                 <Button variant="primary" onclick={startOver}>
