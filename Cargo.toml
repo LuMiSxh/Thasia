@@ -6,7 +6,7 @@ resolver = "2"
 edition = "2024"
 version = "0.1.0"
 authors = ["LuMiSxh"]
-license = "MIT"
+license = "BSD-3 Clause"
 repository = "https://github.com/LuMiSxh/Thasia"
 
 [workspace.dependencies]

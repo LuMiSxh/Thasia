@@ -101,7 +101,7 @@ jobs:
                     TARGET_DIR="target/${{ matrix.cli_target }}"
                   fi
 
-                  if[ "${{ matrix.platform }}" = "windows-latest" ]; then
+                  if [ "${{ matrix.platform }}" = "windows-latest" ]; then
                     mv "$TARGET_DIR/release/thasia-cli.exe" "${{ matrix.cli_name }}.exe"
                   else
                     mv "$TARGET_DIR/release/thasia-cli" "${{ matrix.cli_name }}"

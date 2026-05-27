@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src=".github/assets/icon.png" width="128" height="128" />
+
 # Thasia
 
 **A blazingly fast, next-generation manga processing engine for Windows, Linux, and macOS**
@@ -10,6 +12,10 @@ Convert, optimize, and package your manga into CBZ or EPUB formats. Featuring in
 [![Version](https://img.shields.io/github/v/release/LuMiSxh/Thasia)](https://github.com/LuMiSxh/Thasia/releases)
 
 [Features](#features) • [Installation](#installation) • [Quick Start](#quick-start) • [Development](#development)
+
+<br />
+
+<img src=".github/assets/App-Landing-Dark.png" width="100%" />
 
 </div>
 
@@ -57,7 +63,27 @@ Take full control over your output before you convert:
 
 - **Keyboard-First Design:** Full keyboard shortcut support (`Shift+Arrow` navigation, quick-toggles) with a smart visual key-hint bar at the bottom of the screen.
 - **Bespoke Themes:** Toggle between beautifully crafted Light mode (_Luxury Cathedral_) and Dark mode (_Immortal Abyssal_) featuring subtle metallic gold accents.
+
+<p align="center">
+  <img src=".github/assets/App-Landing-Dark.png" width="48%" />
+  <img src=".github/assets/App-Landing-Light.png" width="48%" />
+</p>
+
 - **Headless CLI Included:** Ships with the `thasia` command-line interface for automating your manga pipelines without launching the GUI.
+
+---
+
+## Direct Manga Downloads
+
+Thasia integrates directly with [Suwayomi](https://github.com/Suwayomi/Suwayomi-Server), enabling you to discover, search, and download manga from hundreds of sources without ever leaving the application.
+
+- **Internal Management:** Thasia can automatically download and set up the Suwayomi-Server for you.
+- **Native Experience:** Search for manga, browse your library, and download chapters directly into Thasia's processing pipeline.
+- **All-in-One Tool:** No need for external downloaders or manual file moving—Thasia handles everything from discovery to the final EPUB/CBZ.
+
+<p align="center">
+  <img src=".github/assets/App-Suwayomi.png" width="100%" />
+</p>
 
 ---
 
@@ -84,20 +110,29 @@ Visit the [releases page](https://github.com/LuMiSxh/Thasia/releases) and downlo
 
 Thasia uses a streamlined wizard to guide you through the conversion:
 
-**Step 1: Source & Destination**
+**Step 1 & 2: Source & Destination**
 Drag and drop your manga folder, `.zip`, or `.cbz` file into Thasia. Pick where you want the converted files to be saved.
 
-**Step 2: Format & Container**
+**Step 3: Format & Container**
 Choose your encoding (AVIF, WebP, or Original) and your container (CBZ, EPUB, or Raw). If you choose EPUB, select your preferred reading direction (RTL/LTR).
 
-**Step 3: Bundling & Volumes**
+<br />
+<img src=".github/assets/App-Pipeline-Formats.png" width="100%" />
+
+**Step 4 & 5: Bundling & Volumes**
 Decide if you want to split the output by auto-detected Volumes, or flatten the entire folder into one file. Visually adjust how many chapters go into each volume if the auto-detection needs tweaking.
 
-**Step 4: Page Editor**
+<br />
+<img src=".github/assets/App-Pipeline-Volume.png" width="100%" />
+
+**Step 6: Page Editor**
 Review your pages. Drag to reorder, click to exclude scanlator notes, or click "Add Image" to insert a custom cover.
 
-**Step 5: Convert**
-Hit "Start Converting". Watch the real-time progress bars as Thasia maximizes your CPU threads to encode and package your volumes.
+<br />
+<img src=".github/assets/App-Pipeline-Filter.png" width="100%" />
+
+**Step 7 & 8: Convert**
+Review your conversion and hit "Start Converting". Watch the real-time progress bars as Thasia maximizes your CPU threads to encode and package your volumes.
 
 ### CLI Workflow
 
@@ -138,7 +173,7 @@ pnpm install
 pnpm run tauri dev
 
 # Run the headless CLI in development mode
-cargo run --bin thasia -- --help
+cargo run --bin thasia-cli -- --help
 
 # Build for production
 pnpm run tauri build
@@ -161,7 +196,7 @@ Thasia is split into a multi-crate Rust workspace to keep concerns cleanly separ
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the BSD-3 Clause License - see the [LICENSE](LICENSE) file for details.
 
 ---
 
