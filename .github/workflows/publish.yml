@@ -102,9 +102,9 @@ jobs:
                   fi
 
                   if[ "${{ matrix.platform }}" = "windows-latest" ]; then
-                    mv "$TARGET_DIR/release/thasia.exe" "${{ matrix.cli_name }}.exe"
+                    mv "$TARGET_DIR/release/thasia-cli.exe" "${{ matrix.cli_name }}.exe"
                   else
-                    mv "$TARGET_DIR/release/thasia" "${{ matrix.cli_name }}"
+                    mv "$TARGET_DIR/release/thasia-cli" "${{ matrix.cli_name }}"
                   fi
 
             # 4. Upload the CLI to the draft release created by Tauri

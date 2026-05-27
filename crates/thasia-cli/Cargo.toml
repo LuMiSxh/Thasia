@@ -8,7 +8,7 @@ license.workspace = true
 repository.workspace = true
 
 [[bin]]
-name = "thasia"
+name = "thasia-cli"
 path = "src/main.rs"
 
 [dependencies]
