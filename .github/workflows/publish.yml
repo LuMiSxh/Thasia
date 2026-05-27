@@ -76,7 +76,7 @@ jobs:
 
             # 1. Build the Headless CLI first
             - name: Build Headless CLI
-              run: cargo build --release --bin thasia ${{ matrix.args }}
+              run: cargo build --release --bin thasia-cli ${{ matrix.args }}
 
             # 2. Build & Draft Release for the Tauri App
             - name: Build & Publish Tauri App
