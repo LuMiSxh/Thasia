@@ -22,7 +22,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; img-src 'self' thasia: blob:; style-src 'self' 'unsafe-inline'",
+      "csp": "default-src 'self'; img-src 'self' thasia: blob: http://127.0.0.1:*; style-src 'self' 'unsafe-inline'",
       "capabilities": ["core-app", "dialog", "opener"]
     }
   },

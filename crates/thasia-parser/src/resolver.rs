@@ -154,7 +154,9 @@ impl Resolver {
             Component::PageMarker(n) | Component::Spread(n) | Component::PureNumber(n) => {
                 fields.page = Some(n);
             }
-            Component::VolumeMarker(_) | Component::ChapterMarker(_) | Component::HakunekoFolder(..) => {
+            Component::VolumeMarker(_)
+            | Component::ChapterMarker(_)
+            | Component::HakunekoFolder(..) => {
                 // Filename shaped like a directory marker — rare; leave page unset.
             }
             Component::Noise => {
@@ -236,7 +238,6 @@ impl Resolver {
         fields
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -340,12 +341,8 @@ mod tests {
 
     #[test]
     fn spread_filenames_order_correctly() {
-        let parsed = resolver().resolve_batch(imgs(&[
-            "001_002.jpg",
-            "003.jpg",
-            "004_005.jpg",
-            "006.jpg",
-        ]));
+        let parsed =
+            resolver().resolve_batch(imgs(&["001_002.jpg", "003.jpg", "004_005.jpg", "006.jpg"]));
         let pages: Vec<f32> = ordered(parsed).into_iter().map(|p| p.page_number).collect();
         assert_eq!(pages, vec![1.0, 3.0, 4.0, 6.0]);
     }
@@ -354,12 +351,8 @@ mod tests {
 
     #[test]
     fn sub_pages_order_naturally() {
-        let parsed = resolver().resolve_batch(imgs(&[
-            "p36.jpg",
-            "p35.5.jpg",
-            "p35.jpg",
-            "p35.6.jpg",
-        ]));
+        let parsed =
+            resolver().resolve_batch(imgs(&["p36.jpg", "p35.5.jpg", "p35.jpg", "p35.6.jpg"]));
         let pages: Vec<f32> = ordered(parsed).into_iter().map(|p| p.page_number).collect();
         assert_eq!(pages, vec![35.0, 35.5, 35.6, 36.0]);
     }
@@ -411,9 +404,15 @@ mod tests {
         pages.sort_by(|a, b| a.1.total_cmp(&b.1));
         // natord-sorted: afterword, epilogue, intro, prologue
         let names: Vec<&str> = pages.iter().map(|(n, _)| n.as_str()).collect();
-        assert_eq!(names, vec!["afterword.jpg", "epilogue.jpg", "intro.jpg", "prologue.jpg"]);
+        assert_eq!(
+            names,
+            vec!["afterword.jpg", "epilogue.jpg", "intro.jpg", "prologue.jpg"]
+        );
         // Page numbers are 1..4 in natord order.
-        assert_eq!(pages.iter().map(|(_, p)| *p).collect::<Vec<_>>(), vec![1.0, 2.0, 3.0, 4.0]);
+        assert_eq!(
+            pages.iter().map(|(_, p)| *p).collect::<Vec<_>>(),
+            vec![1.0, 2.0, 3.0, 4.0]
+        );
     }
 
     #[test]

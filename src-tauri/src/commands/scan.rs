@@ -1,12 +1,12 @@
 use crate::protocol::image_url;
-use crate::state::{ConvState, PageMeta, VolumeMeta};
+use crate::state::{ConvState, PageMeta, ScanGroups, VolumeMeta};
 use ordered_float::OrderedFloat;
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::sync::RwLock;
 use tauri::State;
 use thasia_parser::{Resolver, RuleConfig};
-use thasia_source::LocalSource;
+use thasia_source::{LocalSource, Source};
 
 #[tauri::command]
 #[specta::specta]
@@ -25,13 +25,45 @@ pub async fn scan_source(
         LocalSource::new(source_path)
     };
 
+    let (result, scan_result_for_state) = scan_local_source(&source).await?;
+
+    // Store scan result + keep source alive (holds TempDir for ZIP extractions)
+    {
+        let mut s = state.write().map_err(|e| e.to_string())?;
+        s.scan_result = Some(scan_result_for_state);
+        s.source = Some(std::sync::Arc::new(source));
+    }
+
+    Ok(result)
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn scan_current_source(
+    state: State<'_, RwLock<ConvState>>,
+) -> Result<Vec<VolumeMeta>, String> {
+    let source = {
+        let s = state.read().map_err(|e| e.to_string())?;
+        s.source
+            .clone()
+            .ok_or_else(|| "No source is prepared for conversion.".to_string())?
+    };
+
+    let (result, scan_result_for_state) = scan_local_source(source.as_ref()).await?;
+
+    {
+        let mut s = state.write().map_err(|e| e.to_string())?;
+        s.scan_result = Some(scan_result_for_state);
+    }
+
+    Ok(result)
+}
+
+async fn scan_local_source(source: &LocalSource) -> Result<(Vec<VolumeMeta>, ScanGroups), String> {
     let resolver = Resolver::new(RuleConfig::default());
 
     // Discover all images
-    let mut rx = {
-        use thasia_source::Source;
-        source.discover().await.map_err(|e| e.to_string())?
-    };
+    let mut rx = source.discover().await.map_err(|e| e.to_string())?;
 
     // Collect discovered images for batch resolution (so natord-fallback can
     // run across siblings for directories with unparseable filenames).
@@ -93,12 +125,5 @@ pub async fn scan_source(
         scan_result_for_state.push((scan_num, pages));
     }
 
-    // Store scan result + keep source alive (holds TempDir for ZIP extractions)
-    {
-        let mut s = state.write().map_err(|e| e.to_string())?;
-        s.scan_result = Some(scan_result_for_state);
-        s.source = Some(std::sync::Arc::new(source));
-    }
-
-    Ok(result)
+    Ok((result, scan_result_for_state))
 }

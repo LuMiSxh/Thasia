@@ -1,5 +1,5 @@
-pub mod gallerydl;
 pub mod local;
+pub mod suwayomi;
 
 pub use local::LocalSource;
 

@@ -224,9 +224,7 @@ async fn convert_volume(
 
     let mut pkg: Box<dyn Generator> = match options.output_format {
         OutputFormat::Cbz => Box::new(CbzGenerator::new()),
-        OutputFormat::Epub => {
-            Box::new(EpubGenerator::new().with_direction(options.direction))
-        }
+        OutputFormat::Epub => Box::new(EpubGenerator::new().with_direction(options.direction)),
         OutputFormat::Raw => Box::new(RawGenerator::new()),
     };
 
@@ -255,8 +253,11 @@ async fn convert_volume(
         .ok();
         all_images.push(img);
     }
-    all_images
-        .sort_by(|a, b| a.parsed_data.page_number.total_cmp(&b.parsed_data.page_number));
+    all_images.sort_by(|a, b| {
+        a.parsed_data
+            .page_number
+            .total_cmp(&b.parsed_data.page_number)
+    });
     for img in all_images {
         pkg.add_page(img).await.map_err(|e| e.to_string())?;
     }

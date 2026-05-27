@@ -74,7 +74,7 @@
 >
     <!-- macOS title bar: sits behind traffic lights, draggable -->
     <div
-        class="titlebar h-8 flex-shrink-0 border-b border-anasthasia-border bg-anasthasia-surface"
+        class="titlebar relative z-[110] h-8 shrink-0 border-b border-anasthasia-border bg-anasthasia-surface"
         data-tauri-drag-region
     ></div>
 

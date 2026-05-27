@@ -50,6 +50,60 @@ impl LocalSource {
         Ok(Self::from_temp_dir(temp))
     }
 
+    /// Extracts a CBZ/ZIP archive into `dest_dir`, renaming images to
+    /// `001.ext`, `002.ext`, … (sorted by natural order of the original names).
+    ///
+    /// Only image files are extracted; directory entries and non-image files
+    /// are skipped.
+    pub async fn extract_chapter_cbz(cbz_path: PathBuf, dest_dir: PathBuf) -> Result<()> {
+        tokio::task::spawn_blocking(move || {
+            std::fs::create_dir_all(&dest_dir).map_err(ThasiaError::Io)?;
+            let file = std::fs::File::open(&cbz_path).map_err(ThasiaError::Io)?;
+            let mut archive = zip::ZipArchive::new(file)
+                .map_err(|e| ThasiaError::Fatal(format!("Failed to open archive: {e}")))?;
+
+            // Phase 1: collect image entry names sorted by natural order.
+            let mut image_names: Vec<String> = Vec::new();
+            for i in 0..archive.len() {
+                let entry = archive
+                    .by_index(i)
+                    .map_err(|e| ThasiaError::Fatal(format!("Archive read error: {e}")))?;
+                if entry.is_dir() {
+                    continue;
+                }
+                let name = entry.name().to_string();
+                let is_image = std::path::Path::new(&name)
+                    .extension()
+                    .and_then(|e| e.to_str())
+                    .map(|e| IMAGE_EXTENSIONS.contains(&e.to_lowercase().as_str()))
+                    .unwrap_or(false);
+                if is_image {
+                    image_names.push(name);
+                }
+            }
+            image_names.sort_by(|a, b| natord::compare(a, b));
+
+            // Phase 2: extract and rename sequentially.
+            for (index, name) in image_names.iter().enumerate() {
+                let ext = std::path::Path::new(name.as_str())
+                    .extension()
+                    .and_then(|e| e.to_str())
+                    .unwrap_or("jpg")
+                    .to_lowercase();
+                let dest_file = dest_dir.join(format!("{:03}.{ext}", index + 1));
+                let mut entry = archive
+                    .by_name(name.as_str())
+                    .map_err(|e| ThasiaError::Fatal(format!("Archive entry not found: {e}")))?;
+                let mut out = std::fs::File::create(&dest_file).map_err(ThasiaError::Io)?;
+                std::io::copy(&mut entry, &mut out).map_err(ThasiaError::Io)?;
+            }
+
+            Ok::<(), ThasiaError>(())
+        })
+        .await
+        .map_err(|e| ThasiaError::Fatal(e.to_string()))?
+    }
+
     /// Returns true if the given path looks like a ZIP or CBZ archive.
     pub fn is_archive(path: &std::path::Path) -> bool {
         matches!(

@@ -15,3 +15,19 @@ tempfile = { workspace = true }
 async-trait = { workspace = true }
 natord = "1.0"
 zip = { workspace = true }
+serde = { workspace = true }
+specta = { workspace = true }
+reqwest = { version = "0.13", default-features = false, features = [
+    "json",
+    "stream",
+    "rustls",
+] }
+futures-util = "0.3"
+serde_json = "1"
+sha2 = "0.11"
+tar = "0.4"
+flate2 = "1"
+urlencoding = "2.1"
+regex = { workspace = true }
+tracing = { workspace = true }
+tracing-appender = "0.2"
