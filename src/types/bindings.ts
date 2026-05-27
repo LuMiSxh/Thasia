@@ -6,6 +6,7 @@ import * as __TAURI_EVENT from "@tauri-apps/api/event";
 /** Commands */
 export const commands = {
 	scanSource: (path: string) => typedError<VolumeMeta[], string>(__TAURI_INVOKE("scan_source", { path })),
+	scanCurrentSource: () => typedError<VolumeMeta[], string>(__TAURI_INVOKE("scan_current_source")),
 	convert: (options: ConvertOptions, edits: VolumeEdit[]) => typedError<null, string>(__TAURI_INVOKE("convert", { options, edits })),
 	/**
 	 *  Request cooperative cancellation of an in-flight `convert`.
@@ -15,13 +16,40 @@ export const commands = {
 	 *  in the worst case (not mid-encode).
 	 */
 	cancelConversion: () => typedError<null, string>(__TAURI_INVOKE("cancel_conversion")),
+	getDiscoverySettings: () => typedError<DiscoverySettings, string>(__TAURI_INVOKE("get_discovery_settings")),
+	setDiscoverySettings: (settings: DiscoverySettings) => typedError<null, string>(__TAURI_INVOKE("set_discovery_settings", { settings })),
+	suwayomiStatus: () => typedError<RuntimeState, string>(__TAURI_INVOKE("suwayomi_status")),
+	suwayomiInstalledInfo: () => typedError<{
+	version: string,
+	size: number,
+} | null, string>(__TAURI_INVOKE("suwayomi_installed_info")),
+	suwayomiInstall: (version: string | null) => typedError<null, string>(__TAURI_INVOKE("suwayomi_install", { version })),
+	suwayomiUninstall: () => typedError<null, string>(__TAURI_INVOKE("suwayomi_uninstall")),
+	suwayomiCheckUpdate: () => typedError<UpdateInfo, string>(__TAURI_INVOKE("suwayomi_check_update")),
+	suwayomiStart: () => typedError<number, string>(__TAURI_INVOKE("suwayomi_start")),
+	suwayomiStop: () => typedError<null, string>(__TAURI_INVOKE("suwayomi_stop")),
+	suwayomiRestart: () => typedError<number, string>(__TAURI_INVOKE("suwayomi_restart")),
+	suwayomiResetData: () => typedError<null, string>(__TAURI_INVOKE("suwayomi_reset_data")),
+	suwayomiOpenDataFolder: () => typedError<null, string>(__TAURI_INVOKE("suwayomi_open_data_folder")),
+	listInstalledSources: () => typedError<SourceInfo[], string>(__TAURI_INVOKE("list_installed_sources")),
+	listAvailableExtensions: () => typedError<ExtensionInfo[], string>(__TAURI_INVOKE("list_available_extensions")),
+	installExtension: (pkg: string) => typedError<null, string>(__TAURI_INVOKE("install_extension", { pkg })),
+	uninstallExtension: (pkg: string) => typedError<null, string>(__TAURI_INVOKE("uninstall_extension", { pkg })),
+	searchSource: (sourceId: string, query: string, page: number) => typedError<SearchPage, string>(__TAURI_INVOKE("search_source", { sourceId, query, page })),
+	listChapters: (mangaId: number) => typedError<ChapterMeta[], string>(__TAURI_INVOKE("list_chapters", { mangaId })),
+	downloadSeries: (mangaId: number, chapters: ChapterMeta[], convertAfter: boolean) => typedError<null, string>(__TAURI_INVOKE("download_series", { mangaId, chapters, convertAfter })),
 };
 
 /** Events */
 export const events = {
+	chapterDownloadEvent: makeEvent<ChapterDownloadEvent>("chapter-download-event"),
 	conversionCompleteEvent: makeEvent<ConversionCompleteEvent>("conversion-complete-event"),
+	downloadCompleteEvent: makeEvent<DownloadCompleteEvent>("download-complete-event"),
+	downloadStartEvent: makeEvent<DownloadStartEvent>("download-start-event"),
 	imageProgressEvent: makeEvent<ImageProgressEvent>("image-progress-event"),
 	scanProgressEvent: makeEvent<ScanProgressEvent>("scan-progress-event"),
+	suwayomiInstallProgressEvent: makeEvent<SuwayomiInstallProgressEvent>("suwayomi-install-progress-event"),
+	suwayomiStateChangedEvent: makeEvent<SuwayomiStateChangedEvent>("suwayomi-state-changed-event"),
 	volumeCompleteEvent: makeEvent<VolumeCompleteEvent>("volume-complete-event"),
 	volumeStartEvent: makeEvent<VolumeStartEvent>("volume-start-event"),
 };
@@ -33,6 +61,31 @@ export type BundleMode =
 "auto" | 
 // Merge everything into a single output volume.
 "flatten";
+
+export type ChapterDownloadEvent = {
+	current_chapter: string,
+	current: number,
+	total: number,
+	phase: ChapterDownloadPhase,
+	tick: number,
+};
+
+// Phase of an in-progress chapter download batch.
+export type ChapterDownloadPhase = 
+// Waiting for the next chapter to finish downloading.
+"downloading" | 
+// A single chapter finished downloading.
+"complete";
+
+export type ChapterMeta = {
+	id: number,
+	name: string,
+	chapter_number: number,
+	// Volume parsed from the chapter name (Suwayomi does not expose a volume field).
+	volume_number: number | null,
+	scanlator: string | null,
+	downloaded: boolean,
+};
 
 // Emitted when all volumes are done.
 export type ConversionCompleteEvent = {
@@ -62,6 +115,34 @@ export type Direction =
 // Right-to-left (manga, manhua).
 "Rtl";
 
+export type DiscoverySettings = {
+	enabled: boolean,
+	installedVersion: string | null,
+	autoStart: boolean,
+	lastUpdateCheck: string | null,
+	downloadDir?: string | null,
+	extensionRepos?: string[],
+};
+
+export type DownloadCompleteEvent = {
+	success: boolean,
+	error: string | null,
+	output_dir: string | null,
+};
+
+export type DownloadStartEvent = {
+	series_title: string,
+	total_chapters: number,
+};
+
+export type ExtensionInfo = {
+	pkg_name: string,
+	name: string,
+	lang: string | null,
+	version_name: string | null,
+	installed: boolean,
+};
+
 // Target image encoding format.
 export type ImageFormat = 
 // AVIF (AV1 Image Format) — best compression, slowest encoding.
@@ -76,6 +157,13 @@ export type ImageProgressEvent = {
 	volume_num: number,
 	current: number,
 	total: number,
+};
+
+export type InstallProgress = { phase: "downloading"; bytes: number; total: number | null } | { phase: "verifying" } | { phase: "extracting" } | { phase: "complete"; version: string };
+
+export type InstalledInfo = {
+	version: string,
+	size: number,
 };
 
 // Output container format.
@@ -113,10 +201,44 @@ export type PageMeta = {
 	file_name: string,
 };
 
+export type RuntimeState = { state: "not_installed" } | { state: "not_running" } | { state: "starting" } | { state: "ready"; port: number } | { state: "error"; message: string };
+
 // Emitted each time one image finishes scanning (for large archives).
 export type ScanProgressEvent = {
 	current: number,
 	total: number,
+};
+
+export type SearchPage = {
+	results: SearchResult[],
+	has_next_page: boolean,
+};
+
+export type SearchResult = {
+	id: number,
+	title: string,
+	thumbnail_url: string | null,
+	initialized: boolean,
+};
+
+export type SourceInfo = {
+	id: string,
+	name: string,
+	lang: string | null,
+};
+
+export type SuwayomiInstallProgressEvent = {
+	progress: InstallProgress,
+};
+
+export type SuwayomiStateChangedEvent = {
+	state: RuntimeState,
+};
+
+export type UpdateInfo = {
+	current_version: string | null,
+	latest_version: string,
+	available: boolean,
 };
 
 // Emitted when a volume finishes (success or failure).

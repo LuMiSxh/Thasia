@@ -45,7 +45,8 @@ static CHAPTER_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^(?i)c(?:h(?:apter)?)?[ ._-]*(\d+(?:\.\d+)?)$").unwrap());
 static PAGE_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^(?i)p(?:age)?[ ._-]*(\d+(?:\.\d+)?)$").unwrap());
-static HAKUNEKO_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^(\d+)-(\d+)$").unwrap());
+static HAKUNEKO_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^(\d+)-(\d+(?:\.\d+)?)$").unwrap());
 static SPREAD_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^(\d+)[_-](\d+)$").unwrap());
 static PURE_NUM_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^(\d+(?:\.\d+)?)$").unwrap());
 /// Permissive fallback for filenames whose stem ends with a number: `bonus_002`,
@@ -162,6 +163,11 @@ mod tests {
             classify("001-002", Directory),
             Component::HakunekoFolder(1, 2.0)
         );
+        // Decimal chapter number (e.g. chapter 10.5 in volume 1)
+        assert_eq!(
+            classify("001-10.5", Directory),
+            Component::HakunekoFolder(1, 10.5)
+        );
         // Same shape as filename is ambiguous → Noise.
         assert_ne!(
             classify("001-002", Filename),
@@ -204,7 +210,10 @@ mod tests {
         // "My Manga - 5 (oneshot)" — current parser misfires; new parser sees
         // this as Noise (doesn't anchor-match any pattern).
         assert_eq!(classify("My Manga - 5", Directory), Component::Noise);
-        assert_eq!(classify("Series Volume 2 special", Directory), Component::Noise);
+        assert_eq!(
+            classify("Series Volume 2 special", Directory),
+            Component::Noise
+        );
     }
 
     #[test]

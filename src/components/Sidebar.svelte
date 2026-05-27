@@ -12,10 +12,14 @@
     import { wizard } from '$lib/wizard/state.svelte';
     import { STEPS } from '$lib/wizard/steps';
     import { page } from '$app/state';
+    import { onMount } from 'svelte';
+    import { loadDiscoverySettings, canShowDiscover } from '$lib/discovery-settings';
+    import { commands, events } from '$types/bindings';
     import { fade } from 'svelte/transition';
     import {
         IconHome,
         IconFileSignal,
+        IconSearch,
         IconSettings,
         IconInfoCircle,
         IconChevronRight,
@@ -25,6 +29,34 @@
         IconMoon,
     } from '@tabler/icons-svelte';
     import pfpUrl from '$assets/pfp.avif';
+
+    let discoverVisible = $state(false);
+    let statusUnlisten: (() => void) | undefined;
+
+    onMount(() => {
+        async function refresh() {
+            const [settings, status] = await Promise.all([
+                loadDiscoverySettings(),
+                commands.suwayomiStatus(),
+            ]);
+            discoverVisible =
+                canShowDiscover(settings) && status.status === 'ok' && status.data.state === 'ready';
+        }
+        refresh();
+        window.addEventListener('focus', refresh);
+        window.addEventListener('thasia:discovery-settings-changed', refresh);
+        events.suwayomiStateChangedEvent
+            .listen(async (event) => {
+                const settings = await loadDiscoverySettings();
+                discoverVisible = canShowDiscover(settings) && event.payload.state.state === 'ready';
+            })
+            .then((unlisten) => (statusUnlisten = unlisten));
+        return () => {
+            statusUnlisten?.();
+            window.removeEventListener('focus', refresh);
+            window.removeEventListener('thasia:discovery-settings-changed', refresh);
+        };
+    });
 
     let sidebarSteps = $derived(
         STEPS.map((s) => ({
@@ -40,21 +72,31 @@
         }))
     );
 
-    const navLinks = [
-        { href: '/', label: 'Home', icon: IconHome, match: (p: string) => p === '/' },
-        {
-            href: '/convert',
-            label: 'Convert',
-            icon: IconFileSignal,
-            match: (p: string) => p.startsWith('/convert'),
-        },
-        {
-            href: '/settings',
-            label: 'Settings',
-            icon: IconSettings,
-            match: (p: string) => p.startsWith('/settings'),
-        },
-    ];
+    let navLinks = $derived(
+        [
+            { href: '/', label: 'Home', icon: IconHome, match: (p: string) => p === '/' },
+            {
+                href: '/convert',
+                label: 'Convert',
+                icon: IconFileSignal,
+                match: (p: string) => p.startsWith('/convert'),
+            },
+            discoverVisible
+                ? {
+                      href: '/download',
+                      label: 'Discover',
+                      icon: IconSearch,
+                      match: (p: string) => p.startsWith('/download'),
+                  }
+                : null,
+            {
+                href: '/settings',
+                label: 'Settings',
+                icon: IconSettings,
+                match: (p: string) => p.startsWith('/settings'),
+            },
+        ].filter((link) => link !== null)
+    );
 
     function handleStepClick(id: string, status: string) {
         if (status === 'done') {

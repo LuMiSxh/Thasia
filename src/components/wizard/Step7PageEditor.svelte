@@ -266,7 +266,7 @@
 
                         {#if i === firstNonExcluded}
                             <div
-                                class="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2
+                                class="absolute top-2 left-1/2 -translate-x-1/2 -translate-y-1/2
                                        rounded-sm bg-anasthasia-accent px-1.5 py-px text-[8px] font-bold text-anasthasia-text"
                             >
                                 COVER
@@ -277,7 +277,7 @@
                             <div
                                 class="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-sm
                                        bg-anasthasia-accent-strong px-1.5 py-px text-[8px] font-bold text-anasthasia-text"
-                                style:top={i === firstNonExcluded ? '16px' : '0'}
+                                style:top={i === firstNonExcluded ? '24px' : '8px'}
                             >
                                 ADDED
                             </div>

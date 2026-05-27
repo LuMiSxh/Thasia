@@ -29,6 +29,10 @@ pub enum ThasiaError {
     #[diagnostic(code(thasia::fatal::pipeline_aborted))]
     Fatal(String),
 
+    #[error("Discovery Error: {0}")]
+    #[diagnostic(code(thasia::discovery::suwayomi))]
+    Discovery(String),
+
     #[error("I/O Error: {0}")]
     #[diagnostic(code(thasia::fatal::io))]
     Io(#[from] std::io::Error),

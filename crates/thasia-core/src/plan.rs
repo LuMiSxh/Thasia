@@ -104,19 +104,31 @@ mod tests {
 
     #[test]
     fn build_volume_name_hides_when_single_and_flag_set() {
-        let n = VolumeNaming { name: "Manga", separator: " - ", hide_single_volume: true };
+        let n = VolumeNaming {
+            name: "Manga",
+            separator: " - ",
+            hide_single_volume: true,
+        };
         assert_eq!(build_volume_name(&n, 1, 1), "Manga");
     }
 
     #[test]
     fn build_volume_name_shows_number_for_multi() {
-        let n = VolumeNaming { name: "Manga", separator: " - ", hide_single_volume: true };
+        let n = VolumeNaming {
+            name: "Manga",
+            separator: " - ",
+            hide_single_volume: true,
+        };
         assert_eq!(build_volume_name(&n, 3, 5), "Manga - 3");
     }
 
     #[test]
     fn build_volume_name_shows_number_when_flag_unset() {
-        let n = VolumeNaming { name: "Manga", separator: " - ", hide_single_volume: false };
+        let n = VolumeNaming {
+            name: "Manga",
+            separator: " - ",
+            hide_single_volume: false,
+        };
         assert_eq!(build_volume_name(&n, 1, 1), "Manga - 1");
     }
 

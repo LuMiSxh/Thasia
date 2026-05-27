@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use specta::Type;
 use tauri_specta::Event;
+use thasia_source::suwayomi::{InstallProgress, RuntimeState};
 
 /// Emitted each time one image finishes scanning (for large archives).
 #[derive(Debug, Clone, Serialize, Deserialize, Type, Event)]
@@ -39,4 +40,46 @@ pub struct ConversionCompleteEvent {
     pub successful: u32,
     pub failed: u32,
     pub duration_secs: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type, Event)]
+pub struct SuwayomiStateChangedEvent {
+    pub state: RuntimeState,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type, Event)]
+pub struct SuwayomiInstallProgressEvent {
+    pub progress: InstallProgress,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type, Event)]
+pub struct DownloadStartEvent {
+    pub series_title: String,
+    pub total_chapters: u32,
+}
+
+/// Phase of an in-progress chapter download batch.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(rename_all = "snake_case")]
+pub enum ChapterDownloadPhase {
+    /// Waiting for the next chapter to finish downloading.
+    Downloading,
+    /// A single chapter finished downloading.
+    Complete,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type, Event)]
+pub struct ChapterDownloadEvent {
+    pub current_chapter: String,
+    pub current: u32,
+    pub total: u32,
+    pub phase: ChapterDownloadPhase,
+    pub tick: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type, Event)]
+pub struct DownloadCompleteEvent {
+    pub success: bool,
+    pub error: Option<String>,
+    pub output_dir: Option<String>,
 }

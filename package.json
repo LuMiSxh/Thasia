@@ -18,7 +18,7 @@
         "@tauri-apps/api": "2.11.0",
         "@tauri-apps/plugin-dialog": "2.7.0",
         "@tauri-apps/plugin-opener": "^2.5.3",
-        "anasthasia": "github:LuMiSxh/Anasthasia#v0.1.1"
+        "anasthasia": "github:LuMiSxh/Anasthasia#v0.1.2"
     },
     "devDependencies": {
         "@eslint/js": "^10.0.1",

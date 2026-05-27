@@ -8,6 +8,8 @@
     import { open } from '@tauri-apps/plugin-dialog';
     import {
         IconCheck,
+        IconChevronRight,
+        IconCompass,
         IconFileZip,
         IconDirection,
         IconStack,
@@ -119,6 +121,26 @@
     <!-- Content -->
     <div class="flex flex-1 flex-col overflow-y-auto">
         <div class="mx-auto flex w-full max-w-5xl flex-col gap-4 px-8 py-6">
+            <a
+                href="/settings/discovery"
+                class="flex flex-shrink-0 items-center justify-between gap-4 overflow-hidden rounded-xl border border-anasthasia-border bg-anasthasia-surface px-4 py-4 transition-colors duration-150 hover:border-anasthasia-accent/40 hover:bg-anasthasia-panel"
+            >
+                <div class="flex items-center gap-3">
+                    <span
+                        class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-anasthasia-border bg-anasthasia-bg text-anasthasia-muted"
+                    >
+                        <IconCompass size={16} />
+                    </span>
+                    <div>
+                        <div class="text-sm font-medium">Discovery</div>
+                        <div class="text-xs text-anasthasia-muted">
+                            Install and manage the optional Suwayomi-Server integration
+                        </div>
+                    </div>
+                </div>
+                <IconChevronRight size={15} class="flex-shrink-0 text-anasthasia-muted" />
+            </a>
+
             <!-- Default output directory -->
             <div
                 class="flex-shrink-0 overflow-hidden rounded-xl border border-anasthasia-border bg-anasthasia-surface"

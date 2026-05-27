@@ -141,7 +141,8 @@ async fn main() -> Result<()> {
     // 6. Process each volume sequentially: one packager open at a time.
     let mut total_pages = 0u32;
     for plan in plans {
-        let pages_this_vol = process_volume(plan, &out_root, &args, options, source.clone()).await?;
+        let pages_this_vol =
+            process_volume(plan, &out_root, &args, options, source.clone()).await?;
         total_pages += pages_this_vol;
     }
 
@@ -187,7 +188,11 @@ async fn process_volume(
         all.push(result.into_diagnostic()?);
     }
     let count = all.len() as u32;
-    all.sort_by(|a, b| a.parsed_data.page_number.total_cmp(&b.parsed_data.page_number));
+    all.sort_by(|a, b| {
+        a.parsed_data
+            .page_number
+            .total_cmp(&b.parsed_data.page_number)
+    });
     for img in all {
         pkg.add_page(img).await.into_diagnostic()?;
     }
