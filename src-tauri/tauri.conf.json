@@ -13,10 +13,12 @@
     "windows": [
       {
         "title": "Thasia",
+        "width": 1120,
+        "height": 760,
+        "minWidth": 900,
+        "minHeight": 620,
         "fullscreen": false,
         "resizable": true,
-        "minWidth": 1280,
-        "minHeight": 800,
         "dragDropEnabled": false,
         "titleBarStyle": "Overlay"
       }

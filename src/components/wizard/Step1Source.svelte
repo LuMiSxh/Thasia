@@ -3,8 +3,14 @@
     import { wizard } from '$lib/wizard/state.svelte';
     import { open } from '@tauri-apps/plugin-dialog';
     import { commands } from '$types/bindings';
-    import { Alert, Button, keyboard, PathDisplay } from 'anasthasia';
-    import { IconFolderOpen, IconFileZip } from '@tabler/icons-svelte';
+    import { Alert, Button, Input, keyboard, Toggle } from 'anasthasia';
+    import {
+        IconAlertCircle,
+        IconFileZip,
+        IconFolderOpen,
+        IconFolderPlus,
+        IconTag,
+    } from '@tabler/icons-svelte';
     import WizardStep from './WizardStep.svelte';
 
     let {
@@ -20,6 +26,8 @@
 
     let loading = $state(false);
     let scanError = $state('');
+    let dirError = $state('');
+    let nameError = $state('');
 
     function inferOutputName(path: string) {
         const base = path.split(/[\\/]/).at(-1) ?? '';
@@ -28,6 +36,8 @@
 
     function applySource(path: string) {
         wizard.sourcePath = path;
+        wizard.scanResult = null;
+        wizard.pageEdits = [];
         if (wizard.outputName === 'output' || wizard.outputName === '') {
             wizard.outputName = inferOutputName(path);
         }
@@ -51,12 +61,35 @@
         if (typeof selected === 'string') applySource(selected);
     }
 
+    async function pickDir() {
+        const selected = await open({ directory: true, title: 'Select output folder' });
+        if (typeof selected === 'string') {
+            wizard.outputDir = selected;
+            dirError = '';
+        }
+    }
+
     function validate() {
-        if (!wizard.sourcePath) return 'Select a source folder or archive to continue.';
-        return null;
+        const issues: string[] = [];
+        dirError = '';
+        nameError = '';
+        if (!wizard.sourcePath) issues.push('Select a source folder or archive.');
+        if (!wizard.outputDir) {
+            dirError = 'Pick a folder';
+            issues.push('Select an output folder.');
+        }
+        if (!wizard.outputName.trim()) {
+            nameError = 'Required';
+            issues.push('Enter an output name.');
+        }
+        return issues.length ? issues : null;
     }
 
     async function handleNext() {
+        if (wizard.scanResult && wizard.pageEdits.length > 0) {
+            onNext();
+            return;
+        }
         loading = true;
         scanError = '';
         try {
@@ -88,10 +121,11 @@
         cleanupKb = keyboard.smartRegister([
             ['o', () => (pickSource(), true)],
             ['z', () => (pickArchive(), true)],
+            ['d', () => (pickDir(), true)],
             [
                 'shift+arrowright',
                 (e) => {
-                    if (!wizard.sourcePath) return false;
+                    if (validate()) return false;
                     e.preventDefault();
                     handleNext();
                     return true;
@@ -100,11 +134,18 @@
         ]);
     });
     onDestroy(() => cleanupKb?.());
+
+    $effect(() => {
+        if (wizard.outputDir && dirError) dirError = '';
+    });
+    $effect(() => {
+        if (wizard.outputName.trim() && nameError) nameError = '';
+    });
 </script>
 
 <WizardStep
-    title="Source"
-    description="Select a folder, ZIP, or CBZ containing your manga images."
+    title="Setup"
+    description="Choose input and where the converted output should be written."
     onNext={handleNext}
     {onBack}
     {backDisabled}
@@ -112,26 +153,103 @@
     {loading}
     loadingLabel="Scanning…"
     selfManagedNext
+    extraHints={[['keyo', 'Folder'], ['keyz', 'Archive'], ['keyd', 'Destination']]}
 >
+    <div class="grid gap-3 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] 2xl:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
     <div class="overflow-hidden rounded-xl border border-anasthasia-border bg-anasthasia-surface">
-        <div class="flex flex-col gap-2.5 px-4 py-4">
-            <div class="flex items-center gap-2">
+        <div class="border-b border-anasthasia-border bg-anasthasia-panel px-4 py-2.5">
+            <span class="text-[10px] font-bold tracking-widest text-anasthasia-muted uppercase">
+                Source
+            </span>
+        </div>
+        <div class="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center">
+            <div class="flex w-24 flex-shrink-0 items-center gap-2">
                 <IconFolderOpen size={14} class="flex-shrink-0 text-anasthasia-muted" />
-                <span class="text-sm font-medium">Selected source</span>
+                <span class="text-sm font-medium">Source</span>
             </div>
-            <PathDisplay value={wizard.sourcePath} empty="No source selected" />
+            <div
+                class="flex h-9 min-w-0 flex-1 items-center rounded-lg border border-anasthasia-border bg-anasthasia-bg px-3 font-mono text-xs {wizard.sourcePath
+                    ? 'text-anasthasia-text'
+                    : 'text-anasthasia-muted'}"
+                title={wizard.sourcePath || undefined}
+            >
+                <span class="truncate">{wizard.sourcePath || 'No source selected'}</span>
+            </div>
+            <div class="flex flex-shrink-0 gap-1.5">
+                <Button onclick={pickSource} size="sm">
+                    <IconFolderOpen size={13} /> Folder
+                </Button>
+                <Button onclick={pickArchive} size="sm">
+                    <IconFileZip size={13} /> Archive
+                </Button>
+            </div>
+        </div>
+    </div>
+
+    <div class="overflow-hidden rounded-xl border border-anasthasia-border bg-anasthasia-surface">
+        <div class="border-b border-anasthasia-border bg-anasthasia-panel px-4 py-2.5">
+            <span class="text-[10px] font-bold tracking-widest text-anasthasia-muted uppercase">
+                Destination
+            </span>
+        </div>
+        <div class="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-start">
+            <div class="flex w-24 flex-shrink-0 items-center gap-2 sm:pt-2">
+                <IconFolderOpen size={14} class="flex-shrink-0 text-anasthasia-muted" />
+                <span class="text-sm font-medium">Folder</span>
+            </div>
+            <div class="min-w-0 flex-1">
+            <div class="flex flex-col gap-2 sm:flex-row">
+                <div
+                    class="flex h-9 min-w-0 flex-1 items-center rounded-lg border bg-anasthasia-bg px-3 font-mono text-xs transition-colors duration-150
+                        {dirError
+                        ? 'border-red-500/40 bg-red-500/5'
+                        : wizard.outputDir
+                          ? 'border-anasthasia-border text-anasthasia-text'
+                          : 'border-anasthasia-border text-anasthasia-muted'}"
+                >
+                    <span class="truncate" title={wizard.outputDir || undefined}>
+                        {wizard.outputDir || 'No folder selected'}
+                    </span>
+                </div>
+                <Button onclick={pickDir} size="sm" class="sm:flex-shrink-0">Browse…</Button>
+            </div>
+            {#if dirError}
+                <div class="flex items-center gap-1 text-xs text-red-400">
+                    <IconAlertCircle size={12} />
+                    {dirError}
+                </div>
+            {/if}
+            </div>
         </div>
 
         <div class="mx-4 border-t border-anasthasia-border"></div>
 
-        <div class="flex gap-2 px-4 py-4">
-            <Button onclick={pickSource} class="flex-1">
-                <IconFolderOpen size={14} /> Browse folder…
-            </Button>
-            <Button onclick={pickArchive} class="flex-1">
-                <IconFileZip size={14} /> Browse archive…
-            </Button>
+        <div class="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-start">
+            <div class="flex w-24 flex-shrink-0 items-center gap-2 sm:pt-2">
+                <IconTag size={14} class="flex-shrink-0 text-anasthasia-muted" />
+                <span class="text-sm font-medium">Name</span>
+            </div>
+            <div class="min-w-0 flex-1">
+            <Input
+                bind:value={wizard.outputName}
+                error={nameError}
+                hint={nameError ? undefined : 'Volume numbers are appended automatically'}
+            />
+            </div>
         </div>
+
+        <div class="mx-4 border-t border-anasthasia-border"></div>
+
+        <div class="flex items-center justify-between gap-4 px-4 py-2.5">
+            <div class="flex min-w-0 items-center gap-2">
+                <IconFolderPlus size={14} class="flex-shrink-0 text-anasthasia-muted" />
+                <div>
+                    <div class="text-sm font-medium">Create subdirectory</div>
+                </div>
+            </div>
+            <Toggle bind:checked={wizard.createDirectory} />
+        </div>
+    </div>
     </div>
 
     {#if scanError}

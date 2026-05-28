@@ -18,8 +18,8 @@
     const navRoutes: NavRoute[] = [
         { combo: 'meta+1', label: 'Home', route: '/' },
         { combo: 'meta+2', label: 'Convert', route: '/convert' },
-        { combo: 'meta+3', label: 'Settings', route: '/settings' },
-        { combo: 'meta+4', label: 'About', route: '/about' },
+        { combo: 'meta+3', label: 'Discover', route: '/discover' },
+        { combo: 'meta+4', label: 'Settings', route: '/settings' },
     ];
 
     let navHints = $derived(

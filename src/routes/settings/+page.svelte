@@ -8,8 +8,6 @@
     import { open } from '@tauri-apps/plugin-dialog';
     import {
         IconCheck,
-        IconChevronRight,
-        IconCompass,
         IconFileZip,
         IconDirection,
         IconStack,
@@ -103,9 +101,7 @@
     >
         <div>
             <h1 class="text-xl font-bold">Settings</h1>
-            <p class="mt-0.5 text-sm text-anasthasia-muted">
-                Default values pre-filled in each new conversion · changes save automatically
-            </p>
+            <p class="mt-0.5 text-sm text-anasthasia-muted">Conversion defaults and interface</p>
         </div>
         {#if savedPulse}
             <span
@@ -120,31 +116,10 @@
 
     <!-- Content -->
     <div class="flex flex-1 flex-col overflow-y-auto">
-        <div class="mx-auto flex w-full max-w-5xl flex-col gap-4 px-8 py-6">
-            <a
-                href="/settings/discovery"
-                class="flex flex-shrink-0 items-center justify-between gap-4 overflow-hidden rounded-xl border border-anasthasia-border bg-anasthasia-surface px-4 py-4 transition-colors duration-150 hover:border-anasthasia-accent/40 hover:bg-anasthasia-panel"
-            >
-                <div class="flex items-center gap-3">
-                    <span
-                        class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-anasthasia-border bg-anasthasia-bg text-anasthasia-muted"
-                    >
-                        <IconCompass size={16} />
-                    </span>
-                    <div>
-                        <div class="text-sm font-medium">Discovery</div>
-                        <div class="text-xs text-anasthasia-muted">
-                            Install and manage the optional Suwayomi-Server integration
-                        </div>
-                    </div>
-                </div>
-                <IconChevronRight size={15} class="flex-shrink-0 text-anasthasia-muted" />
-            </a>
-
-            <!-- Default output directory -->
-            <div
-                class="flex-shrink-0 overflow-hidden rounded-xl border border-anasthasia-border bg-anasthasia-surface"
-            >
+        <div class="flex w-full flex-col gap-4 px-6 py-5">
+            <div class="grid gap-4 xl:grid-cols-[minmax(18rem,0.8fr)_minmax(0,1.6fr)]">
+            <div class="grid gap-4 md:grid-cols-2 xl:flex xl:flex-col">
+            <div class="overflow-hidden rounded-xl border border-anasthasia-border bg-anasthasia-surface">
                 <div
                     class="flex-shrink-0 border-b border-anasthasia-border bg-anasthasia-panel px-4 py-2.5"
                 >
@@ -166,12 +141,15 @@
                     </div>
                     <div class="flex gap-2">
                         <div
-                            class="flex min-h-9 flex-1 items-center rounded-lg border border-anasthasia-border bg-anasthasia-bg px-3 py-2 font-mono text-xs break-all
+                            class="flex h-9 min-w-0 flex-1 items-center rounded-lg border border-anasthasia-border bg-anasthasia-bg px-3 font-mono text-xs
                                 {defaults.defaultOutputDir
                                 ? 'text-anasthasia-text'
                                 : 'text-anasthasia-muted'}"
+                            title={defaults.defaultOutputDir || undefined}
                         >
-                            {defaults.defaultOutputDir || 'No default — wizard starts empty'}
+                            <span class="truncate">
+                                {defaults.defaultOutputDir || 'No default - wizard starts empty'}
+                            </span>
                         </div>
                         {#if defaults.defaultOutputDir}
                             <button
@@ -193,16 +171,40 @@
                 </div>
             </div>
 
-            <!-- Two section panels -->
-            <div class="grid grid-cols-2 gap-4">
-                <!-- LEFT: Encoding -->
+            <div
+                class="overflow-hidden rounded-xl border border-anasthasia-border bg-anasthasia-surface"
+            >
+                <div
+                    class="flex-shrink-0 border-b border-anasthasia-border bg-anasthasia-panel px-4 py-2.5"
+                >
+                    <span
+                        class="text-[10px] font-bold tracking-widest text-anasthasia-muted uppercase"
+                    >
+                        Interface
+                    </span>
+                </div>
+                <div class="flex items-center justify-between px-4 py-4">
+                    <div class="flex items-center gap-2">
+                        <IconKeyboard size={14} class="flex-shrink-0 text-anasthasia-muted" />
+                        <div>
+                            <div class="text-sm font-medium">Keyboard hint bar</div>
+                            <div class="text-xs text-anasthasia-muted">
+                                Show shortcut hints at the bottom of the window
+                            </div>
+                        </div>
+                    </div>
+                    <Toggle bind:checked={defaults.showKeyHints} />
+                </div>
+            </div>
+            </div>
+
+            <div class="grid gap-4 lg:grid-cols-2 2xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
                 <EncodingControls
                     bind:format={defaults.imageFormat}
                     bind:maxWidth={defaults.maxWidth}
                     bind:enableMaxWidth={maxWidthEnabled}
                 />
 
-                <!-- RIGHT: Output -->
                 <div
                     class="flex flex-col overflow-hidden rounded-xl border border-anasthasia-border bg-anasthasia-surface"
                 >
@@ -216,7 +218,7 @@
                         </span>
                     </div>
 
-                    <div class="flex flex-col gap-2.5 px-4 py-4">
+                    <div class="flex flex-col gap-2.5 px-4 py-3">
                         <div class="flex items-center gap-2">
                             <IconFileZip size={14} class="flex-shrink-0 text-anasthasia-muted" />
                             <span class="text-sm font-medium">Container</span>
@@ -256,7 +258,7 @@
 
                     <div class="mx-4 border-t border-anasthasia-border"></div>
 
-                    <div class="flex flex-col gap-2.5 px-4 py-4">
+                    <div class="flex flex-col gap-2.5 px-4 py-3">
                         <div class="flex items-center gap-2">
                             <IconStack size={14} class="flex-shrink-0 text-anasthasia-muted" />
                             <span class="text-sm font-medium">Bundling</span>
@@ -285,7 +287,7 @@
 
                     <div class="mx-4 border-t border-anasthasia-border"></div>
 
-                    <div class="flex items-center justify-between gap-4 px-4 py-4">
+                    <div class="flex items-center justify-between gap-4 px-4 py-3">
                         <div class="flex items-center gap-2">
                             <IconFolderPlus size={14} class="flex-shrink-0 text-anasthasia-muted" />
                             <span class="text-sm font-medium">Create subdirectory</span>
@@ -295,32 +297,7 @@
                 </div>
             </div>
 
-            <!-- Interface panel -->
-            <div
-                class="flex-shrink-0 overflow-hidden rounded-xl border border-anasthasia-border bg-anasthasia-surface"
-            >
-                <div
-                    class="flex-shrink-0 border-b border-anasthasia-border bg-anasthasia-panel px-4 py-2.5"
-                >
-                    <span
-                        class="text-[10px] font-bold tracking-widest text-anasthasia-muted uppercase"
-                    >
-                        Interface
-                    </span>
-                </div>
-                <div class="flex items-center justify-between px-4 py-4">
-                    <div class="flex items-center gap-2">
-                        <IconKeyboard size={14} class="flex-shrink-0 text-anasthasia-muted" />
-                        <div>
-                            <div class="text-sm font-medium">Keyboard hint bar</div>
-                            <div class="text-xs text-anasthasia-muted">
-                                Show shortcut hints at the bottom of the window
-                            </div>
-                        </div>
-                    </div>
-                    <Toggle bind:checked={defaults.showKeyHints} />
-                </div>
+            </div>
             </div>
         </div>
-    </div>
 </div>
