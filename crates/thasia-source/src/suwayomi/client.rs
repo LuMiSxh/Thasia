@@ -2,11 +2,14 @@ use crate::suwayomi::types::{
     ChapterMeta, ExtensionInfo, MangaDetail, SearchPage, SearchResult, SourceInfo,
 };
 use regex::Regex;
+use reqwest::header::CONTENT_TYPE;
 use serde::Deserialize;
 use serde::de::DeserializeOwned;
 use std::path::Path;
-use std::sync::LazyLock;
+use std::sync::{Arc, LazyLock};
 use thasia_core::{Result, ThasiaError};
+use tokio::sync::Semaphore;
+use tokio::task::JoinSet;
 use tracing::warn;
 
 #[derive(Clone)]
@@ -203,30 +206,80 @@ impl SuwayomiClient {
             .collect())
     }
 
-    pub async fn download_chapter_cbz(&self, chapter_id: i64, destination: &Path) -> Result<()> {
+    pub async fn download_chapter_pages(&self, chapter_id: i64, destination: &Path) -> Result<()> {
+        let mutation = r#"
+            mutation FetchChapterPages($id: Int!) {
+                fetchChapterPages(input: { chapterId: $id }) {
+                    pages
+                }
+            }
+        "#;
+        let vars = serde_json::json!({ "id": chapter_id });
+        let resp: FetchChapterPagesResponse = self.query(mutation, Some(vars)).await?;
+        let pages = resp.fetch_chapter_pages.pages;
+        if pages.is_empty() {
+            return Err(ThasiaError::Discovery(format!(
+                "No pages returned for chapter ID {chapter_id}"
+            )));
+        }
+
+        tokio::fs::create_dir_all(destination)
+            .await
+            .map_err(ThasiaError::Io)?;
+
+        let semaphore = Arc::new(Semaphore::new(8));
+        let mut tasks = JoinSet::new();
+
+        for (index, page_url) in pages.into_iter().enumerate() {
+            let client = self.clone();
+            let semaphore = semaphore.clone();
+            let destination = destination.to_path_buf();
+            tasks.spawn(async move {
+                let _permit = semaphore.acquire_owned().await.map_err(|e| {
+                    ThasiaError::Discovery(format!("Page download worker failed: {e}"))
+                })?;
+                client
+                    .download_page_image(index, &page_url, &destination)
+                    .await
+            });
+        }
+
+        while let Some(result) = tasks.join_next().await {
+            result.map_err(|e| ThasiaError::Discovery(e.to_string()))??;
+        }
+
+        Ok(())
+    }
+
+    async fn download_page_image(
+        &self,
+        index: usize,
+        page_url: &str,
+        destination: &Path,
+    ) -> Result<()> {
+        let url = self
+            .absolute_url(Some(page_url.to_string()))
+            .unwrap_or_else(|| page_url.to_string());
         let response = self
             .http
-            .get(format!(
-                "{}/chapter/{}/download?markAsRead=false",
-                self.base_url, chapter_id
-            ))
+            .get(url)
             .send()
             .await
             .map_err(|e| ThasiaError::Discovery(e.to_string()))?;
+        let content_type = response
+            .headers()
+            .get(CONTENT_TYPE)
+            .and_then(|value| value.to_str().ok())
+            .map(str::to_string);
+        let final_url = response.url().to_string();
         let bytes = error_for_status_with_body(response)
             .await?
             .bytes()
             .await
             .map_err(|e| ThasiaError::Discovery(e.to_string()))?;
-
-        if let Some(parent) = destination.parent() {
-            tokio::fs::create_dir_all(parent)
-                .await
-                .map_err(ThasiaError::Io)?;
-        }
-        tokio::fs::write(destination, bytes)
-            .await
-            .map_err(ThasiaError::Io)
+        let extension = image_extension(content_type.as_deref(), &final_url);
+        let path = destination.join(format!("{:03}.{extension}", index + 1));
+        tokio::fs::write(path, bytes).await.map_err(ThasiaError::Io)
     }
 
     async fn query<T: DeserializeOwned>(
@@ -431,6 +484,17 @@ struct ChapterGql {
     is_downloaded: bool,
 }
 
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct FetchChapterPagesResponse {
+    fetch_chapter_pages: FetchChapterPagesPayload,
+}
+
+#[derive(Deserialize)]
+struct FetchChapterPagesPayload {
+    pages: Vec<String>,
+}
+
 fn chapter_meta(chapter: ChapterGql) -> ChapterMeta {
     let name = chapter.name;
     ChapterMeta {
@@ -451,6 +515,39 @@ fn parse_volume_from_name(name: &str) -> Option<u32> {
         .captures(name)
         .and_then(|caps| caps.get(1))
         .and_then(|m| m.as_str().parse::<u32>().ok())
+}
+
+fn image_extension(content_type: Option<&str>, url: &str) -> &'static str {
+    let from_content_type = content_type
+        .and_then(|value| value.split(';').next())
+        .map(str::trim)
+        .map(str::to_ascii_lowercase)
+        .and_then(|value| match value.as_str() {
+            "image/jpeg" | "image/jpg" => Some("jpg"),
+            "image/png" => Some("png"),
+            "image/webp" => Some("webp"),
+            "image/avif" => Some("avif"),
+            "image/gif" => Some("gif"),
+            _ => None,
+        });
+    if let Some(extension) = from_content_type {
+        return extension;
+    }
+
+    let path = url.split('?').next().unwrap_or(url);
+    match Path::new(path)
+        .extension()
+        .and_then(|ext| ext.to_str())
+        .map(str::to_ascii_lowercase)
+        .as_deref()
+    {
+        Some("jpg") | Some("jpeg") => "jpg",
+        Some("png") => "png",
+        Some("webp") => "webp",
+        Some("avif") => "avif",
+        Some("gif") => "gif",
+        _ => "jpg",
+    }
 }
 
 async fn error_for_status_with_body(response: reqwest::Response) -> Result<reqwest::Response> {
