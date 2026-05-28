@@ -141,8 +141,7 @@
                     <div>
                         <div class="text-sm font-medium">No extensions available</div>
                         <div class="mt-1 text-xs text-anasthasia-muted">
-                            Suwayomi no longer ships default extension repositories. Add an extension repo in
-                            Discovery settings, then refresh.
+                            Check the Suwayomi tab, then refresh. Thasia should ship with the Keiyoushi repo configured.
                         </div>
                     </div>
                 </div>

@@ -1,12 +1,17 @@
 <script lang="ts">
     import { onDestroy, onMount } from 'svelte';
-    import { goto } from '$app/navigation';
     import { downloadDir } from '@tauri-apps/api/path';
     import { open } from '@tauri-apps/plugin-dialog';
-    import { Alert, Button, PathDisplay, ProgressBar, Toggle, duration } from 'anasthasia';
+    import {
+        Alert,
+        Button,
+        Panel,
+        ProgressBar,
+        Toggle,
+        duration,
+    } from 'anasthasia';
     import { slide } from 'svelte/transition';
     import {
-        IconArrowLeft,
         IconExternalLink,
         IconDownload,
         IconRefresh,
@@ -15,7 +20,6 @@
         IconPlayerStop,
         IconRotateClockwise,
         IconFolderOpen,
-        IconChevronDown,
         IconPlus,
         IconX,
         IconClock,
@@ -35,7 +39,6 @@
     let progress = $state(0);
     let progressLabel = $state('');
     let updateInfo = $state('');
-    let advancedOpen = $state(false);
     let unlisteners: Array<() => void> = [];
 
     onMount(async () => {
@@ -216,64 +219,35 @@
     }
 </script>
 
-<div class="flex h-full flex-col">
-    <div class="flex flex-shrink-0 items-center gap-3 border-b border-anasthasia-border px-8 py-5">
-        <button
-            onclick={() => goto('/settings')}
-            aria-label="Back to settings"
-            class="flex h-9 w-9 items-center justify-center rounded-lg border border-anasthasia-border bg-anasthasia-bg text-anasthasia-muted transition-colors duration-150 hover:border-anasthasia-accent/40 hover:text-anasthasia-text"
-        >
-            <IconArrowLeft size={15} />
-        </button>
-        <div>
-            <h1 class="text-xl font-bold">Discovery</h1>
-            <p class="mt-0.5 text-sm text-anasthasia-muted">
-                Optional catalog search and download powered by Suwayomi-Server
-            </p>
-        </div>
-    </div>
-
-    <div class="flex flex-1 flex-col overflow-y-auto">
-        <div class="mx-auto flex w-full max-w-4xl flex-col gap-4 px-8 py-6">
-            <div class="rounded-xl border border-anasthasia-border bg-anasthasia-surface px-4 py-4">
-                <p class="text-sm leading-6 text-anasthasia-muted">
-                    Discovery is powered by
-                    <a
-                        class="text-anasthasia-accent hover:underline"
-                        href="https://github.com/Suwayomi/Suwayomi-Server"
-                        target="_blank"
-                        rel="noreferrer"
-                    >
-                        Suwayomi-Server <IconExternalLink size={12} class="inline" />
-                    </a>
-                    (MPL-2.0), which loads extensions from the
-                    <a
-                        class="text-anasthasia-accent hover:underline"
-                        href="https://mihon.app"
-                        target="_blank"
-                        rel="noreferrer"
-                    >
-                        Mihon <IconExternalLink size={12} class="inline" />
-                    </a>
-                    ecosystem. Thasia bundles none of their code; when enabled, the server binary is downloaded
-                    directly from the official release page.
-                </p>
-            </div>
-
-            {#if error}
-                <Alert variant="danger" title="Discovery error">{error}</Alert>
-            {/if}
-
-            <section
-                class="overflow-hidden rounded-xl border border-anasthasia-border bg-anasthasia-surface"
+<div class="flex flex-col gap-4">
+    <Panel label="Integration" title="Suwayomi-Server">
+        <p class="text-sm leading-6 text-anasthasia-muted">
+            Discovery uses
+            <a
+                class="text-anasthasia-accent hover:underline"
+                href="https://github.com/Suwayomi/Suwayomi-Server"
+                target="_blank"
+                rel="noreferrer"
             >
+                Suwayomi-Server <IconExternalLink size={12} class="inline" />
+            </a>
+            for catalog sources and extension management.
+        </p>
+    </Panel>
+
+    {#if error}
+        <Alert variant="danger" title="Discovery error">{error}</Alert>
+    {/if}
+
+    <div class="grid gap-4 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] 2xl:grid-cols-4">
+        <section class="overflow-hidden rounded-xl border border-anasthasia-border bg-anasthasia-surface">
                 <div class="border-b border-anasthasia-border bg-anasthasia-panel px-4 py-2.5">
                     <span
                         class="text-[10px] font-bold tracking-widest text-anasthasia-muted uppercase"
                         >Installation</span
                     >
                 </div>
-                <div class="flex flex-col gap-4 px-4 py-4">
+                <div class="flex flex-col gap-4 px-4 py-3">
                     <div class="flex items-start justify-between gap-4">
                         <div>
                             <div class="text-sm font-medium">
@@ -353,7 +327,7 @@
 
             {#if installed}
                 <section
-                    class="overflow-hidden rounded-xl border border-anasthasia-border bg-anasthasia-surface"
+                    class="overflow-hidden rounded-xl border border-anasthasia-border bg-anasthasia-surface xl:col-span-1 2xl:col-span-2"
                 >
                     <div class="border-b border-anasthasia-border bg-anasthasia-panel px-4 py-2.5">
                         <span
@@ -361,7 +335,7 @@
                             >Extension repositories</span
                         >
                     </div>
-                    <div class="flex flex-col gap-3 px-4 py-4">
+                    <div class="flex flex-col gap-3 px-4 py-3">
                         <div class="text-xs leading-5 text-anasthasia-muted">
                             Suwayomi no longer ships default extension repositories. Thasia starts
                             with Keiyoushi, a community-maintained Mihon extension repository.
@@ -407,7 +381,7 @@
                             >Runtime</span
                         >
                     </div>
-                    <div class="flex flex-col gap-4 px-4 py-4">
+                    <div class="flex flex-col gap-4 px-4 py-3">
                         <div class="flex items-center justify-between gap-4">
                             <Toggle
                                 checked={settings.autoStart}
@@ -465,7 +439,7 @@
                             >Downloads</span
                         >
                     </div>
-                    <div class="flex flex-col gap-3 px-4 py-4">
+                    <div class="flex flex-col gap-3 px-4 py-3">
                         <div class="flex items-start justify-between gap-4">
                             <div class="min-w-0 flex-1">
                                 <div class="text-sm font-medium">Download location</div>
@@ -481,7 +455,14 @@
                             </span>
                         </div>
 
-                        <PathDisplay value={settings.downloadDir ?? ''} empty="Temporary folder" />
+                        <div
+                            class="flex h-9 min-w-0 items-center rounded-lg border border-anasthasia-border bg-anasthasia-bg px-3 font-mono text-xs {settings.downloadDir
+                                ? 'text-anasthasia-text'
+                                : 'text-anasthasia-muted'}"
+                            title={settings.downloadDir ?? undefined}
+                        >
+                            <span class="truncate">{settings.downloadDir ?? 'Temporary folder'}</span>
+                        </div>
 
                         <div class="flex flex-wrap gap-2">
                             <Button variant="secondary" size="sm" onclick={chooseDownloadDir}>
@@ -497,49 +478,6 @@
                     </div>
                 </section>
 
-                <section
-                    class="overflow-hidden rounded-xl border border-anasthasia-border bg-anasthasia-surface"
-                >
-                    <button
-                        class="flex w-full items-center justify-between border-b border-anasthasia-border bg-anasthasia-panel px-4 py-2.5 text-left"
-                        onclick={() => (advancedOpen = !advancedOpen)}
-                    >
-                        <span
-                            class="text-[10px] font-bold tracking-widest text-anasthasia-muted uppercase"
-                            >Advanced</span
-                        >
-                        <IconChevronDown
-                            size={14}
-                            class="text-anasthasia-muted transition-transform duration-150 {advancedOpen
-                                ? 'rotate-180'
-                                : ''}"
-                        />
-                    </button>
-                    {#if advancedOpen}
-                        <div
-                            class="flex flex-wrap gap-2 px-4 py-4"
-                            transition:slide={{ duration: duration.base }}
-                        >
-                            <Button
-                                variant="danger"
-                                loading={busy === 'reset-data'}
-                                loadingLabel="Resetting…"
-                                onclick={() =>
-                                    run('reset-data', () => commands.suwayomiResetData())}
-                            >
-                                <IconTrash size={15} /> Reset Suwayomi data
-                            </Button>
-                            <Button
-                                variant="secondary"
-                                onclick={() =>
-                                    run('open-data', () => commands.suwayomiOpenDataFolder())}
-                            >
-                                <IconFolderOpen size={15} /> Open data folder
-                            </Button>
-                        </div>
-                    {/if}
-                </section>
             {/if}
-        </div>
     </div>
 </div>

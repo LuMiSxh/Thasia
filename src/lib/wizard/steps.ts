@@ -1,9 +1,7 @@
 import type { Component } from 'svelte';
 import type { WizardStore } from './state.svelte';
 import Step1Source from '$components/wizard/Step1Source.svelte';
-import Step2Destination from '$components/wizard/Step2Destination.svelte';
 import Step3Format from '$components/wizard/Step3Format.svelte';
-import Step6Bundling from '$components/wizard/Step6Bundling.svelte';
 import StepVolumeReview from '$components/wizard/StepVolumeReview.svelte';
 import Step7PageEditor from '$components/wizard/Step7PageEditor.svelte';
 import Step8Review from '$components/wizard/Step8Review.svelte';
@@ -19,10 +17,8 @@ export type WizardStep = {
 };
 
 export const STEPS: WizardStep[] = [
-    { id: 'source', label: 'Source', component: Step1Source, selfManagedNext: true },
-    { id: 'destination', label: 'Destination', component: Step2Destination },
-    { id: 'format', label: 'Format', component: Step3Format },
-    { id: 'bundling', label: 'Bundling', component: Step6Bundling },
+    { id: 'source', label: 'Setup', component: Step1Source, selfManagedNext: true },
+    { id: 'format', label: 'Output', component: Step3Format },
     {
         id: 'volume-review',
         label: 'Volumes',

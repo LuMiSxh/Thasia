@@ -115,8 +115,7 @@
                 excluded: false,
             })),
         }));
-        wizard.markComplete('source');
-        wizard.currentStepId = 'destination';
+        wizard.currentStepId = 'source';
     }
 </script>
 

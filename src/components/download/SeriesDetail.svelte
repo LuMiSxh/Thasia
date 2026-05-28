@@ -34,7 +34,7 @@
     let downloadMode = $derived(convertAfter ? 'pipeline' : 'raw');
 </script>
 
-<div class="flex flex-col gap-2.5">
+<div class="flex min-h-0 flex-1 flex-col gap-2.5">
     <div
         class="flex flex-col gap-2 rounded-lg border border-anasthasia-border bg-anasthasia-surface p-3"
     >
@@ -48,8 +48,8 @@
             </p>
         </div>
 
-        <div class="flex items-start gap-3">
-            <div class="w-28 flex-none">
+        <div class="grid gap-3 md:grid-cols-[7.5rem_minmax(0,1fr)]">
+            <div class="w-24 flex-none md:w-full">
                 {#if series.thumbnail_url}
                     <img
                         src={series.thumbnail_url}
@@ -66,7 +66,7 @@
             </div>
 
             <div class="flex min-w-0 flex-1 flex-col gap-2 self-stretch">
-                <div class="grid grid-cols-4 gap-1.5">
+                <div class="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
                     <div
                         class="rounded-md border border-anasthasia-border bg-anasthasia-bg px-2 py-1"
                     >
@@ -100,9 +100,9 @@
                 </div>
 
                 <div
-                    class="flex flex-1 items-center justify-between gap-3 rounded-md border border-anasthasia-border bg-anasthasia-bg px-2 py-2"
+                    class="grid gap-2 rounded-md border border-anasthasia-border bg-anasthasia-bg px-2 py-2"
                 >
-                    <div class="flex flex-wrap items-center gap-2">
+                    <div class="flex min-w-0 flex-wrap items-center gap-2">
                         <Button
                             size="sm"
                             variant="secondary"
@@ -119,8 +119,10 @@
                         >
                             <IconSquare size={14} /> Clear
                         </Button>
+                    </div>
+                    <div class="grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center 2xl:grid-cols-1">
                         <SegmentedControl
-                            class="[&_button]:whitespace-nowrap"
+                            class="min-w-0 [&_button]:flex-1 [&_button]:whitespace-nowrap"
                             options={[
                                 { value: 'raw', label: 'Raw images' },
                                 { value: 'pipeline', label: 'Thasia CBZ' },
@@ -128,32 +130,33 @@
                             value={downloadMode}
                             onchange={(value) => onConvertAfter(value === 'pipeline')}
                         />
-                    </div>
                     <Button
                         size="sm"
                         variant="primary"
                         loading={downloading}
                         loadingLabel="Downloading…"
                         disabled={selectedIds.size === 0}
+                        class="justify-center"
                         onclick={onDownload}
                     >
                         <IconDownload size={15} />
                         {convertAfter ? 'Continue to convert' : 'Download raw'}
                     </Button>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
     <div
-        class="max-h-[34vh] overflow-y-auto rounded-lg border border-anasthasia-border bg-anasthasia-surface"
+        class="min-h-0 flex-1 overflow-y-auto rounded-lg border border-anasthasia-border bg-anasthasia-surface"
     >
         {#if chapters.length === 0}
             <div class="px-4 py-8 text-center text-sm text-anasthasia-muted">
                 No chapters are available for this title from the selected source.
             </div>
         {:else}
-            <div class="grid grid-cols-2 gap-px bg-anasthasia-border">
+            <div class="grid grid-cols-1 gap-px bg-anasthasia-border sm:grid-cols-2 2xl:grid-cols-1">
                 {#each chapters as chapter (chapter.id)}
                     <label
                         class="flex min-w-0 cursor-pointer items-center justify-between gap-3 bg-anasthasia-surface px-3 py-2 transition-colors duration-150 hover:bg-anasthasia-panel"

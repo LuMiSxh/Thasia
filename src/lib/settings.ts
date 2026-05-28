@@ -13,7 +13,7 @@ export type Settings = {
     createDirectory: boolean;
     maxWidth: number | null;
     showKeyHints: boolean;
-    /** Pre-filled when entering the wizard's destination step. Empty = no default. */
+    /** Pre-filled in the wizard setup step. Empty = no default. */
     defaultOutputDir: string;
 };
 

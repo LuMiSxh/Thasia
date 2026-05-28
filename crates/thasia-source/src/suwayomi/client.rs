@@ -2,11 +2,14 @@ use crate::suwayomi::types::{
     ChapterMeta, ExtensionInfo, MangaDetail, SearchPage, SearchResult, SourceInfo,
 };
 use regex::Regex;
+use reqwest::header::CONTENT_TYPE;
 use serde::Deserialize;
 use serde::de::DeserializeOwned;
 use std::path::Path;
-use std::sync::LazyLock;
+use std::sync::{Arc, LazyLock};
 use thasia_core::{Result, ThasiaError};
+use tokio::sync::Semaphore;
+use tokio::task::JoinSet;
 use tracing::warn;
 
 #[derive(Clone)]
@@ -26,57 +29,28 @@ impl SuwayomiClient {
     }
 
     pub async fn list_extensions(&self) -> Result<Vec<ExtensionInfo>> {
-        let query = r#"
-            query GetExtensions {
-                extensions {
-                    nodes {
-                        packageName
-                        name
-                        lang
-                        versionName
-                        isInstalled
-                    }
-                }
-            }
-        "#;
-        let resp: ExtensionsResponse = self.query(query, None).await?;
-        Ok(resp
-            .extensions
-            .nodes
+        let extensions: Vec<ExtensionRest> = self.rest_get("extension/list").await?;
+        Ok(extensions
             .into_iter()
             .map(|e| ExtensionInfo {
                 pkg_name: e.package_name,
                 name: e.name,
                 lang: e.lang,
                 version_name: e.version_name,
-                installed: e.is_installed,
+                installed: e.installed,
             })
             .collect())
     }
 
     pub async fn install_extension(&self, pkg: &str) -> Result<()> {
-        let mutation = r#"
-            mutation InstallExtension($pkg: String!) {
-                installExtension(pkgName: $pkg) {
-                    success
-                }
-            }
-        "#;
-        let vars = serde_json::json!({ "pkg": pkg });
-        let _: serde_json::Value = self.query(mutation, Some(vars)).await?;
+        self.rest_status(&format!("extension/install/{pkg}"))
+            .await?;
         Ok(())
     }
 
     pub async fn uninstall_extension(&self, pkg: &str) -> Result<()> {
-        let mutation = r#"
-            mutation UninstallExtension($pkg: String!) {
-                uninstallExtension(pkgName: $pkg) {
-                    success
-                }
-            }
-        "#;
-        let vars = serde_json::json!({ "pkg": pkg });
-        let _: serde_json::Value = self.query(mutation, Some(vars)).await?;
+        self.rest_status(&format!("extension/uninstall/{pkg}"))
+            .await?;
         Ok(())
     }
 
@@ -177,19 +151,34 @@ impl SuwayomiClient {
     pub async fn chapters(&self, manga_id: i64) -> Result<Vec<ChapterMeta>> {
         let mutation = r#"
             mutation FetchChapters($id: Int!) {
-                fetchChapters(mangaId: $id) {
-                    success
+                fetchChapters(input: { mangaId: $id }) {
+                    chapters {
+                        id
+                        name
+                        chapterNumber
+                        scanlator
+                        isDownloaded
+                    }
                 }
             }
         "#;
         let vars = serde_json::json!({ "id": manga_id });
-        // fetchChapters refreshes the chapter list from the remote source.
-        // Failure is non-fatal: we fall back to whatever Suwayomi has cached.
-        if let Err(err) = self
-            .query::<serde_json::Value>(mutation, Some(vars.clone()))
+        // fetchChapters refreshes the chapter list from the remote source and
+        // returns the fetched rows on current Suwayomi versions. Failure is
+        // non-fatal: we fall back to whatever Suwayomi has cached.
+        match self
+            .query::<FetchChaptersResponse>(mutation, Some(vars.clone()))
             .await
         {
-            warn!("fetchChapters mutation failed (using cached list): {err}");
+            Ok(resp) => {
+                return Ok(resp
+                    .fetch_chapters
+                    .chapters
+                    .into_iter()
+                    .map(chapter_meta)
+                    .collect());
+            }
+            Err(err) => warn!("fetchChapters mutation failed (using cached list): {err}"),
         }
 
         let query = r#"
@@ -213,44 +202,84 @@ impl SuwayomiClient {
             .chapters
             .nodes
             .into_iter()
-            .map(|c| {
-                let name = c.name;
-                ChapterMeta {
-                    id: c.id,
-                    name: name.clone(),
-                    chapter_number: c.chapter_number,
-                    volume_number: parse_volume_from_name(&name),
-                    scanlator: c.scanlator,
-                    downloaded: c.is_downloaded,
-                }
-            })
+            .map(chapter_meta)
             .collect())
     }
 
-    pub async fn download_chapter_cbz(&self, chapter_id: i64, destination: &Path) -> Result<()> {
+    pub async fn download_chapter_pages(&self, chapter_id: i64, destination: &Path) -> Result<()> {
+        let mutation = r#"
+            mutation FetchChapterPages($id: Int!) {
+                fetchChapterPages(input: { chapterId: $id }) {
+                    pages
+                }
+            }
+        "#;
+        let vars = serde_json::json!({ "id": chapter_id });
+        let resp: FetchChapterPagesResponse = self.query(mutation, Some(vars)).await?;
+        let pages = resp.fetch_chapter_pages.pages;
+        if pages.is_empty() {
+            return Err(ThasiaError::Discovery(format!(
+                "No pages returned for chapter ID {chapter_id}"
+            )));
+        }
+
+        tokio::fs::create_dir_all(destination)
+            .await
+            .map_err(ThasiaError::Io)?;
+
+        let semaphore = Arc::new(Semaphore::new(8));
+        let mut tasks = JoinSet::new();
+
+        for (index, page_url) in pages.into_iter().enumerate() {
+            let client = self.clone();
+            let semaphore = semaphore.clone();
+            let destination = destination.to_path_buf();
+            tasks.spawn(async move {
+                let _permit = semaphore.acquire_owned().await.map_err(|e| {
+                    ThasiaError::Discovery(format!("Page download worker failed: {e}"))
+                })?;
+                client
+                    .download_page_image(index, &page_url, &destination)
+                    .await
+            });
+        }
+
+        while let Some(result) = tasks.join_next().await {
+            result.map_err(|e| ThasiaError::Discovery(e.to_string()))??;
+        }
+
+        Ok(())
+    }
+
+    async fn download_page_image(
+        &self,
+        index: usize,
+        page_url: &str,
+        destination: &Path,
+    ) -> Result<()> {
+        let url = self
+            .absolute_url(Some(page_url.to_string()))
+            .unwrap_or_else(|| page_url.to_string());
         let response = self
             .http
-            .get(format!(
-                "{}/chapter/{}/download?markAsRead=false",
-                self.base_url, chapter_id
-            ))
+            .get(url)
             .send()
             .await
             .map_err(|e| ThasiaError::Discovery(e.to_string()))?;
+        let content_type = response
+            .headers()
+            .get(CONTENT_TYPE)
+            .and_then(|value| value.to_str().ok())
+            .map(str::to_string);
+        let final_url = response.url().to_string();
         let bytes = error_for_status_with_body(response)
             .await?
             .bytes()
             .await
             .map_err(|e| ThasiaError::Discovery(e.to_string()))?;
-
-        if let Some(parent) = destination.parent() {
-            tokio::fs::create_dir_all(parent)
-                .await
-                .map_err(ThasiaError::Io)?;
-        }
-        tokio::fs::write(destination, bytes)
-            .await
-            .map_err(ThasiaError::Io)
+        let extension = image_extension(content_type.as_deref(), &final_url);
+        let path = destination.join(format!("{:03}.{extension}", index + 1));
+        tokio::fs::write(path, bytes).await.map_err(ThasiaError::Io)
     }
 
     async fn query<T: DeserializeOwned>(
@@ -301,6 +330,36 @@ impl SuwayomiClient {
         })
     }
 
+    async fn rest_get<T: DeserializeOwned>(&self, path: &str) -> Result<T> {
+        let text = self.rest_status(path).await?;
+        serde_json::from_str(&text).map_err(|e| ThasiaError::Discovery(e.to_string()))
+    }
+
+    async fn rest_status(&self, path: &str) -> Result<String> {
+        let url = format!("{}/{}", self.base_url, path.trim_start_matches('/'));
+        let response = self
+            .http
+            .get(url)
+            .send()
+            .await
+            .map_err(|e| ThasiaError::Discovery(e.to_string()))?;
+
+        let status = response.status();
+        let text = response
+            .text()
+            .await
+            .map_err(|e| ThasiaError::Discovery(e.to_string()))?;
+
+        if !status.is_success() && !status.is_redirection() {
+            return Err(ThasiaError::Discovery(format!(
+                "Suwayomi REST error ({}): {}",
+                status, text
+            )));
+        }
+
+        Ok(text)
+    }
+
     fn absolute_url(&self, url: Option<String>) -> Option<String> {
         let url = url?;
         if url.starts_with("http://") || url.starts_with("https://") {
@@ -321,23 +380,16 @@ struct GqlResponse<T> {
 }
 
 #[derive(Deserialize)]
-struct ExtensionsResponse {
-    extensions: ExtensionNodeListGql,
-}
-
-#[derive(Deserialize)]
-struct ExtensionNodeListGql {
-    nodes: Vec<ExtensionGql>,
-}
-
-#[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct ExtensionGql {
+struct ExtensionRest {
+    #[serde(rename = "pkgName", alias = "pkg")]
     package_name: String,
     name: String,
     lang: Option<String>,
+    #[serde(alias = "version")]
     version_name: Option<String>,
-    is_installed: bool,
+    #[serde(rename = "isInstalled", alias = "installed", default)]
+    installed: bool,
 }
 
 #[derive(Deserialize)]
@@ -396,6 +448,18 @@ struct MangaGql {
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct FetchChaptersResponse {
+    fetch_chapters: FetchChaptersPayload,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct FetchChaptersPayload {
+    chapters: Vec<ChapterGql>,
+}
+
+#[derive(Deserialize)]
 struct ChaptersResponse {
     manga: MangaChaptersGql,
 }
@@ -420,6 +484,29 @@ struct ChapterGql {
     is_downloaded: bool,
 }
 
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct FetchChapterPagesResponse {
+    fetch_chapter_pages: FetchChapterPagesPayload,
+}
+
+#[derive(Deserialize)]
+struct FetchChapterPagesPayload {
+    pages: Vec<String>,
+}
+
+fn chapter_meta(chapter: ChapterGql) -> ChapterMeta {
+    let name = chapter.name;
+    ChapterMeta {
+        id: chapter.id,
+        name: name.clone(),
+        chapter_number: chapter.chapter_number,
+        volume_number: parse_volume_from_name(&name),
+        scanlator: chapter.scanlator,
+        downloaded: chapter.is_downloaded,
+    }
+}
+
 static VOLUME_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"(?i)\bvol(?:ume)?\.?\s*(\d+)\b").expect("invalid volume regex"));
 
@@ -428,6 +515,39 @@ fn parse_volume_from_name(name: &str) -> Option<u32> {
         .captures(name)
         .and_then(|caps| caps.get(1))
         .and_then(|m| m.as_str().parse::<u32>().ok())
+}
+
+fn image_extension(content_type: Option<&str>, url: &str) -> &'static str {
+    let from_content_type = content_type
+        .and_then(|value| value.split(';').next())
+        .map(str::trim)
+        .map(str::to_ascii_lowercase)
+        .and_then(|value| match value.as_str() {
+            "image/jpeg" | "image/jpg" => Some("jpg"),
+            "image/png" => Some("png"),
+            "image/webp" => Some("webp"),
+            "image/avif" => Some("avif"),
+            "image/gif" => Some("gif"),
+            _ => None,
+        });
+    if let Some(extension) = from_content_type {
+        return extension;
+    }
+
+    let path = url.split('?').next().unwrap_or(url);
+    match Path::new(path)
+        .extension()
+        .and_then(|ext| ext.to_str())
+        .map(str::to_ascii_lowercase)
+        .as_deref()
+    {
+        Some("jpg") | Some("jpeg") => "jpg",
+        Some("png") => "png",
+        Some("webp") => "webp",
+        Some("avif") => "avif",
+        Some("gif") => "gif",
+        _ => "jpg",
+    }
 }
 
 async fn error_for_status_with_body(response: reqwest::Response) -> Result<reqwest::Response> {

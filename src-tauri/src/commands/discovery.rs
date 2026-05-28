@@ -323,17 +323,6 @@ pub async fn download_series(
     };
     cancel.store(false, Ordering::SeqCst);
 
-    let chapter_ids: Vec<i64> = chapters.iter().map(|ch| ch.id).collect();
-    let archive_temp = tempfile::TempDir::new().map_err(command_error)?;
-    let chapter_paths = download_chapter_archives(
-        client.clone(),
-        &chapter_ids,
-        cancel,
-        &app,
-        archive_temp.path(),
-    )
-    .await?;
-
     // Resolve the manga output directory.
     // If the user hasn't configured a download dir, fall back to
     // <suwayomi-data>/manga-downloads so the files are stable and findable.
@@ -351,22 +340,12 @@ pub async fn download_series(
             .join(sanitize_file_name(&manga.title))
     };
 
-    // Extract each downloaded CBZ into a Hakuneko-style directory:
+    // Download raw chapter pages into a Hakuneko-style directory:
     //   <manga_dir>/<vol:03>-<chapter>/<001.ext>, <002.ext>, …
     //
     // This layout is already understood by the parser's HAKUNEKO_RE rule, so
     // the existing scan→parse→encode pipeline works without modification.
-    for (chapter_path, chapter_meta) in chapter_paths.iter().zip(chapters.iter()) {
-        let vol = chapter_meta.volume_number.unwrap_or(1);
-        let ch = chapter_meta.chapter_number;
-        let chapter_dest = manga_dir.join(hakuneko_dir_name(vol, ch));
-        LocalSource::extract_chapter_cbz(chapter_path.clone(), chapter_dest)
-            .await
-            .map_err(command_error)?;
-    }
-
-    // CBZ temp archives are no longer needed; drop them before emitting events.
-    drop(archive_temp);
+    download_chapter_pages(client.clone(), &chapters, cancel, &app, &manga_dir).await?;
 
     let output_dir = if convert_after {
         // Hand the directory to the convert pipeline via conv_state.
@@ -415,32 +394,34 @@ async fn client(state: &DiscoveryState) -> Result<Arc<SuwayomiClient>, String> {
         .ok_or_else(|| "Suwayomi-Server is not ready".to_string())
 }
 
-async fn download_chapter_archives(
+async fn download_chapter_pages(
     client: Arc<SuwayomiClient>,
-    chapter_ids: &[i64],
+    chapters: &[ChapterMeta],
     cancel: Arc<std::sync::atomic::AtomicBool>,
     app: &AppHandle,
     destination: &std::path::Path,
-) -> Result<Vec<PathBuf>, String> {
-    let total = chapter_ids.len() as u32;
+) -> Result<(), String> {
+    let total = chapters.len() as u32;
     let semaphore = Arc::new(Semaphore::new(4));
     let mut tasks = JoinSet::new();
 
-    for (index, chapter_id) in chapter_ids.iter().copied().enumerate() {
+    for (index, chapter) in chapters.iter().cloned().enumerate() {
         let client = client.clone();
         let semaphore = semaphore.clone();
-        let destination = destination.join(format!("{:04}-{chapter_id}.cbz", index + 1));
+        let chapter_dest = destination.join(hakuneko_dir_name(
+            chapter.volume_number.unwrap_or(1),
+            chapter.chapter_number,
+        ));
         tasks.spawn(async move {
             let _permit = semaphore.acquire_owned().await.map_err(|e| e.to_string())?;
             client
-                .download_chapter_cbz(chapter_id, &destination)
+                .download_chapter_pages(chapter.id, &chapter_dest)
                 .await
                 .map_err(command_error)?;
-            Ok::<_, String>((index, chapter_id, destination))
+            Ok::<_, String>((index, chapter.id))
         });
     }
 
-    let mut paths: Vec<Option<PathBuf>> = vec![None; chapter_ids.len()];
     let mut completed = 0_u32;
     let mut tick = 0_u32;
     let mut interval = tokio::time::interval(Duration::from_secs(1));
@@ -482,8 +463,7 @@ async fn download_chapter_archives(
                     return Err("Cancelled".to_string());
                 }
 
-                let (index, chapter_id, path) = result.map_err(|e| e.to_string())??;
-                paths[index] = Some(path);
+                let (_index, chapter_id) = result.map_err(|e| e.to_string())??;
                 completed += 1;
                 let _ = ChapterDownloadEvent {
                     current_chapter: chapter_id.to_string(),
@@ -498,7 +478,7 @@ async fn download_chapter_archives(
     }
 
     if completed == total {
-        Ok(paths.into_iter().flatten().collect())
+        Ok(())
     } else {
         Err(format!(
             "Download stopped before all chapters completed ({completed}/{total})."

@@ -26,8 +26,14 @@
 </script>
 
 <div class="overflow-hidden rounded-xl border border-anasthasia-border bg-anasthasia-surface">
+    <div class="border-b border-anasthasia-border bg-anasthasia-panel px-4 py-2.5">
+        <span class="text-[10px] font-bold tracking-widest text-anasthasia-muted uppercase">
+            Encoding
+        </span>
+    </div>
+
     <!-- Format -->
-    <div class="flex flex-col gap-2.5 px-4 py-4">
+    <div class="flex flex-col gap-2.5 px-4 py-3">
         <div class="flex items-center gap-2">
             <IconPhoto size={14} class="flex-shrink-0 text-anasthasia-muted" />
             <span class="text-sm font-medium">Format</span>
@@ -46,7 +52,7 @@
     <div class="mx-4 border-t border-anasthasia-border"></div>
 
     <!-- Max width -->
-    <div class="flex flex-col gap-2.5 px-4 py-4">
+    <div class="flex flex-col gap-2.5 px-4 py-3">
         <div class="flex items-center justify-between">
             <div class="flex items-center gap-2">
                 <IconRuler size={14} class="flex-shrink-0 text-anasthasia-muted" />

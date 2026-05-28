@@ -107,7 +107,7 @@
 
 <div class="flex h-full flex-col" use:mountedHint={hints}>
     <!-- Header -->
-    <div class="flex-shrink-0 border-b border-anasthasia-border px-5 py-4">
+    <div class="flex-shrink-0 border-b border-anasthasia-border px-5 py-3.5">
         <h2 class="text-base font-bold">{title}</h2>
         {#if description}
             <p class="mt-0.5 text-xs text-anasthasia-muted">{description}</p>
@@ -115,7 +115,7 @@
     </div>
 
     <!-- Content -->
-    <div class="flex flex-1 flex-col gap-3 overflow-y-auto px-5 py-5">
+    <div class="flex flex-1 flex-col gap-3 overflow-y-auto px-4 py-4 lg:px-5">
         {@render children()}
     </div>
 
@@ -141,7 +141,7 @@
         {#if footer}
             {@render footer()}
         {:else}
-            <div class="flex flex-shrink-0 gap-2 border-t border-anasthasia-border px-5 py-4">
+            <div class="flex flex-shrink-0 gap-2 border-t border-anasthasia-border px-5 py-3.5">
                 {#if onBack}
                     <Button onclick={handleBack} disabled={backDisabled || loading}>
                         <IconArrowLeft size={15} /> Back
