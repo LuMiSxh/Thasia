@@ -40,12 +40,14 @@ impl SuwayomiClient {
     }
 
     pub async fn install_extension(&self, pkg: &str) -> Result<()> {
-        self.rest_status(&format!("extension/install/{pkg}")).await?;
+        self.rest_status(&format!("extension/install/{pkg}"))
+            .await?;
         Ok(())
     }
 
     pub async fn uninstall_extension(&self, pkg: &str) -> Result<()> {
-        self.rest_status(&format!("extension/uninstall/{pkg}")).await?;
+        self.rest_status(&format!("extension/uninstall/{pkg}"))
+            .await?;
         Ok(())
     }
 
@@ -146,19 +148,34 @@ impl SuwayomiClient {
     pub async fn chapters(&self, manga_id: i64) -> Result<Vec<ChapterMeta>> {
         let mutation = r#"
             mutation FetchChapters($id: Int!) {
-                fetchChapters(mangaId: $id) {
-                    success
+                fetchChapters(input: { mangaId: $id }) {
+                    chapters {
+                        id
+                        name
+                        chapterNumber
+                        scanlator
+                        isDownloaded
+                    }
                 }
             }
         "#;
         let vars = serde_json::json!({ "id": manga_id });
-        // fetchChapters refreshes the chapter list from the remote source.
-        // Failure is non-fatal: we fall back to whatever Suwayomi has cached.
-        if let Err(err) = self
-            .query::<serde_json::Value>(mutation, Some(vars.clone()))
+        // fetchChapters refreshes the chapter list from the remote source and
+        // returns the fetched rows on current Suwayomi versions. Failure is
+        // non-fatal: we fall back to whatever Suwayomi has cached.
+        match self
+            .query::<FetchChaptersResponse>(mutation, Some(vars.clone()))
             .await
         {
-            warn!("fetchChapters mutation failed (using cached list): {err}");
+            Ok(resp) => {
+                return Ok(resp
+                    .fetch_chapters
+                    .chapters
+                    .into_iter()
+                    .map(chapter_meta)
+                    .collect());
+            }
+            Err(err) => warn!("fetchChapters mutation failed (using cached list): {err}"),
         }
 
         let query = r#"
@@ -182,17 +199,7 @@ impl SuwayomiClient {
             .chapters
             .nodes
             .into_iter()
-            .map(|c| {
-                let name = c.name;
-                ChapterMeta {
-                    id: c.id,
-                    name: name.clone(),
-                    chapter_number: c.chapter_number,
-                    volume_number: parse_volume_from_name(&name),
-                    scanlator: c.scanlator,
-                    downloaded: c.is_downloaded,
-                }
-            })
+            .map(chapter_meta)
             .collect())
     }
 
@@ -388,6 +395,18 @@ struct MangaGql {
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct FetchChaptersResponse {
+    fetch_chapters: FetchChaptersPayload,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct FetchChaptersPayload {
+    chapters: Vec<ChapterGql>,
+}
+
+#[derive(Deserialize)]
 struct ChaptersResponse {
     manga: MangaChaptersGql,
 }
@@ -410,6 +429,18 @@ struct ChapterGql {
     chapter_number: f32,
     scanlator: Option<String>,
     is_downloaded: bool,
+}
+
+fn chapter_meta(chapter: ChapterGql) -> ChapterMeta {
+    let name = chapter.name;
+    ChapterMeta {
+        id: chapter.id,
+        name: name.clone(),
+        chapter_number: chapter.chapter_number,
+        volume_number: parse_volume_from_name(&name),
+        scanlator: chapter.scanlator,
+        downloaded: chapter.is_downloaded,
+    }
 }
 
 static VOLUME_RE: LazyLock<Regex> =
