@@ -26,57 +26,26 @@ impl SuwayomiClient {
     }
 
     pub async fn list_extensions(&self) -> Result<Vec<ExtensionInfo>> {
-        let query = r#"
-            query GetExtensions {
-                extensions {
-                    nodes {
-                        pkgName
-                        name
-                        lang
-                        versionName
-                        isInstalled
-                    }
-                }
-            }
-        "#;
-        let resp: ExtensionsResponse = self.query(query, None).await?;
-        Ok(resp
-            .extensions
-            .nodes
+        let extensions: Vec<ExtensionRest> = self.rest_get("extension/list").await?;
+        Ok(extensions
             .into_iter()
             .map(|e| ExtensionInfo {
                 pkg_name: e.package_name,
                 name: e.name,
                 lang: e.lang,
                 version_name: e.version_name,
-                installed: e.is_installed,
+                installed: e.installed,
             })
             .collect())
     }
 
     pub async fn install_extension(&self, pkg: &str) -> Result<()> {
-        let mutation = r#"
-            mutation InstallExtension($pkg: String!) {
-                installExtension(pkgName: $pkg) {
-                    success
-                }
-            }
-        "#;
-        let vars = serde_json::json!({ "pkg": pkg });
-        let _: serde_json::Value = self.query(mutation, Some(vars)).await?;
+        self.rest_status(&format!("extension/install/{pkg}")).await?;
         Ok(())
     }
 
     pub async fn uninstall_extension(&self, pkg: &str) -> Result<()> {
-        let mutation = r#"
-            mutation UninstallExtension($pkg: String!) {
-                uninstallExtension(pkgName: $pkg) {
-                    success
-                }
-            }
-        "#;
-        let vars = serde_json::json!({ "pkg": pkg });
-        let _: serde_json::Value = self.query(mutation, Some(vars)).await?;
+        self.rest_status(&format!("extension/uninstall/{pkg}")).await?;
         Ok(())
     }
 
@@ -301,6 +270,36 @@ impl SuwayomiClient {
         })
     }
 
+    async fn rest_get<T: DeserializeOwned>(&self, path: &str) -> Result<T> {
+        let text = self.rest_status(path).await?;
+        serde_json::from_str(&text).map_err(|e| ThasiaError::Discovery(e.to_string()))
+    }
+
+    async fn rest_status(&self, path: &str) -> Result<String> {
+        let url = format!("{}/{}", self.base_url, path.trim_start_matches('/'));
+        let response = self
+            .http
+            .get(url)
+            .send()
+            .await
+            .map_err(|e| ThasiaError::Discovery(e.to_string()))?;
+
+        let status = response.status();
+        let text = response
+            .text()
+            .await
+            .map_err(|e| ThasiaError::Discovery(e.to_string()))?;
+
+        if !status.is_success() && !status.is_redirection() {
+            return Err(ThasiaError::Discovery(format!(
+                "Suwayomi REST error ({}): {}",
+                status, text
+            )));
+        }
+
+        Ok(text)
+    }
+
     fn absolute_url(&self, url: Option<String>) -> Option<String> {
         let url = url?;
         if url.starts_with("http://") || url.starts_with("https://") {
@@ -321,24 +320,16 @@ struct GqlResponse<T> {
 }
 
 #[derive(Deserialize)]
-struct ExtensionsResponse {
-    extensions: ExtensionNodeListGql,
-}
-
-#[derive(Deserialize)]
-struct ExtensionNodeListGql {
-    nodes: Vec<ExtensionGql>,
-}
-
-#[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct ExtensionGql {
-    #[serde(rename = "pkgName")]
+struct ExtensionRest {
+    #[serde(rename = "pkgName", alias = "pkg")]
     package_name: String,
     name: String,
     lang: Option<String>,
+    #[serde(alias = "version")]
     version_name: Option<String>,
-    is_installed: bool,
+    #[serde(rename = "isInstalled", alias = "installed", default)]
+    installed: bool,
 }
 
 #[derive(Deserialize)]
