@@ -110,28 +110,28 @@ Visit the [releases page](https://github.com/LuMiSxh/Thasia/releases) and downlo
 
 Thasia uses a streamlined wizard to guide you through the conversion:
 
-**Step 1 & 2: Source & Destination**
+**Step 1: Source & Destination**
 Drag and drop your manga folder, `.zip`, or `.cbz` file into Thasia. Pick where you want the converted files to be saved.
 
-**Step 3: Format & Container**
+**Step 2: Format & Bundling**
 Choose your encoding (AVIF, WebP, or Original) and your container (CBZ, EPUB, or Raw). If you choose EPUB, select your preferred reading direction (RTL/LTR).
 
 <br />
 <img src=".github/assets/App-Pipeline-Formats.png" width="100%" />
 
-**Step 4 & 5: Bundling & Volumes**
-Decide if you want to split the output by auto-detected Volumes, or flatten the entire folder into one file. Visually adjust how many chapters go into each volume if the auto-detection needs tweaking.
+**Step 3: Bundling & Volumes**
+Visually adjust how many chapters go into each volume if the auto-detection needs tweaking.
 
 <br />
 <img src=".github/assets/App-Pipeline-Volume.png" width="100%" />
 
-**Step 6: Page Editor**
+**Step 4: Page Editor**
 Review your pages. Drag to reorder, click to exclude scanlator notes, or click "Add Image" to insert a custom cover.
 
 <br />
 <img src=".github/assets/App-Pipeline-Filter.png" width="100%" />
 
-**Step 7 & 8: Convert**
+**Step 5: Convert**
 Review your conversion and hit "Start Converting". Watch the real-time progress bars as Thasia maximizes your CPU threads to encode and package your volumes.
 
 ### CLI Workflow
