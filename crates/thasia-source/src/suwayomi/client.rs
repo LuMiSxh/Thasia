@@ -30,7 +30,7 @@ impl SuwayomiClient {
             query GetExtensions {
                 extensions {
                     nodes {
-                        packageName
+                        pkgName
                         name
                         lang
                         versionName
@@ -333,6 +333,7 @@ struct ExtensionNodeListGql {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct ExtensionGql {
+    #[serde(rename = "pkgName")]
     package_name: String,
     name: String,
     lang: Option<String>,
