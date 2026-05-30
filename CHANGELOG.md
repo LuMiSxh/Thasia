@@ -26,6 +26,8 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **Large-volume page editor performance** — the page review grid now virtualizes visible tiles, uses async image decoding, shows loading placeholders, and suppresses hover previews while scrolling, avoiding thousands of mounted thumbnails on 2,000+ page inputs.
 - **Build requirements** — CMake is now required for development and release builds because AVIF decoding is bundled at compile time.
 - **Release builds** — CI installs CMake and platform link tooling needed by the Rust/Tauri build.
+- **macOS release builds** — v0.3.0 now publishes Apple Silicon macOS artifacts only; Intel macOS is skipped because the bundled AVIF decoder's `libaom` CMake build currently fails against NASM 3 during x86 builds.
+- **Codec acceleration** — image processing now enables the `image` crate's NASM acceleration hook for AVIF assembly paths while keeping release artifacts CPU-generic for broad compatibility.
 
 ### Fixed
 
@@ -37,6 +39,7 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Removed
 
 - Removed the headless CLI crate and release artifacts. Thasia 0.3.0 is GUI/Tauri-first.
+- Removed Intel macOS release artifacts from the publish matrix for v0.3.0.
 
 ## [0.2.0] - 2026-05-28
 

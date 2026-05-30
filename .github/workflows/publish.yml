@@ -41,8 +41,6 @@ jobs:
                 include:
                     - platform: 'macos-latest' # Apple Silicon
                       args: '--target aarch64-apple-darwin'
-                    - platform: 'macos-latest' # Intel Mac
-                      args: '--target x86_64-apple-darwin'
                     - platform: 'ubuntu-22.04' # Linux
                       args: ''
                     - platform: 'windows-latest' # Windows
@@ -84,7 +82,7 @@ jobs:
             - name: install Rust stable
               uses: dtolnay/rust-toolchain@stable
               with:
-                  targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+                  targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin' || '' }}
                   components: llvm-tools-preview
 
             - name: Verify CMake is available

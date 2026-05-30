@@ -33,6 +33,7 @@ image = { version = "0.25", default-features = false, features = [
     "png",
     "webp",
     "avif",
+    "nasm",
 ] }
 walkdir = "2.5"
 tempfile = "3.27"
