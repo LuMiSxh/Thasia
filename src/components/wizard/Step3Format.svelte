@@ -67,14 +67,18 @@
         ['keyf', 'Flatten'],
     ]}
 >
-    <div class="grid gap-3 lg:grid-cols-2 2xl:grid-cols-[minmax(0,0.85fr)_minmax(0,1fr)_minmax(0,1fr)]">
+    <div
+        class="grid gap-3 lg:grid-cols-2 2xl:grid-cols-[minmax(0,0.85fr)_minmax(0,1fr)_minmax(0,1fr)]"
+    >
         <!-- Image encoding -->
         <div class="2xl:col-auto">
-        <EncodingControls
-            bind:format={wizard.imageFormat}
-            bind:maxWidth={wizard.maxWidth}
-            bind:enableMaxWidth
-        />
+            <EncodingControls
+                bind:format={wizard.imageFormat}
+                bind:maxWidth={wizard.maxWidth}
+                bind:enableMaxWidth
+                bind:forceReencode={wizard.forceReencode}
+                bind:cleanTones={wizard.cleanTones}
+            />
         </div>
 
         <div

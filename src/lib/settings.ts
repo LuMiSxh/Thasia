@@ -12,6 +12,8 @@ export type Settings = {
     hideSingleVolume: boolean;
     createDirectory: boolean;
     maxWidth: number | null;
+    forceReencode: boolean;
+    cleanTones: boolean;
     showKeyHints: boolean;
     /** Pre-filled in the wizard setup step. Empty = no default. */
     defaultOutputDir: string;
@@ -26,6 +28,8 @@ export const DEFAULT_SETTINGS: Settings = {
     hideSingleVolume: false,
     createDirectory: false,
     maxWidth: null,
+    forceReencode: false,
+    cleanTones: false,
     showKeyHints: true,
     defaultOutputDir: '',
 };
@@ -58,6 +62,8 @@ export function applyToWizard(settings: Settings, opts: { force?: boolean } = {}
         wizard.hideSingleVolume = settings.hideSingleVolume;
         wizard.createDirectory = settings.createDirectory;
         wizard.maxWidth = settings.maxWidth;
+        wizard.forceReencode = settings.forceReencode;
+        wizard.cleanTones = settings.cleanTones;
     }
     // Output dir: only set if empty, regardless of force (don't clobber user's manual pick).
     if (!wizard.outputDir && settings.defaultOutputDir) {

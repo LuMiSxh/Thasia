@@ -159,11 +159,14 @@
     }
 
     function selectAllChapters() {
-        store.selectedChapterIds = new Set(store.chapters.map((chapter) => chapter.id));
+        store.selectedChapterIds.clear();
+        for (const chapter of store.chapters) {
+            store.selectedChapterIds.add(chapter.id);
+        }
     }
 
     function clearChapterSelection() {
-        store.selectedChapterIds = new Set();
+        store.selectedChapterIds.clear();
     }
 
     async function startServer() {
@@ -171,7 +174,9 @@
         if (result.status === 'error') store.error = result.error;
     }
 
-    function statusVariant(state: RuntimeState['state']): 'default' | 'success' | 'warning' | 'danger' {
+    function statusVariant(
+        state: RuntimeState['state']
+    ): 'default' | 'success' | 'warning' | 'danger' {
         if (state === 'ready') return 'success';
         if (state === 'starting') return 'warning';
         if (state === 'error') return 'danger';
@@ -285,8 +290,7 @@
                                 {#if store.loadingMore}
                                     Loading more results…
                                 {:else if store.hasNextPage}
-                                    Showing {store.results.length} result{store.results.length ===
-                                    1
+                                    Showing {store.results.length} result{store.results.length === 1
                                         ? ''
                                         : 's'} · page {store.page}
                                 {:else}
@@ -300,7 +304,6 @@
                                 No results yet.
                             </div>
                         {/if}
-
                     </div>
                 {/if}
             </div>

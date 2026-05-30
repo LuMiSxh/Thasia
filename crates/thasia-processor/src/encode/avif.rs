@@ -2,11 +2,11 @@
 //! Ported from the Palaxy project.
 
 use super::constants::*;
-use super::grayscale::is_grayscale;
+use super::grayscale::{ImageTone, classify_image_tone};
 use thasia_core::ThasiaError;
 use tracing::trace;
 
-pub fn auto_tune_avif(img: &image::DynamicImage, gray: bool) -> (f32, u8) {
+pub fn auto_tune_avif(img: &image::DynamicImage, tone: ImageTone) -> (f32, u8) {
     let pixels = img.width() as u64 * img.height() as u64;
 
     let (mut quality, mut speed) = if pixels < AVIF_TINY_THRESHOLD {
@@ -21,9 +21,14 @@ pub fn auto_tune_avif(img: &image::DynamicImage, gray: bool) -> (f32, u8) {
         (AVIF_QUALITY_HUGE, AVIF_SPEED_HUGE)
     };
 
-    if gray {
+    if tone != ImageTone::Color {
         speed = speed.saturating_sub(1).max(6);
-        quality = (quality - AVIF_GRAYSCALE_QUALITY_REDUCTION).max(55.0);
+        let reduction = if tone == ImageTone::LineArt {
+            AVIF_GRAYSCALE_QUALITY_REDUCTION + 3.0
+        } else {
+            AVIF_GRAYSCALE_QUALITY_REDUCTION
+        };
+        quality = (quality - reduction).max(55.0);
     }
 
     (quality, speed)
@@ -32,12 +37,12 @@ pub fn auto_tune_avif(img: &image::DynamicImage, gray: bool) -> (f32, u8) {
 pub fn convert_to_avif(img: &image::DynamicImage) -> Result<Vec<u8>, ThasiaError> {
     let width = img.width() as usize;
     let height = img.height() as usize;
-    let gray = is_grayscale(img);
-    let (quality, speed) = auto_tune_avif(img, gray);
+    let tone = classify_image_tone(img);
+    let (quality, speed) = auto_tune_avif(img, tone);
 
     trace!(
-        "AVIF encode: {}x{} quality={} speed={} gray={}",
-        width, height, quality, speed, gray
+        "AVIF encode: {}x{} quality={} speed={} tone={:?}",
+        width, height, quality, speed, tone
     );
 
     // Single thread per encode: rayon handles parallelism across images.
@@ -47,7 +52,7 @@ pub fn convert_to_avif(img: &image::DynamicImage) -> Result<Vec<u8>, ThasiaError
         .with_alpha_quality(AVIF_ALPHA_QUALITY)
         .with_num_threads(Some(1));
 
-    if gray {
+    if tone != ImageTone::Color {
         encode_gray(&encoder, img, width, height)
     } else {
         encode_color(&encoder, img, width, height)
@@ -145,21 +150,21 @@ mod tests {
     fn test_auto_tune_quality_tiers() {
         // 100x100 = 10_000 pixels → tiny tier
         let tiny = ImageBuffer::from_fn(100, 100, |_, _| Rgb([128u8, 128u8, 128u8]));
-        let (q, s) = auto_tune_avif(&DynamicImage::ImageRgb8(tiny), false);
+        let (q, s) = auto_tune_avif(&DynamicImage::ImageRgb8(tiny), ImageTone::Color);
         assert_eq!(q, AVIF_QUALITY_TINY);
         assert_eq!(s, AVIF_SPEED_TINY);
 
         // 1200x1200 = 1_440_000 pixels → medium tier
         let medium = ImageBuffer::from_fn(1200, 1200, |_, _| Rgb([128u8, 128u8, 128u8]));
-        let (q, _) = auto_tune_avif(&DynamicImage::ImageRgb8(medium), false);
+        let (q, _) = auto_tune_avif(&DynamicImage::ImageRgb8(medium), ImageTone::Color);
         assert_eq!(q, AVIF_QUALITY_MEDIUM);
     }
 
     #[test]
     fn test_grayscale_reduces_quality() {
         let img = ImageBuffer::from_fn(100, 100, |_, _| Rgb([128u8, 128u8, 128u8]));
-        let (q_color, _) = auto_tune_avif(&DynamicImage::ImageRgb8(img.clone()), false);
-        let (q_gray, _) = auto_tune_avif(&DynamicImage::ImageRgb8(img), true);
+        let (q_color, _) = auto_tune_avif(&DynamicImage::ImageRgb8(img.clone()), ImageTone::Color);
+        let (q_gray, _) = auto_tune_avif(&DynamicImage::ImageRgb8(img), ImageTone::Grayscale);
         assert!(q_gray < q_color);
     }
 

@@ -13,10 +13,13 @@ use tauri_specta::Event;
 use thasia_core::{
     OutputFormat, VolumeNaming, VolumePlan, apply_naming,
     models::{ChapterIdentifier, DiscoveredImage, ParsedImage, ProcessedImage},
+    sanitize_filename_component,
 };
 use thasia_packager::{CbzGenerator, EpubGenerator, Generator, RawGenerator};
-use thasia_processor::{EncodeOptions, start_pipeline};
+use thasia_processor::{EncodeOptions, start_pipeline_with_cancel};
 use thasia_source::LocalSource;
+
+const MAX_CUSTOM_IMAGE_BYTES: u64 = 512 * 1024 * 1024;
 
 #[tauri::command]
 #[specta::specta]
@@ -52,8 +55,8 @@ pub async fn convert(
     // Resolve each VolumeEdit into a concrete (volume_num, Vec<ParsedImage>) group.
     let groups: Vec<(u32, Vec<ParsedImage>)> = edits
         .iter()
-        .map(|edit| (edit.volume_num, resolve_edit_pages(edit, &scan_map)))
-        .collect();
+        .map(|edit| resolve_edit_pages(edit, &scan_map).map(|pages| (edit.volume_num, pages)))
+        .collect::<Result<_, _>>()?;
 
     // Build the conversion plan (apply naming).
     let naming = VolumeNaming {
@@ -65,7 +68,8 @@ pub async fn convert(
     let total_volumes = plans.len() as u32;
 
     let out_root = if options.create_directory {
-        PathBuf::from(&options.output_dir).join(&options.output_name)
+        PathBuf::from(&options.output_dir)
+            .join(sanitize_filename_component(&options.output_name).map_err(|e| e.to_string())?)
     } else {
         PathBuf::from(&options.output_dir)
     };
@@ -76,6 +80,8 @@ pub async fn convert(
     let encode_opts = EncodeOptions {
         format: options.image_format,
         max_width: options.max_width,
+        force_reencode: options.force_reencode,
+        clean_tones: options.clean_tones,
     };
 
     let mut successful = 0u32;
@@ -141,7 +147,7 @@ pub async fn convert(
 fn resolve_edit_pages(
     edit: &VolumeEdit,
     scan_map: &BTreeMap<u32, Vec<ParsedImage>>,
-) -> Vec<ParsedImage> {
+) -> Result<Vec<ParsedImage>, String> {
     let mut final_pages: Vec<ParsedImage> = Vec::new();
 
     for entry in &edit.pages {
@@ -164,6 +170,7 @@ fn resolve_edit_pages(
             }
             PageEditSource::Custom { path } => {
                 let path = PathBuf::from(path);
+                validate_custom_image_path(&path)?;
                 let rel = path
                     .file_name()
                     .unwrap_or_default()
@@ -193,7 +200,29 @@ fn resolve_edit_pages(
     for (i, page) in final_pages.iter_mut().enumerate() {
         page.page_number = i as f32;
     }
-    final_pages
+    Ok(final_pages)
+}
+
+fn validate_custom_image_path(path: &Path) -> Result<(), String> {
+    if !LocalSource::is_supported_image_path(path) {
+        return Err(format!(
+            "Custom page is not a supported image: {}",
+            path.display()
+        ));
+    }
+    let metadata = std::fs::metadata(path)
+        .map_err(|e| format!("Custom page is not readable ({}): {e}", path.display()))?;
+    if !metadata.is_file() {
+        return Err(format!("Custom page is not a file: {}", path.display()));
+    }
+    if metadata.len() > MAX_CUSTOM_IMAGE_BYTES {
+        return Err(format!(
+            "Custom page is too large ({} bytes): {}",
+            metadata.len(),
+            path.display()
+        ));
+    }
+    Ok(())
 }
 
 async fn convert_volume(
@@ -211,7 +240,10 @@ async fn convert_volume(
     let (tx_parsed, rx_parsed) = tokio::sync::mpsc::channel(256);
 
     // Feed pages into the pipeline without blocking the encoding loop.
-    let pages = plan.pages;
+    let mut pages = plan.pages;
+    for (i, page) in pages.iter_mut().enumerate() {
+        page.page_number = i as f32;
+    }
     tokio::spawn(async move {
         for parsed in pages {
             if tx_parsed.send(parsed).await.is_err() {
@@ -220,7 +252,8 @@ async fn convert_volume(
         }
     });
 
-    let mut rx_processed = start_pipeline(source, rx_parsed, encode_opts).await;
+    let mut rx_processed =
+        start_pipeline_with_cancel(source, rx_parsed, encode_opts, cancel.clone()).await;
 
     let mut pkg: Box<dyn Generator> = match options.output_format {
         OutputFormat::Cbz => Box::new(CbzGenerator::new()),
@@ -232,11 +265,8 @@ async fn convert_volume(
         .await
         .map_err(|e| e.to_string())?;
 
-    // Collect all encoded images before writing — Rayon processes pages in
-    // parallel and returns them in completion order (non-deterministic), so we
-    // sort by page_number (assigned sequentially in resolve_edit_pages) before
-    // writing so CBZ entries land in the right order on disk.
-    let mut all_images: Vec<ProcessedImage> = Vec::with_capacity(total as usize);
+    let mut pending: BTreeMap<u32, ProcessedImage> = BTreeMap::new();
+    let mut next_page = 0u32;
     let mut current = 0u32;
     while let Some(result) = rx_processed.recv().await {
         if cancel.load(Ordering::SeqCst) {
@@ -251,17 +281,20 @@ async fn convert_volume(
         }
         .emit(app)
         .ok();
-        all_images.push(img);
+        pending.insert(page_index(&img), img);
+        while let Some(img) = pending.remove(&next_page) {
+            pkg.add_page(img).await.map_err(|e| e.to_string())?;
+            next_page += 1;
+        }
     }
-    all_images.sort_by(|a, b| {
-        a.parsed_data
-            .page_number
-            .total_cmp(&b.parsed_data.page_number)
-    });
-    for img in all_images {
+    for (_, img) in pending {
         pkg.add_page(img).await.map_err(|e| e.to_string())?;
     }
 
     pkg.finalize().await.map_err(|e| e.to_string())?;
     Ok(())
+}
+
+fn page_index(img: &ProcessedImage) -> u32 {
+    img.parsed_data.page_number as u32
 }

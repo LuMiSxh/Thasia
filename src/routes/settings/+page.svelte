@@ -68,6 +68,8 @@
             defaults.hideSingleVolume,
             defaults.createDirectory,
             defaults.maxWidth,
+            defaults.forceReencode,
+            defaults.cleanTones,
             defaults.showKeyHints,
             defaults.defaultOutputDir,
             maxWidthEnabled,
@@ -118,186 +120,204 @@
     <div class="flex flex-1 flex-col overflow-y-auto">
         <div class="flex w-full flex-col gap-4 px-6 py-5">
             <div class="grid gap-4 xl:grid-cols-[minmax(18rem,0.8fr)_minmax(0,1.6fr)]">
-            <div class="grid gap-4 md:grid-cols-2 xl:flex xl:flex-col">
-            <div class="overflow-hidden rounded-xl border border-anasthasia-border bg-anasthasia-surface">
-                <div
-                    class="flex-shrink-0 border-b border-anasthasia-border bg-anasthasia-panel px-4 py-2.5"
-                >
-                    <span
-                        class="text-[10px] font-bold tracking-widest text-anasthasia-muted uppercase"
+                <div class="grid gap-4 md:grid-cols-2 xl:flex xl:flex-col">
+                    <div
+                        class="overflow-hidden rounded-xl border border-anasthasia-border bg-anasthasia-surface"
                     >
-                        Destination
-                    </span>
-                </div>
-                <div class="flex flex-col gap-2.5 px-4 py-4">
-                    <div class="flex items-center gap-2">
-                        <IconFolderOpen size={14} class="flex-shrink-0 text-anasthasia-muted" />
-                        <div>
-                            <div class="text-sm font-medium">Default output folder</div>
-                            <div class="text-xs text-anasthasia-muted">
-                                Pre-filled in the wizard when starting a new conversion
-                            </div>
-                        </div>
-                    </div>
-                    <div class="flex gap-2">
                         <div
-                            class="flex h-9 min-w-0 flex-1 items-center rounded-lg border border-anasthasia-border bg-anasthasia-bg px-3 font-mono text-xs
-                                {defaults.defaultOutputDir
-                                ? 'text-anasthasia-text'
-                                : 'text-anasthasia-muted'}"
-                            title={defaults.defaultOutputDir || undefined}
+                            class="flex-shrink-0 border-b border-anasthasia-border bg-anasthasia-panel px-4 py-2.5"
                         >
-                            <span class="truncate">
-                                {defaults.defaultOutputDir || 'No default - wizard starts empty'}
+                            <span
+                                class="text-[10px] font-bold tracking-widest text-anasthasia-muted uppercase"
+                            >
+                                Destination
                             </span>
                         </div>
-                        {#if defaults.defaultOutputDir}
-                            <button
-                                onclick={() => (defaults.defaultOutputDir = '')}
-                                title="Clear default"
-                                aria-label="Clear default output folder"
-                                class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-anasthasia-border bg-anasthasia-bg text-anasthasia-muted transition-colors duration-150 hover:border-anasthasia-accent/40 hover:text-anasthasia-text"
-                            >
-                                <IconX size={13} />
-                            </button>
-                        {/if}
-                        <button
-                            onclick={pickDefaultOutputDir}
-                            class="flex-shrink-0 rounded-lg border border-anasthasia-border bg-anasthasia-bg px-3 text-sm text-anasthasia-text transition-colors duration-150 hover:border-anasthasia-accent/40"
-                        >
-                            Browse…
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <div
-                class="overflow-hidden rounded-xl border border-anasthasia-border bg-anasthasia-surface"
-            >
-                <div
-                    class="flex-shrink-0 border-b border-anasthasia-border bg-anasthasia-panel px-4 py-2.5"
-                >
-                    <span
-                        class="text-[10px] font-bold tracking-widest text-anasthasia-muted uppercase"
-                    >
-                        Interface
-                    </span>
-                </div>
-                <div class="flex items-center justify-between px-4 py-4">
-                    <div class="flex items-center gap-2">
-                        <IconKeyboard size={14} class="flex-shrink-0 text-anasthasia-muted" />
-                        <div>
-                            <div class="text-sm font-medium">Keyboard hint bar</div>
-                            <div class="text-xs text-anasthasia-muted">
-                                Show shortcut hints at the bottom of the window
+                        <div class="flex flex-col gap-2.5 px-4 py-4">
+                            <div class="flex items-center gap-2">
+                                <IconFolderOpen
+                                    size={14}
+                                    class="flex-shrink-0 text-anasthasia-muted"
+                                />
+                                <div>
+                                    <div class="text-sm font-medium">Default output folder</div>
+                                    <div class="text-xs text-anasthasia-muted">
+                                        Pre-filled in the wizard when starting a new conversion
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                    </div>
-                    <Toggle bind:checked={defaults.showKeyHints} />
-                </div>
-            </div>
-            </div>
-
-            <div class="grid gap-4 lg:grid-cols-2 2xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-                <EncodingControls
-                    bind:format={defaults.imageFormat}
-                    bind:maxWidth={defaults.maxWidth}
-                    bind:enableMaxWidth={maxWidthEnabled}
-                />
-
-                <div
-                    class="flex flex-col overflow-hidden rounded-xl border border-anasthasia-border bg-anasthasia-surface"
-                >
-                    <div
-                        class="flex-shrink-0 border-b border-anasthasia-border bg-anasthasia-panel px-4 py-2.5"
-                    >
-                        <span
-                            class="text-[10px] font-bold tracking-widest text-anasthasia-muted uppercase"
-                        >
-                            Output
-                        </span>
-                    </div>
-
-                    <div class="flex flex-col gap-2.5 px-4 py-3">
-                        <div class="flex items-center gap-2">
-                            <IconFileZip size={14} class="flex-shrink-0 text-anasthasia-muted" />
-                            <span class="text-sm font-medium">Container</span>
-                        </div>
-                        <SegmentedControl
-                            options={[
-                                { value: 'cbz', label: 'CBZ' },
-                                { value: 'epub', label: 'EPUB' },
-                                { value: 'raw', label: 'Raw' },
-                            ]}
-                            bind:value={defaults.container}
-                        />
-                        {#if defaults.container === 'epub'}
-                            <div
-                                class="flex items-center justify-between"
-                                transition:slide={collapse}
-                            >
-                                <div class="flex items-center gap-1.5">
-                                    <IconDirection
-                                        size={13}
-                                        class="flex-shrink-0 text-anasthasia-muted"
-                                    />
-                                    <span class="text-xs text-anasthasia-muted">
-                                        Reading direction
+                            <div class="flex gap-2">
+                                <div
+                                    class="flex h-9 min-w-0 flex-1 items-center rounded-lg border border-anasthasia-border bg-anasthasia-bg px-3 font-mono text-xs
+                                {defaults.defaultOutputDir
+                                        ? 'text-anasthasia-text'
+                                        : 'text-anasthasia-muted'}"
+                                    title={defaults.defaultOutputDir || undefined}
+                                >
+                                    <span class="truncate">
+                                        {defaults.defaultOutputDir ||
+                                            'No default - wizard starts empty'}
                                     </span>
                                 </div>
-                                <SegmentedControl
-                                    options={[
-                                        { value: 'ltr', label: 'LTR' },
-                                        { value: 'rtl', label: 'RTL' },
-                                    ]}
-                                    bind:value={defaults.direction}
-                                />
+                                {#if defaults.defaultOutputDir}
+                                    <button
+                                        onclick={() => (defaults.defaultOutputDir = '')}
+                                        title="Clear default"
+                                        aria-label="Clear default output folder"
+                                        class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-anasthasia-border bg-anasthasia-bg text-anasthasia-muted transition-colors duration-150 hover:border-anasthasia-accent/40 hover:text-anasthasia-text"
+                                    >
+                                        <IconX size={13} />
+                                    </button>
+                                {/if}
+                                <button
+                                    onclick={pickDefaultOutputDir}
+                                    class="flex-shrink-0 rounded-lg border border-anasthasia-border bg-anasthasia-bg px-3 text-sm text-anasthasia-text transition-colors duration-150 hover:border-anasthasia-accent/40"
+                                >
+                                    Browse…
+                                </button>
                             </div>
-                        {/if}
+                        </div>
                     </div>
 
-                    <div class="mx-4 border-t border-anasthasia-border"></div>
-
-                    <div class="flex flex-col gap-2.5 px-4 py-3">
-                        <div class="flex items-center gap-2">
-                            <IconStack size={14} class="flex-shrink-0 text-anasthasia-muted" />
-                            <span class="text-sm font-medium">Bundling</span>
+                    <div
+                        class="overflow-hidden rounded-xl border border-anasthasia-border bg-anasthasia-surface"
+                    >
+                        <div
+                            class="flex-shrink-0 border-b border-anasthasia-border bg-anasthasia-panel px-4 py-2.5"
+                        >
+                            <span
+                                class="text-[10px] font-bold tracking-widest text-anasthasia-muted uppercase"
+                            >
+                                Interface
+                            </span>
                         </div>
-                        <SegmentedControl
-                            options={[
-                                { value: 'auto', label: 'Auto' },
-                                { value: 'flatten', label: 'Flatten' },
-                            ]}
-                            bind:value={defaults.bundle}
-                        />
-                        {#if defaults.bundle === 'auto'}
-                            <div class="flex flex-col gap-3" transition:slide={collapse}>
-                                <Input
-                                    label="Volume separator"
-                                    bind:value={defaults.volumeSeparator}
-                                    hint={`e.g. "Manga${defaults.volumeSeparator}1"`}
+                        <div class="flex items-center justify-between px-4 py-4">
+                            <div class="flex items-center gap-2">
+                                <IconKeyboard
+                                    size={14}
+                                    class="flex-shrink-0 text-anasthasia-muted"
                                 />
-                                <Toggle
-                                    bind:checked={defaults.hideSingleVolume}
-                                    label="Omit volume number when only one volume"
-                                />
+                                <div>
+                                    <div class="text-sm font-medium">Keyboard hint bar</div>
+                                    <div class="text-xs text-anasthasia-muted">
+                                        Show shortcut hints at the bottom of the window
+                                    </div>
+                                </div>
                             </div>
-                        {/if}
-                    </div>
-
-                    <div class="mx-4 border-t border-anasthasia-border"></div>
-
-                    <div class="flex items-center justify-between gap-4 px-4 py-3">
-                        <div class="flex items-center gap-2">
-                            <IconFolderPlus size={14} class="flex-shrink-0 text-anasthasia-muted" />
-                            <span class="text-sm font-medium">Create subdirectory</span>
+                            <Toggle bind:checked={defaults.showKeyHints} />
                         </div>
-                        <Toggle bind:checked={defaults.createDirectory} />
+                    </div>
+                </div>
+
+                <div
+                    class="grid gap-4 lg:grid-cols-2 2xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]"
+                >
+                    <EncodingControls
+                        bind:format={defaults.imageFormat}
+                        bind:maxWidth={defaults.maxWidth}
+                        bind:enableMaxWidth={maxWidthEnabled}
+                        bind:forceReencode={defaults.forceReencode}
+                        bind:cleanTones={defaults.cleanTones}
+                    />
+
+                    <div
+                        class="flex flex-col overflow-hidden rounded-xl border border-anasthasia-border bg-anasthasia-surface"
+                    >
+                        <div
+                            class="flex-shrink-0 border-b border-anasthasia-border bg-anasthasia-panel px-4 py-2.5"
+                        >
+                            <span
+                                class="text-[10px] font-bold tracking-widest text-anasthasia-muted uppercase"
+                            >
+                                Output
+                            </span>
+                        </div>
+
+                        <div class="flex flex-col gap-2.5 px-4 py-3">
+                            <div class="flex items-center gap-2">
+                                <IconFileZip
+                                    size={14}
+                                    class="flex-shrink-0 text-anasthasia-muted"
+                                />
+                                <span class="text-sm font-medium">Container</span>
+                            </div>
+                            <SegmentedControl
+                                options={[
+                                    { value: 'cbz', label: 'CBZ' },
+                                    { value: 'epub', label: 'EPUB' },
+                                    { value: 'raw', label: 'Raw' },
+                                ]}
+                                bind:value={defaults.container}
+                            />
+                            {#if defaults.container === 'epub'}
+                                <div
+                                    class="flex items-center justify-between"
+                                    transition:slide={collapse}
+                                >
+                                    <div class="flex items-center gap-1.5">
+                                        <IconDirection
+                                            size={13}
+                                            class="flex-shrink-0 text-anasthasia-muted"
+                                        />
+                                        <span class="text-xs text-anasthasia-muted">
+                                            Reading direction
+                                        </span>
+                                    </div>
+                                    <SegmentedControl
+                                        options={[
+                                            { value: 'ltr', label: 'LTR' },
+                                            { value: 'rtl', label: 'RTL' },
+                                        ]}
+                                        bind:value={defaults.direction}
+                                    />
+                                </div>
+                            {/if}
+                        </div>
+
+                        <div class="mx-4 border-t border-anasthasia-border"></div>
+
+                        <div class="flex flex-col gap-2.5 px-4 py-3">
+                            <div class="flex items-center gap-2">
+                                <IconStack size={14} class="flex-shrink-0 text-anasthasia-muted" />
+                                <span class="text-sm font-medium">Bundling</span>
+                            </div>
+                            <SegmentedControl
+                                options={[
+                                    { value: 'auto', label: 'Auto' },
+                                    { value: 'flatten', label: 'Flatten' },
+                                ]}
+                                bind:value={defaults.bundle}
+                            />
+                            {#if defaults.bundle === 'auto'}
+                                <div class="flex flex-col gap-3" transition:slide={collapse}>
+                                    <Input
+                                        label="Volume separator"
+                                        bind:value={defaults.volumeSeparator}
+                                        hint={`e.g. "Manga${defaults.volumeSeparator}1"`}
+                                    />
+                                    <Toggle
+                                        bind:checked={defaults.hideSingleVolume}
+                                        label="Omit volume number when only one volume"
+                                    />
+                                </div>
+                            {/if}
+                        </div>
+
+                        <div class="mx-4 border-t border-anasthasia-border"></div>
+
+                        <div class="flex items-center justify-between gap-4 px-4 py-3">
+                            <div class="flex items-center gap-2">
+                                <IconFolderPlus
+                                    size={14}
+                                    class="flex-shrink-0 text-anasthasia-muted"
+                                />
+                                <span class="text-sm font-medium">Create subdirectory</span>
+                            </div>
+                            <Toggle bind:checked={defaults.createDirectory} />
+                        </div>
                     </div>
                 </div>
             </div>
-
-            </div>
-            </div>
         </div>
+    </div>
 </div>

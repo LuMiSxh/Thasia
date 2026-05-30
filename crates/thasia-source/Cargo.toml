@@ -31,3 +31,4 @@ urlencoding = "2.1"
 regex = { workspace = true }
 tracing = { workspace = true }
 tracing-appender = "0.2"
+libc = "0.2"

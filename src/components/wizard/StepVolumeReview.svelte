@@ -95,8 +95,10 @@
 
     function validate() {
         if (volumeSizes.length === 0) return 'Add at least one output volume.';
-        if (remaining > 0) return `Assign the remaining ${remaining} ${unit}${remaining !== 1 ? 's' : ''} to a volume.`;
-        if (isOver) return `Reduce the volume sizes — ${-remaining} ${unit}${-remaining !== 1 ? 's' : ''} over the total.`;
+        if (remaining > 0)
+            return `Assign the remaining ${remaining} ${unit}${remaining !== 1 ? 's' : ''} to a volume.`;
+        if (isOver)
+            return `Reduce the volume sizes — ${-remaining} ${unit}${-remaining !== 1 ? 's' : ''} over the total.`;
         if (volumeSizes.some((n) => n <= 0)) return 'Each volume must contain at least one item.';
         return null;
     }
@@ -173,7 +175,9 @@
 >
     <!-- Stat row -->
     <div class="grid flex-shrink-0 grid-cols-3 gap-2">
-        <div class="overflow-hidden rounded-xl border border-anasthasia-border bg-anasthasia-surface">
+        <div
+            class="overflow-hidden rounded-xl border border-anasthasia-border bg-anasthasia-surface"
+        >
             <div class="border-b border-anasthasia-border bg-anasthasia-panel px-4 py-2">
                 <span class="text-[10px] font-bold tracking-widest text-anasthasia-muted uppercase">
                     Detected
@@ -184,7 +188,9 @@
                 <div class="text-xs text-anasthasia-muted">{unit}s</div>
             </div>
         </div>
-        <div class="overflow-hidden rounded-xl border border-anasthasia-border bg-anasthasia-surface">
+        <div
+            class="overflow-hidden rounded-xl border border-anasthasia-border bg-anasthasia-surface"
+        >
             <div class="border-b border-anasthasia-border bg-anasthasia-panel px-4 py-2">
                 <span class="text-[10px] font-bold tracking-widest text-anasthasia-muted uppercase">
                     Assigned
@@ -209,7 +215,9 @@
                 </div>
             </div>
         </div>
-        <div class="overflow-hidden rounded-xl border border-anasthasia-border bg-anasthasia-surface">
+        <div
+            class="overflow-hidden rounded-xl border border-anasthasia-border bg-anasthasia-surface"
+        >
             <div class="border-b border-anasthasia-border bg-anasthasia-panel px-4 py-2">
                 <span class="text-[10px] font-bold tracking-widest text-anasthasia-muted uppercase">
                     Volumes
@@ -278,9 +286,7 @@
                                         value={count}
                                         oninput={(e) => {
                                             volumeSizes[i] =
-                                                parseInt(
-                                                    (e.target as HTMLInputElement).value
-                                                ) || 0;
+                                                parseInt((e.target as HTMLInputElement).value) || 0;
                                         }}
                                         onblur={() => (editingIndex = null)}
                                         onkeydown={(e) => {

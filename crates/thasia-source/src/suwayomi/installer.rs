@@ -279,9 +279,7 @@ impl SuwayomiInstaller {
             .lines()
             .find(|line| line.contains(&release.asset_name))
             .and_then(|line| line.split_whitespace().next())
-            .ok_or_else(|| {
-                ThasiaError::Discovery("Checksum for Suwayomi asset not found".into())
-            })?
+            .ok_or_else(|| ThasiaError::Discovery("Checksum for Suwayomi asset not found".into()))?
             .to_string();
 
         // Stream the archive through the hasher in 64 KB chunks instead of
@@ -289,8 +287,7 @@ impl SuwayomiInstaller {
         let archive_path = archive_path.to_path_buf();
         let actual = tokio::task::spawn_blocking(move || -> Result<String> {
             use std::io::Read;
-            let file =
-                std::fs::File::open(&archive_path).map_err(ThasiaError::Io)?;
+            let file = std::fs::File::open(&archive_path).map_err(ThasiaError::Io)?;
             let mut reader = std::io::BufReader::new(file);
             let mut hasher = Sha256::new();
             let mut buf = [0u8; 65536];

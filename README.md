@@ -69,10 +69,6 @@ Take full control over your output before you convert:
   <img src=".github/assets/App-Landing-Light.png" width="48%" />
 </p>
 
-- **Headless CLI Included:** Ships with the `thasia` command-line interface for automating your manga pipelines without launching the GUI.
-
----
-
 ## Direct Manga Downloads
 
 Thasia integrates directly with [Suwayomi](https://github.com/Suwayomi/Suwayomi-Server), enabling you to discover, search, and download manga from hundreds of sources without ever leaving the application.
@@ -134,20 +130,6 @@ Review your pages. Drag to reorder, click to exclude scanlator notes, or click "
 **Step 5: Convert**
 Review your conversion and hit "Start Converting". Watch the real-time progress bars as Thasia maximizes your CPU threads to encode and package your volumes.
 
-### CLI Workflow
-
-Thasia comes with a powerful headless CLI. You can process manga directly from your terminal:
-
-```bash
-# Convert a folder to CBZ using AVIF encoding, scaling images down to 1920px wide
-thasia --source ./MyManga --out ./Output --format avif --output cbz --max-width 1920 --name "My Manga"
-
-# Flatten a HakuNeko download into a single RTL EPUB file
-thasia -s ./HakuNeko_DL -o ./Output --format original --output epub --direction rtl --bundle flatten
-```
-
----
-
 ## Development
 
 Thasia is built using a modern stack: **Rust (Edition 2024)**, **Tauri v2**, **Svelte 5**, and **Tailwind CSS v4**.
@@ -157,7 +139,15 @@ Thasia is built using a modern stack: **Rust (Edition 2024)**, **Tauri v2**, **S
 - [Node.js](https://nodejs.org/) 22+
 - [pnpm](https://pnpm.io/) (required)
 - [Rust](https://www.rust-lang.org/) 1.70+
+- Rust component: `rustup component add llvm-tools-preview`
+- [CMake](https://cmake.org/) (required for bundled AVIF decoding used by forced AVIF re-encode)
 - [Tauri v2 Prerequisites](https://v2.tauri.app/start/prerequisites/) for your OS
+
+Linux developers should also install `lld` for the workspace linker configuration:
+
+```bash
+sudo apt-get install lld
+```
 
 ### Setup
 
@@ -172,9 +162,6 @@ pnpm install
 # Run the Tauri app in development mode
 pnpm run tauri dev
 
-# Run the headless CLI in development mode
-cargo run --bin thasia-cli -- --help
-
 # Build for production
 pnpm run tauri build
 ```
@@ -188,7 +175,6 @@ Thasia is split into a multi-crate Rust workspace to keep concerns cleanly separ
 - `thasia-source`: File discovery and ZIP/CBZ extraction.
 - `thasia-processor`: Parallel image encoding (AVIF/WebP) and grayscale detection.
 - `thasia-packager`: CBZ and EPUB generation.
-- `thasia-cli`: The headless CLI binary.
 - `src-tauri`: The Tauri backend and Specta type-bindings.
 - `src`: The Svelte 5 frontend.
 

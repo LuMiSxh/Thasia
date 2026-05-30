@@ -101,6 +101,8 @@ export type ConvertOptions = {
 	create_directory: boolean,
 	image_format: ImageFormat,
 	max_width: number | null,
+	force_reencode: boolean,
+	clean_tones: boolean,
 	output_format: OutputFormat,
 	direction: Direction,
 	bundle: BundleMode,

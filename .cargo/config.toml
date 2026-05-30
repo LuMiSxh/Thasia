@@ -1,0 +1,68 @@
+# Cargo configuration for local development and cross-platform release builds.
+
+[profile.dev]
+opt-level = 0
+debug = 2
+incremental = true
+codegen-units = 256
+split-debuginfo = "unpacked"
+
+[profile.dev.package."*"]
+opt-level = 1
+
+[profile.dev.package.image]
+opt-level = 3
+
+[profile.dev.package.rav1e]
+opt-level = 3
+
+[profile.dev.package.ravif]
+opt-level = 3
+
+[profile.dev.package.webp]
+opt-level = 3
+
+[profile.dev.build-override]
+opt-level = 0
+codegen-units = 256
+debug = false
+
+[profile.dev-opt]
+inherits = "dev"
+opt-level = 2
+debug = 1
+incremental = true
+codegen-units = 32
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+opt-level = 3
+debug = false
+strip = "symbols"
+panic = "abort"
+incremental = false
+debug-assertions = false
+overflow-checks = false
+split-debuginfo = "off"
+
+[profile.release.build-override]
+opt-level = 0
+codegen-units = 256
+debug = false
+
+[target.x86_64-pc-windows-msvc]
+linker = "rust-lld"
+
+[target.aarch64-pc-windows-msvc]
+linker = "rust-lld"
+
+[target.x86_64-unknown-linux-gnu]
+rustflags = ["-C", "link-arg=-fuse-ld=lld"]
+
+[target.aarch64-unknown-linux-gnu]
+rustflags = ["-C", "link-arg=-fuse-ld=lld"]
+
+[env]
+# Uncomment locally after installing sccache for faster clean/repeated builds.
+# RUSTC_WRAPPER = "sccache"

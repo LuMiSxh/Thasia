@@ -113,11 +113,10 @@ impl SuwayomiManager {
         // `apple.awt.UIElement=true` hides the dock icon without disabling AWT.
         // We do NOT set `java.awt.headless=true` because JCEF needs AWT alive
         // to bootstrap its native side.
-        cmd.arg("-Dapple.awt.UIElement=true")
-            .arg(format!(
-                "-XX:ErrorFile={}",
-                log_dir.join("hs_err.log").display()
-            ));
+        cmd.arg("-Dapple.awt.UIElement=true").arg(format!(
+            "-XX:ErrorFile={}",
+            log_dir.join("hs_err.log").display()
+        ));
         for (key, value) in SERVER_PROPERTIES {
             cmd.arg(format!("-D{key}={value}"));
         }

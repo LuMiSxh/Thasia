@@ -79,7 +79,9 @@
     <div class="flex flex-col gap-1.5">
         <span aria-hidden="true" class="anasthasia-label invisible">Source</span>
         <div class="flex gap-3">
-            <Button variant="secondary" onclick={openManager}><IconPackage size={15} /> Manage extensions</Button>
+            <Button variant="secondary" onclick={openManager}
+                ><IconPackage size={15} /> Manage extensions</Button
+            >
             <Button variant="ghost" onclick={onRefresh}><IconRefresh size={15} /> Refresh</Button>
         </div>
         <span aria-hidden="true" class="invisible text-xs">No installed source extensions</span>
@@ -95,7 +97,11 @@
 >
     <div class="flex flex-col gap-3">
         {#if error}
-            <div class="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-400">{error}</div>
+            <div
+                class="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-400"
+            >
+                {error}
+            </div>
         {/if}
         <Input
             bind:value={extensionQuery}
@@ -104,7 +110,9 @@
         />
         <div class="h-[52vh] min-h-80 overflow-y-auto">
             {#if loading}
-                <div class="flex h-full items-center justify-center text-sm text-anasthasia-muted">Loading extensions…</div>
+                <div class="flex h-full items-center justify-center text-sm text-anasthasia-muted">
+                    Loading extensions…
+                </div>
             {:else if filteredExtensions.length > 0}
                 <div class="flex flex-col divide-y divide-anasthasia-border">
                     {#each filteredExtensions as ext (ext.pkg_name)}
@@ -129,19 +137,28 @@
                     {/each}
                 </div>
             {:else if extensions.length > 0}
-                <div class="flex h-full items-center justify-center rounded-lg border border-dashed border-anasthasia-border px-4 py-8 text-center">
+                <div
+                    class="flex h-full items-center justify-center rounded-lg border border-dashed border-anasthasia-border px-4 py-8 text-center"
+                >
                     <div>
-                        <div class="flex justify-center text-anasthasia-muted"><IconSearch size={18} /></div>
+                        <div class="flex justify-center text-anasthasia-muted">
+                            <IconSearch size={18} />
+                        </div>
                         <div class="mt-2 text-sm font-medium">No matching extensions</div>
-                        <div class="mt-1 text-xs text-anasthasia-muted">Try a different name, package, or language.</div>
+                        <div class="mt-1 text-xs text-anasthasia-muted">
+                            Try a different name, package, or language.
+                        </div>
                     </div>
                 </div>
             {:else}
-                <div class="flex h-full items-center justify-center rounded-lg border border-dashed border-anasthasia-border px-4 py-8 text-center">
+                <div
+                    class="flex h-full items-center justify-center rounded-lg border border-dashed border-anasthasia-border px-4 py-8 text-center"
+                >
                     <div>
                         <div class="text-sm font-medium">No extensions available</div>
                         <div class="mt-1 text-xs text-anasthasia-muted">
-                            Check the Suwayomi tab, then refresh. Thasia should ship with the Keiyoushi repo configured.
+                            Check the Suwayomi tab, then refresh. Thasia should ship with the
+                            Keiyoushi repo configured.
                         </div>
                     </div>
                 </div>

@@ -11,9 +11,7 @@ repository.workspace = true
 miette = { workspace = true }
 thiserror = { workspace = true }
 serde = { workspace = true }
-clap = { workspace = true, optional = true }
 specta = { workspace = true, optional = true }
 
 [features]
-cli = ["dep:clap"]
 tauri = ["dep:specta"]

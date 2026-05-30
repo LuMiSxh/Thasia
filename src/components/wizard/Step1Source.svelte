@@ -153,103 +153,114 @@
     {loading}
     loadingLabel="Scanning…"
     selfManagedNext
-    extraHints={[['keyo', 'Folder'], ['keyz', 'Archive'], ['keyd', 'Destination']]}
+    extraHints={[
+        ['keyo', 'Folder'],
+        ['keyz', 'Archive'],
+        ['keyd', 'Destination'],
+    ]}
 >
-    <div class="grid gap-3 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] 2xl:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
-    <div class="overflow-hidden rounded-xl border border-anasthasia-border bg-anasthasia-surface">
-        <div class="border-b border-anasthasia-border bg-anasthasia-panel px-4 py-2.5">
-            <span class="text-[10px] font-bold tracking-widest text-anasthasia-muted uppercase">
-                Source
-            </span>
-        </div>
-        <div class="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center">
-            <div class="flex w-24 flex-shrink-0 items-center gap-2">
-                <IconFolderOpen size={14} class="flex-shrink-0 text-anasthasia-muted" />
-                <span class="text-sm font-medium">Source</span>
+    <div
+        class="grid gap-3 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] 2xl:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]"
+    >
+        <div
+            class="overflow-hidden rounded-xl border border-anasthasia-border bg-anasthasia-surface"
+        >
+            <div class="border-b border-anasthasia-border bg-anasthasia-panel px-4 py-2.5">
+                <span class="text-[10px] font-bold tracking-widest text-anasthasia-muted uppercase">
+                    Source
+                </span>
             </div>
-            <div
-                class="flex h-9 min-w-0 flex-1 items-center rounded-lg border border-anasthasia-border bg-anasthasia-bg px-3 font-mono text-xs {wizard.sourcePath
-                    ? 'text-anasthasia-text'
-                    : 'text-anasthasia-muted'}"
-                title={wizard.sourcePath || undefined}
-            >
-                <span class="truncate">{wizard.sourcePath || 'No source selected'}</span>
-            </div>
-            <div class="flex flex-shrink-0 gap-1.5">
-                <Button onclick={pickSource} size="sm">
-                    <IconFolderOpen size={13} /> Folder
-                </Button>
-                <Button onclick={pickArchive} size="sm">
-                    <IconFileZip size={13} /> Archive
-                </Button>
-            </div>
-        </div>
-    </div>
-
-    <div class="overflow-hidden rounded-xl border border-anasthasia-border bg-anasthasia-surface">
-        <div class="border-b border-anasthasia-border bg-anasthasia-panel px-4 py-2.5">
-            <span class="text-[10px] font-bold tracking-widest text-anasthasia-muted uppercase">
-                Destination
-            </span>
-        </div>
-        <div class="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-start">
-            <div class="flex w-24 flex-shrink-0 items-center gap-2 sm:pt-2">
-                <IconFolderOpen size={14} class="flex-shrink-0 text-anasthasia-muted" />
-                <span class="text-sm font-medium">Folder</span>
-            </div>
-            <div class="min-w-0 flex-1">
-            <div class="flex flex-col gap-2 sm:flex-row">
+            <div class="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center">
+                <div class="flex w-24 flex-shrink-0 items-center gap-2">
+                    <IconFolderOpen size={14} class="flex-shrink-0 text-anasthasia-muted" />
+                    <span class="text-sm font-medium">Source</span>
+                </div>
                 <div
-                    class="flex h-9 min-w-0 flex-1 items-center rounded-lg border bg-anasthasia-bg px-3 font-mono text-xs transition-colors duration-150
-                        {dirError
-                        ? 'border-red-500/40 bg-red-500/5'
-                        : wizard.outputDir
-                          ? 'border-anasthasia-border text-anasthasia-text'
-                          : 'border-anasthasia-border text-anasthasia-muted'}"
+                    class="flex h-9 min-w-0 flex-1 items-center rounded-lg border border-anasthasia-border bg-anasthasia-bg px-3 font-mono text-xs {wizard.sourcePath
+                        ? 'text-anasthasia-text'
+                        : 'text-anasthasia-muted'}"
+                    title={wizard.sourcePath || undefined}
                 >
-                    <span class="truncate" title={wizard.outputDir || undefined}>
-                        {wizard.outputDir || 'No folder selected'}
-                    </span>
+                    <span class="truncate">{wizard.sourcePath || 'No source selected'}</span>
                 </div>
-                <Button onclick={pickDir} size="sm" class="sm:flex-shrink-0">Browse…</Button>
-            </div>
-            {#if dirError}
-                <div class="flex items-center gap-1 text-xs text-red-400">
-                    <IconAlertCircle size={12} />
-                    {dirError}
+                <div class="flex flex-shrink-0 gap-1.5">
+                    <Button onclick={pickSource} size="sm">
+                        <IconFolderOpen size={13} /> Folder
+                    </Button>
+                    <Button onclick={pickArchive} size="sm">
+                        <IconFileZip size={13} /> Archive
+                    </Button>
                 </div>
-            {/if}
             </div>
         </div>
 
-        <div class="mx-4 border-t border-anasthasia-border"></div>
-
-        <div class="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-start">
-            <div class="flex w-24 flex-shrink-0 items-center gap-2 sm:pt-2">
-                <IconTag size={14} class="flex-shrink-0 text-anasthasia-muted" />
-                <span class="text-sm font-medium">Name</span>
+        <div
+            class="overflow-hidden rounded-xl border border-anasthasia-border bg-anasthasia-surface"
+        >
+            <div class="border-b border-anasthasia-border bg-anasthasia-panel px-4 py-2.5">
+                <span class="text-[10px] font-bold tracking-widest text-anasthasia-muted uppercase">
+                    Destination
+                </span>
             </div>
-            <div class="min-w-0 flex-1">
-            <Input
-                bind:value={wizard.outputName}
-                error={nameError}
-                hint={nameError ? undefined : 'Volume numbers are appended automatically'}
-            />
-            </div>
-        </div>
-
-        <div class="mx-4 border-t border-anasthasia-border"></div>
-
-        <div class="flex items-center justify-between gap-4 px-4 py-2.5">
-            <div class="flex min-w-0 items-center gap-2">
-                <IconFolderPlus size={14} class="flex-shrink-0 text-anasthasia-muted" />
-                <div>
-                    <div class="text-sm font-medium">Create subdirectory</div>
+            <div class="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-start">
+                <div class="flex w-24 flex-shrink-0 items-center gap-2 sm:pt-2">
+                    <IconFolderOpen size={14} class="flex-shrink-0 text-anasthasia-muted" />
+                    <span class="text-sm font-medium">Folder</span>
+                </div>
+                <div class="min-w-0 flex-1">
+                    <div class="flex flex-col gap-2 sm:flex-row">
+                        <div
+                            class="flex h-9 min-w-0 flex-1 items-center rounded-lg border bg-anasthasia-bg px-3 font-mono text-xs transition-colors duration-150
+                        {dirError
+                                ? 'border-red-500/40 bg-red-500/5'
+                                : wizard.outputDir
+                                  ? 'border-anasthasia-border text-anasthasia-text'
+                                  : 'border-anasthasia-border text-anasthasia-muted'}"
+                        >
+                            <span class="truncate" title={wizard.outputDir || undefined}>
+                                {wizard.outputDir || 'No folder selected'}
+                            </span>
+                        </div>
+                        <Button onclick={pickDir} size="sm" class="sm:flex-shrink-0">Browse…</Button
+                        >
+                    </div>
+                    {#if dirError}
+                        <div class="flex items-center gap-1 text-xs text-red-400">
+                            <IconAlertCircle size={12} />
+                            {dirError}
+                        </div>
+                    {/if}
                 </div>
             </div>
-            <Toggle bind:checked={wizard.createDirectory} />
+
+            <div class="mx-4 border-t border-anasthasia-border"></div>
+
+            <div class="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-start">
+                <div class="flex w-24 flex-shrink-0 items-center gap-2 sm:pt-2">
+                    <IconTag size={14} class="flex-shrink-0 text-anasthasia-muted" />
+                    <span class="text-sm font-medium">Name</span>
+                </div>
+                <div class="min-w-0 flex-1">
+                    <Input
+                        bind:value={wizard.outputName}
+                        error={nameError}
+                        hint={nameError ? undefined : 'Volume numbers are appended automatically'}
+                    />
+                </div>
+            </div>
+
+            <div class="mx-4 border-t border-anasthasia-border"></div>
+
+            <div class="flex items-center justify-between gap-4 px-4 py-2.5">
+                <div class="flex min-w-0 items-center gap-2">
+                    <IconFolderPlus size={14} class="flex-shrink-0 text-anasthasia-muted" />
+                    <div>
+                        <div class="text-sm font-medium">Create subdirectory</div>
+                    </div>
+                </div>
+                <Toggle bind:checked={wizard.createDirectory} />
+            </div>
         </div>
-    </div>
     </div>
 
     {#if scanError}

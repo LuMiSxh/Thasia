@@ -98,7 +98,9 @@
 
     let hints = $derived(
         [
-            !selfManagedNext && onNext ? (['shift+arrowright', 'Next step'] as [string, string]) : null,
+            !selfManagedNext && onNext
+                ? (['shift+arrowright', 'Next step'] as [string, string])
+                : null,
             onBack && !backDisabled ? (['shift+arrowleft', 'Back'] as [string, string]) : null,
             ...extraHints,
         ].filter((h): h is [string, string] => h !== null)
@@ -151,8 +153,8 @@
                     <Button
                         variant={nextVariant}
                         onclick={handleNext}
-                        loading={loading}
-                        loadingLabel={loadingLabel}
+                        {loading}
+                        {loadingLabel}
                         class="ml-auto"
                     >
                         {nextLabel}

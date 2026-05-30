@@ -16,15 +16,19 @@
     type NavRoute = { combo: string; label: string; route: string };
 
     const navRoutes: NavRoute[] = [
-        { combo: 'meta+1', label: 'Home', route: '/' },
-        { combo: 'meta+2', label: 'Convert', route: '/convert' },
-        { combo: 'meta+3', label: 'Discover', route: '/discover' },
-        { combo: 'meta+4', label: 'Settings', route: '/settings' },
+        { combo: '1', label: 'Home', route: '/' },
+        { combo: '2', label: 'Convert', route: '/convert' },
+        { combo: '3', label: 'Discover', route: '/discover' },
+        { combo: '4', label: 'Settings', route: '/settings' },
     ];
+
+    let primaryModifier = $state<'meta' | 'ctrl'>('meta');
+    const primaryCombo = (key: string) => `${primaryModifier}+${key}`;
+    const globalCombos = (key: string) => [`meta+${key}`, `ctrl+${key}`];
 
     let navHints = $derived(
         wizard.converting
-            ? ([['meta+keyb', 'Sidebar']] as [string, string][])
+            ? ([[primaryCombo('b'), 'Sidebar']] as [string, string][])
             : (
                   navRoutes
                       .filter(({ route }) =>
@@ -32,36 +36,49 @@
                               ? page.url.pathname !== '/'
                               : !page.url.pathname.startsWith(route)
                       )
-                      .map(({ combo, label }) => [combo, label]) as [string, string][]
-              ).concat([['meta+keyb', 'Sidebar']])
+                      .map(({ combo, label }) => [primaryCombo(combo), label]) as [string, string][]
+              ).concat([[primaryCombo('b'), 'Sidebar']])
     );
 
     onMount(() => {
         theme.init();
         applyUiPrefs(loadSettings());
+        primaryModifier = navigator.platform.startsWith('Mac') ? 'meta' : 'ctrl';
 
         const unmount = keyboard.mount();
         const cleanup = keyboard.smartRegister([
-            ...navRoutes.map(
-                ({ combo, route }) =>
-                    [
-                        combo,
-                        () => {
-                            if (wizard.converting) return false;
-                            goto(route);
-                            return true;
-                        },
-                    ] as [string, () => boolean]
+            ...navRoutes.flatMap(({ combo, route }) =>
+                globalCombos(combo).map(
+                    (registeredCombo) =>
+                        [
+                            registeredCombo,
+                            (event: KeyboardEvent) => {
+                                if (wizard.converting) return false;
+                                event.preventDefault();
+                                goto(route);
+                                return true;
+                            },
+                        ] as [string, (event: KeyboardEvent) => boolean]
+                )
             ),
-            [
-                'meta+keyb',
-                () => {
-                    sidebar.toggle();
-                    return true;
-                },
-            ],
         ]);
+
+        const handleGlobalKeydown = (event: KeyboardEvent) => {
+            if (
+                !event.repeat &&
+                (event.metaKey || event.ctrlKey) &&
+                !event.altKey &&
+                !event.shiftKey &&
+                event.key.toLowerCase() === 'b'
+            ) {
+                event.preventDefault();
+                sidebar.toggle();
+            }
+        };
+        window.addEventListener('keydown', handleGlobalKeydown);
+
         return () => {
+            window.removeEventListener('keydown', handleGlobalKeydown);
             unmount();
             cleanup();
         };

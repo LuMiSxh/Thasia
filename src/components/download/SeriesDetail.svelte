@@ -120,7 +120,9 @@
                             <IconSquare size={14} /> Clear
                         </Button>
                     </div>
-                    <div class="grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center 2xl:grid-cols-1">
+                    <div
+                        class="grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center 2xl:grid-cols-1"
+                    >
                         <SegmentedControl
                             class="min-w-0 [&_button]:flex-1 [&_button]:whitespace-nowrap"
                             options={[
@@ -130,18 +132,18 @@
                             value={downloadMode}
                             onchange={(value) => onConvertAfter(value === 'pipeline')}
                         />
-                    <Button
-                        size="sm"
-                        variant="primary"
-                        loading={downloading}
-                        loadingLabel="Downloading…"
-                        disabled={selectedIds.size === 0}
-                        class="justify-center"
-                        onclick={onDownload}
-                    >
-                        <IconDownload size={15} />
-                        {convertAfter ? 'Continue to convert' : 'Download raw'}
-                    </Button>
+                        <Button
+                            size="sm"
+                            variant="primary"
+                            loading={downloading}
+                            loadingLabel="Downloading…"
+                            disabled={selectedIds.size === 0}
+                            class="justify-center"
+                            onclick={onDownload}
+                        >
+                            <IconDownload size={15} />
+                            {convertAfter ? 'Continue to convert' : 'Download raw'}
+                        </Button>
                     </div>
                 </div>
             </div>
@@ -156,7 +158,9 @@
                 No chapters are available for this title from the selected source.
             </div>
         {:else}
-            <div class="grid grid-cols-1 gap-px bg-anasthasia-border sm:grid-cols-2 2xl:grid-cols-1">
+            <div
+                class="grid grid-cols-1 gap-px bg-anasthasia-border sm:grid-cols-2 2xl:grid-cols-1"
+            >
                 {#each chapters as chapter (chapter.id)}
                     <label
                         class="flex min-w-0 cursor-pointer items-center justify-between gap-3 bg-anasthasia-surface px-3 py-2 transition-colors duration-150 hover:bg-anasthasia-panel"

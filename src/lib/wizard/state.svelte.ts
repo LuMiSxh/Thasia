@@ -23,6 +23,8 @@ export class WizardStore {
     // Step 3 — Image Format
     imageFormat = $state<'avif' | 'webp' | 'original'>('avif');
     maxWidth = $state<number | null>(null);
+    forceReencode = $state(false);
+    cleanTones = $state(false);
 
     // Step 4 — Container
     container = $state<'cbz' | 'epub' | 'raw'>('cbz');
@@ -88,6 +90,8 @@ export class WizardStore {
         this.createDirectory = false;
         this.imageFormat = 'avif';
         this.maxWidth = null;
+        this.forceReencode = false;
+        this.cleanTones = false;
         this.container = 'cbz';
         this.direction = 'ltr';
         this.bundle = 'auto';

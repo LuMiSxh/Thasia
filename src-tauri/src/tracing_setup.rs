@@ -18,8 +18,8 @@ const DEFAULT_FILTER_DEV: &str =
 const DEFAULT_FILTER_RELEASE: &str = "info";
 
 pub fn init() -> Option<WorkerGuard> {
-    let filter = EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| EnvFilter::new(default_filter()));
+    let filter =
+        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(default_filter()));
 
     if cfg!(debug_assertions) {
         tracing_subscriber::registry()

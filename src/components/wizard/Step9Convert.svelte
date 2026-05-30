@@ -5,7 +5,13 @@
     import { goto } from '$app/navigation';
     import { Alert, Button, keyboard, ProgressBar } from 'anasthasia';
     import { SvelteMap } from 'svelte/reactivity';
-    import { IconArrowLeft, IconCheck, IconX, IconRefresh, IconPlayerStop } from '@tabler/icons-svelte';
+    import {
+        IconArrowLeft,
+        IconCheck,
+        IconX,
+        IconRefresh,
+        IconPlayerStop,
+    } from '@tabler/icons-svelte';
     import WizardStep from './WizardStep.svelte';
 
     let { onBack }: { onNext: () => void; onBack: () => void } = $props();
@@ -92,6 +98,8 @@
                     create_directory: wizard.createDirectory,
                     image_format: IMAGE_FORMAT[wizard.imageFormat],
                     max_width: wizard.maxWidth,
+                    force_reencode: wizard.forceReencode,
+                    clean_tones: wizard.cleanTones,
                     output_format: OUTPUT_FORMAT[wizard.container],
                     direction: DIRECTION[wizard.direction],
                     bundle: wizard.bundle,

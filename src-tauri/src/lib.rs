@@ -154,9 +154,8 @@ pub fn run() {
                 let manager = discovery.manager.clone();
                 tauri::async_runtime::block_on(async {
                     commands::discovery::stop_monitor(&discovery).await;
-                    let _ =
-                        tokio::time::timeout(std::time::Duration::from_secs(3), manager.stop())
-                            .await;
+                    let _ = tokio::time::timeout(std::time::Duration::from_secs(3), manager.stop())
+                        .await;
                 });
             }
         });

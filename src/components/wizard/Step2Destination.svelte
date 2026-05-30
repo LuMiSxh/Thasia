@@ -2,12 +2,7 @@
     import { wizard } from '$lib/wizard/state.svelte';
     import { open } from '@tauri-apps/plugin-dialog';
     import { Button, Input, Toggle } from 'anasthasia';
-    import {
-        IconFolderOpen,
-        IconTag,
-        IconFolderPlus,
-        IconAlertCircle,
-    } from '@tabler/icons-svelte';
+    import { IconFolderOpen, IconTag, IconFolderPlus, IconAlertCircle } from '@tabler/icons-svelte';
     import WizardStep from './WizardStep.svelte';
 
     let {

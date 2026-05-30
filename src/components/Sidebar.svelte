@@ -1,12 +1,5 @@
 <script lang="ts">
-    import {
-        duration,
-        receivePill,
-        SectionLabel,
-        sendPill,
-        slideUp,
-        theme,
-    } from 'anasthasia';
+    import { duration, receivePill, SectionLabel, sendPill, slideUp, theme } from 'anasthasia';
     import { sidebar } from '$lib/sidebar/state.svelte';
     import { wizard } from '$lib/wizard/state.svelte';
     import { STEPS } from '$lib/wizard/steps';
@@ -71,10 +64,6 @@
 
     let locked = $derived(wizard.converting);
 
-    function preventIfLocked(e: Event) {
-        if (locked) e.preventDefault();
-    }
-
     function handleNavClick(e: Event) {
         if (locked) {
             e.preventDefault();
@@ -89,10 +78,7 @@
         ? 'w-50'
         : 'w-12'}"
 >
-    <nav
-        class="flex min-w-0 flex-1 flex-col overflow-hidden py-3"
-        aria-label="Primary"
-    >
+    <nav class="flex min-w-0 flex-1 flex-col overflow-hidden py-3" aria-label="Primary">
         <div class="flex h-11 flex-shrink-0 items-center px-2">
             <a
                 href="/"
@@ -104,17 +90,24 @@
                     : ''}"
                 title="Home"
             >
-                <img src={pfpUrl} alt="" class="h-6 w-6 rounded-md object-cover" aria-hidden="true" />
+                <img
+                    src={pfpUrl}
+                    alt=""
+                    class="h-6 w-6 rounded-md object-cover"
+                    aria-hidden="true"
+                />
             </a>
             {#if sidebar.isOpen}
-            <div class="ml-2 min-w-0">
-                <div class="truncate text-xs font-bold tracking-widest text-anasthasia-accent uppercase">
-                    Thasia
+                <div class="ml-2 min-w-0">
+                    <div
+                        class="truncate text-xs font-bold tracking-widest text-anasthasia-accent uppercase"
+                    >
+                        Thasia
+                    </div>
+                    <div class="truncate text-[9px] tracking-wider text-anasthasia-muted uppercase">
+                        {sidebar.mode === 'wizard' ? 'Steps' : 'Workspace'}
+                    </div>
                 </div>
-                <div class="truncate text-[9px] tracking-wider text-anasthasia-muted uppercase">
-                    {sidebar.mode === 'wizard' ? 'Steps' : 'Workspace'}
-                </div>
-            </div>
             {/if}
         </div>
 
@@ -151,7 +144,9 @@
                                 {/if}
                                 <Icon
                                     size={15}
-                                    class="relative flex-shrink-0 {active ? 'text-anasthasia-accent' : ''}"
+                                    class="relative flex-shrink-0 {active
+                                        ? 'text-anasthasia-accent'
+                                        : ''}"
                                 />
                                 {#if sidebar.isOpen}
                                     <span class="relative min-w-0 truncate text-sm">
@@ -194,20 +189,32 @@
                                     ></span>
                                 {/if}
 
-                                <span class="relative flex h-4 w-4 flex-shrink-0 items-center justify-center">
+                                <span
+                                    class="relative flex h-4 w-4 flex-shrink-0 items-center justify-center"
+                                >
                                     {#if step.status === 'done'}
                                         <span
                                             class="flex h-4 w-4 items-center justify-center rounded-full bg-anasthasia-accent"
                                             in:fade={{ duration: duration.fast }}
                                         >
-                                            <IconCheck size={10} class="text-anasthasia-text" stroke={3} />
+                                            <IconCheck
+                                                size={10}
+                                                class="text-anasthasia-text"
+                                                stroke={3}
+                                            />
                                         </span>
                                     {:else if step.status === 'active'}
-                                        <span class="h-2 w-2 rounded-full border-2 border-anasthasia-accent"></span>
+                                        <span
+                                            class="h-2 w-2 rounded-full border-2 border-anasthasia-accent"
+                                        ></span>
                                     {:else if step.status === 'conditional'}
-                                        <span class="h-3 w-3 rounded-full border border-dashed border-anasthasia-border"></span>
+                                        <span
+                                            class="h-3 w-3 rounded-full border border-dashed border-anasthasia-border"
+                                        ></span>
                                     {:else}
-                                        <span class="h-3 w-3 rounded-full border border-anasthasia-border"></span>
+                                        <span
+                                            class="h-3 w-3 rounded-full border border-anasthasia-border"
+                                        ></span>
                                     {/if}
                                 </span>
 

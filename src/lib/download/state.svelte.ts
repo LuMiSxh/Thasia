@@ -1,4 +1,5 @@
 import type { ChapterMeta, SearchResult, SourceInfo } from '$types/bindings';
+import { SvelteSet } from 'svelte/reactivity';
 
 export class DownloadStore {
     sources = $state<SourceInfo[]>([]);
@@ -7,7 +8,7 @@ export class DownloadStore {
     results = $state<SearchResult[]>([]);
     selectedSeries = $state<SearchResult | null>(null);
     chapters = $state<ChapterMeta[]>([]);
-    selectedChapterIds = $state<Set<number>>(new Set());
+    selectedChapterIds = new SvelteSet<number>();
     searching = $state(false);
     loadingMore = $state(false);
     page = $state(1);
@@ -19,7 +20,7 @@ export class DownloadStore {
     resetSelection() {
         this.selectedSeries = null;
         this.chapters = [];
-        this.selectedChapterIds = new Set();
+        this.selectedChapterIds.clear();
     }
 
     resetResults() {
@@ -30,10 +31,8 @@ export class DownloadStore {
     }
 
     toggleChapter(id: number) {
-        const next = new Set(this.selectedChapterIds);
-        if (next.has(id)) next.delete(id);
-        else next.add(id);
-        this.selectedChapterIds = next;
+        if (this.selectedChapterIds.has(id)) this.selectedChapterIds.delete(id);
+        else this.selectedChapterIds.add(id);
     }
 }
 

@@ -2,14 +2,7 @@
     import { onDestroy, onMount } from 'svelte';
     import { downloadDir } from '@tauri-apps/api/path';
     import { open } from '@tauri-apps/plugin-dialog';
-    import {
-        Alert,
-        Button,
-        Panel,
-        ProgressBar,
-        Toggle,
-        duration,
-    } from 'anasthasia';
+    import { Alert, Button, Panel, ProgressBar, Toggle, duration } from 'anasthasia';
     import { slide } from 'svelte/transition';
     import {
         IconExternalLink,
@@ -72,10 +65,7 @@
     async function refresh() {
         settings = await loadDiscoverySettings();
         // suwayomiInstalledInfo and suwayomiStatus are independent — run in parallel.
-        const [, statusResult] = await Promise.all([
-            refreshInstalled(),
-            commands.suwayomiStatus(),
-        ]);
+        const [, statusResult] = await Promise.all([refreshInstalled(), commands.suwayomiStatus()]);
         if (installed && busy !== 'install') {
             progress = 0;
             progressLabel = '';
@@ -157,7 +147,10 @@
     }
 
     async function resetRepos() {
-        await persist({ ...settings, extensionRepos: [...DEFAULT_DISCOVERY_SETTINGS.extensionRepos!] });
+        await persist({
+            ...settings,
+            extensionRepos: [...DEFAULT_DISCOVERY_SETTINGS.extensionRepos!],
+        });
     }
 
     async function chooseDownloadDir() {
@@ -240,244 +233,240 @@
     {/if}
 
     <div class="grid gap-4 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] 2xl:grid-cols-4">
-        <section class="overflow-hidden rounded-xl border border-anasthasia-border bg-anasthasia-surface">
+        <section
+            class="overflow-hidden rounded-xl border border-anasthasia-border bg-anasthasia-surface"
+        >
+            <div class="border-b border-anasthasia-border bg-anasthasia-panel px-4 py-2.5">
+                <span class="text-[10px] font-bold tracking-widest text-anasthasia-muted uppercase"
+                    >Installation</span
+                >
+            </div>
+            <div class="flex flex-col gap-4 px-4 py-3">
+                <div class="flex items-start justify-between gap-4">
+                    <div>
+                        <div class="text-sm font-medium">
+                            {installed ? `Installed ${installed.version}` : 'Not installed'}
+                        </div>
+                        <div class="mt-1 text-xs text-anasthasia-muted">
+                            {installed
+                                ? `${formatBytes(installed.size)} in app data`
+                                : 'Install Suwayomi-Server to enable catalog discovery.'}
+                        </div>
+                        {#if settings.lastUpdateCheck || updateInfo}
+                            <div class="mt-1 text-xs text-anasthasia-muted">
+                                {updateInfo ||
+                                    `Last checked ${formatLastChecked(settings.lastUpdateCheck)}`}
+                            </div>
+                        {/if}
+                    </div>
+                    <Toggle
+                        checked={settings.enabled}
+                        disabled={!installed}
+                        onchange={toggleEnabled}
+                        label="Enable Discovery"
+                    />
+                </div>
+
+                {#if busy === 'install'}
+                    <div class="flex flex-col gap-2" transition:slide={{ duration: duration.base }}>
+                        <div class="flex justify-between text-xs text-anasthasia-muted">
+                            <span>{progressLabel}</span>
+                            <span>{Math.round(progress * 100)}%</span>
+                        </div>
+                        <ProgressBar value={progress} class="h-1.5" />
+                    </div>
+                {/if}
+
+                <div class="flex flex-wrap gap-2">
+                    {#if !installed}
+                        <Button
+                            variant="primary"
+                            loading={busy === 'install'}
+                            loadingLabel="Installing…"
+                            onclick={install}
+                        >
+                            <IconDownload size={15} /> Install Suwayomi-Server (~330 MB)
+                        </Button>
+                    {:else}
+                        <Button
+                            variant="secondary"
+                            loading={busy === 'check-update'}
+                            loadingLabel="Checking…"
+                            onclick={checkUpdate}
+                        >
+                            <IconRefresh size={15} /> Check update
+                        </Button>
+                        <Button
+                            variant="secondary"
+                            loading={busy === 'install'}
+                            loadingLabel="Reinstalling…"
+                            onclick={install}
+                        >
+                            <IconDownload size={15} /> Reinstall
+                        </Button>
+                        <Button
+                            variant="danger"
+                            loading={busy === 'delete'}
+                            loadingLabel="Deleting…"
+                            onclick={uninstall}
+                        >
+                            <IconTrash size={15} /> Delete
+                        </Button>
+                    {/if}
+                </div>
+            </div>
+        </section>
+
+        {#if installed}
+            <section
+                class="overflow-hidden rounded-xl border border-anasthasia-border bg-anasthasia-surface xl:col-span-1 2xl:col-span-2"
+            >
                 <div class="border-b border-anasthasia-border bg-anasthasia-panel px-4 py-2.5">
                     <span
                         class="text-[10px] font-bold tracking-widest text-anasthasia-muted uppercase"
-                        >Installation</span
+                        >Extension repositories</span
                     >
                 </div>
-                <div class="flex flex-col gap-4 px-4 py-3">
-                    <div class="flex items-start justify-between gap-4">
-                        <div>
-                            <div class="text-sm font-medium">
-                                {installed ? `Installed ${installed.version}` : 'Not installed'}
-                            </div>
-                            <div class="mt-1 text-xs text-anasthasia-muted">
-                                {installed
-                                    ? `${formatBytes(installed.size)} in app data`
-                                    : 'Install Suwayomi-Server to enable catalog discovery.'}
-                            </div>
-                            {#if settings.lastUpdateCheck || updateInfo}
-                                <div class="mt-1 text-xs text-anasthasia-muted">
-                                    {updateInfo || `Last checked ${formatLastChecked(settings.lastUpdateCheck)}`}
-                                </div>
-                            {/if}
-                        </div>
-                        <Toggle
-                            checked={settings.enabled}
-                            disabled={!installed}
-                            onchange={toggleEnabled}
-                            label="Enable Discovery"
-                        />
+                <div class="flex flex-col gap-3 px-4 py-3">
+                    <div class="text-xs leading-5 text-anasthasia-muted">
+                        Suwayomi no longer ships default extension repositories. Thasia starts with
+                        Keiyoushi, a community-maintained Mihon extension repository. Changes apply
+                        after restart.
                     </div>
-
-                    {#if busy === 'install'}
-                        <div
-                            class="flex flex-col gap-2"
-                            transition:slide={{ duration: duration.base }}
-                        >
-                            <div class="flex justify-between text-xs text-anasthasia-muted">
-                                <span>{progressLabel}</span>
-                                <span>{Math.round(progress * 100)}%</span>
+                    <div class="flex flex-col gap-2">
+                        {#each repoList() as repo, i (i)}
+                            <div class="flex gap-2">
+                                <input
+                                    class="h-9 min-w-0 flex-1 rounded-lg border border-anasthasia-border bg-anasthasia-bg px-3 font-mono text-xs text-anasthasia-text transition-colors duration-150 outline-none placeholder:text-anasthasia-muted hover:border-anasthasia-accent/40 focus:border-anasthasia-accent/60"
+                                    placeholder="https://raw.githubusercontent.com/user/repo/index.min.json"
+                                    value={repo}
+                                    oninput={(event) => updateRepo(i, event.currentTarget.value)}
+                                />
+                                <button
+                                    onclick={() => removeRepo(i)}
+                                    aria-label="Remove extension repository"
+                                    class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-anasthasia-border bg-anasthasia-bg text-anasthasia-muted transition-colors duration-150 hover:border-red-500/40 hover:text-red-400"
+                                >
+                                    <IconX size={14} />
+                                </button>
                             </div>
-                            <ProgressBar value={progress} class="h-1.5" />
-                        </div>
-                    {/if}
-
+                        {/each}
+                    </div>
                     <div class="flex flex-wrap gap-2">
-                        {#if !installed}
-                            <Button
-                                variant="primary"
-                                loading={busy === 'install'}
-                                loadingLabel="Installing…"
-                                onclick={install}
-                            >
-                                <IconDownload size={15} /> Install Suwayomi-Server (~330 MB)
-                            </Button>
-                        {:else}
-                            <Button
-                                variant="secondary"
-                                loading={busy === 'check-update'}
-                                loadingLabel="Checking…"
-                                onclick={checkUpdate}
-                            >
-                                <IconRefresh size={15} /> Check update
-                            </Button>
-                            <Button
-                                variant="secondary"
-                                loading={busy === 'install'}
-                                loadingLabel="Reinstalling…"
-                                onclick={install}
-                            >
-                                <IconDownload size={15} /> Reinstall
-                            </Button>
-                            <Button
-                                variant="danger"
-                                loading={busy === 'delete'}
-                                loadingLabel="Deleting…"
-                                onclick={uninstall}
-                            >
-                                <IconTrash size={15} /> Delete
-                            </Button>
-                        {/if}
+                        <Button variant="secondary" size="sm" onclick={addRepo}>
+                            <IconPlus size={14} /> Add repo
+                        </Button>
+                        <Button variant="ghost" size="sm" onclick={resetRepos}>
+                            <IconRefresh size={14} /> Reset default
+                        </Button>
                     </div>
                 </div>
             </section>
 
-            {#if installed}
-                <section
-                    class="overflow-hidden rounded-xl border border-anasthasia-border bg-anasthasia-surface xl:col-span-1 2xl:col-span-2"
-                >
-                    <div class="border-b border-anasthasia-border bg-anasthasia-panel px-4 py-2.5">
+            <section
+                class="overflow-hidden rounded-xl border border-anasthasia-border bg-anasthasia-surface"
+            >
+                <div class="border-b border-anasthasia-border bg-anasthasia-panel px-4 py-2.5">
+                    <span
+                        class="text-[10px] font-bold tracking-widest text-anasthasia-muted uppercase"
+                        >Runtime</span
+                    >
+                </div>
+                <div class="flex flex-col gap-4 px-4 py-3">
+                    <div class="flex items-center justify-between gap-4">
+                        <Toggle
+                            checked={settings.autoStart}
+                            onchange={toggleAutoStart}
+                            label="Start with Thasia"
+                        />
                         <span
-                            class="text-[10px] font-bold tracking-widest text-anasthasia-muted uppercase"
-                            >Extension repositories</span
+                            class="inline-flex items-center rounded-md border px-2 py-1 text-xs font-bold {statusClass(
+                                runtime
+                            )}"
                         >
+                            {statusText(runtime)}
+                        </span>
                     </div>
-                    <div class="flex flex-col gap-3 px-4 py-3">
-                        <div class="text-xs leading-5 text-anasthasia-muted">
-                            Suwayomi no longer ships default extension repositories. Thasia starts
-                            with Keiyoushi, a community-maintained Mihon extension repository.
-                            Changes apply after restart.
-                        </div>
-                        <div class="flex flex-col gap-2">
-                            {#each repoList() as repo, i (i)}
-                                <div class="flex gap-2">
-                                    <input
-                                        class="h-9 min-w-0 flex-1 rounded-lg border border-anasthasia-border bg-anasthasia-bg px-3 font-mono text-xs text-anasthasia-text transition-colors duration-150 outline-none placeholder:text-anasthasia-muted hover:border-anasthasia-accent/40 focus:border-anasthasia-accent/60"
-                                        placeholder="https://raw.githubusercontent.com/user/repo/index.min.json"
-                                        value={repo}
-                                        oninput={(event) =>
-                                            updateRepo(i, event.currentTarget.value)}
-                                    />
-                                    <button
-                                        onclick={() => removeRepo(i)}
-                                        aria-label="Remove extension repository"
-                                        class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-anasthasia-border bg-anasthasia-bg text-anasthasia-muted transition-colors duration-150 hover:border-red-500/40 hover:text-red-400"
-                                    >
-                                        <IconX size={14} />
-                                    </button>
-                                </div>
-                            {/each}
-                        </div>
-                        <div class="flex flex-wrap gap-2">
-                            <Button variant="secondary" size="sm" onclick={addRepo}>
-                                <IconPlus size={14} /> Add repo
-                            </Button>
-                            <Button variant="ghost" size="sm" onclick={resetRepos}>
-                                <IconRefresh size={14} /> Reset default
-                            </Button>
-                        </div>
+                    {#if runtime.state === 'error'}
+                        <Alert variant="danger" title="Runtime failed">{runtime.message}</Alert>
+                    {/if}
+                    <div class="flex flex-wrap gap-2">
+                        <Button
+                            variant="primary"
+                            loading={busy === 'start'}
+                            loadingLabel="Starting…"
+                            disabled={runtime.state === 'ready'}
+                            onclick={() => run('start', () => commands.suwayomiStart())}
+                        >
+                            <IconPlayerPlay size={15} /> Start
+                        </Button>
+                        <Button
+                            variant="secondary"
+                            loading={busy === 'stop'}
+                            loadingLabel="Stopping…"
+                            disabled={runtime.state !== 'ready'}
+                            onclick={() => run('stop', () => commands.suwayomiStop())}
+                        >
+                            <IconPlayerStop size={15} /> Stop
+                        </Button>
+                        <Button
+                            variant="secondary"
+                            loading={busy === 'restart'}
+                            loadingLabel="Restarting…"
+                            onclick={() => run('restart', () => commands.suwayomiRestart())}
+                        >
+                            <IconRotateClockwise size={15} /> Restart
+                        </Button>
                     </div>
-                </section>
+                </div>
+            </section>
 
-                <section
-                    class="overflow-hidden rounded-xl border border-anasthasia-border bg-anasthasia-surface"
-                >
-                    <div class="border-b border-anasthasia-border bg-anasthasia-panel px-4 py-2.5">
-                        <span
-                            class="text-[10px] font-bold tracking-widest text-anasthasia-muted uppercase"
-                            >Runtime</span
-                        >
-                    </div>
-                    <div class="flex flex-col gap-4 px-4 py-3">
-                        <div class="flex items-center justify-between gap-4">
-                            <Toggle
-                                checked={settings.autoStart}
-                                onchange={toggleAutoStart}
-                                label="Start with Thasia"
-                            />
-                            <span
-                                class="inline-flex items-center rounded-md border px-2 py-1 text-xs font-bold {statusClass(
-                                    runtime
-                                )}"
-                            >
-                                {statusText(runtime)}
-                            </span>
-                        </div>
-                        {#if runtime.state === 'error'}
-                            <Alert variant="danger" title="Runtime failed">{runtime.message}</Alert>
-                        {/if}
-                        <div class="flex flex-wrap gap-2">
-                            <Button
-                                variant="primary"
-                                loading={busy === 'start'}
-                                loadingLabel="Starting…"
-                                disabled={runtime.state === 'ready'}
-                                onclick={() => run('start', () => commands.suwayomiStart())}
-                            >
-                                <IconPlayerPlay size={15} /> Start
-                            </Button>
-                            <Button
-                                variant="secondary"
-                                loading={busy === 'stop'}
-                                loadingLabel="Stopping…"
-                                disabled={runtime.state !== 'ready'}
-                                onclick={() => run('stop', () => commands.suwayomiStop())}
-                            >
-                                <IconPlayerStop size={15} /> Stop
-                            </Button>
-                            <Button
-                                variant="secondary"
-                                loading={busy === 'restart'}
-                                loadingLabel="Restarting…"
-                                onclick={() => run('restart', () => commands.suwayomiRestart())}
-                            >
-                                <IconRotateClockwise size={15} /> Restart
-                            </Button>
-                        </div>
-                    </div>
-                </section>
-
-                <section
-                    class="overflow-hidden rounded-xl border border-anasthasia-border bg-anasthasia-surface"
-                >
-                    <div class="border-b border-anasthasia-border bg-anasthasia-panel px-4 py-2.5">
-                        <span
-                            class="text-[10px] font-bold tracking-widest text-anasthasia-muted uppercase"
-                            >Downloads</span
-                        >
-                    </div>
-                    <div class="flex flex-col gap-3 px-4 py-3">
-                        <div class="flex items-start justify-between gap-4">
-                            <div class="min-w-0 flex-1">
-                                <div class="text-sm font-medium">Download location</div>
-                                <div class="mt-1 text-xs text-anasthasia-muted">
-                                    Downloaded chapters are stored as CBZ files in a per-series
-                                    folder.
-                                </div>
+            <section
+                class="overflow-hidden rounded-xl border border-anasthasia-border bg-anasthasia-surface"
+            >
+                <div class="border-b border-anasthasia-border bg-anasthasia-panel px-4 py-2.5">
+                    <span
+                        class="text-[10px] font-bold tracking-widest text-anasthasia-muted uppercase"
+                        >Downloads</span
+                    >
+                </div>
+                <div class="flex flex-col gap-3 px-4 py-3">
+                    <div class="flex items-start justify-between gap-4">
+                        <div class="min-w-0 flex-1">
+                            <div class="text-sm font-medium">Download location</div>
+                            <div class="mt-1 text-xs text-anasthasia-muted">
+                                Downloaded chapters are stored as CBZ files in a per-series folder.
                             </div>
-                            <span
-                                class="rounded-md border border-anasthasia-border bg-anasthasia-bg px-2 py-1 text-xs font-bold text-anasthasia-muted"
-                            >
-                                {settings.downloadDir ? 'Custom' : 'Temporary'}
-                            </span>
                         </div>
-
-                        <div
-                            class="flex h-9 min-w-0 items-center rounded-lg border border-anasthasia-border bg-anasthasia-bg px-3 font-mono text-xs {settings.downloadDir
-                                ? 'text-anasthasia-text'
-                                : 'text-anasthasia-muted'}"
-                            title={settings.downloadDir ?? undefined}
+                        <span
+                            class="rounded-md border border-anasthasia-border bg-anasthasia-bg px-2 py-1 text-xs font-bold text-anasthasia-muted"
                         >
-                            <span class="truncate">{settings.downloadDir ?? 'Temporary folder'}</span>
-                        </div>
-
-                        <div class="flex flex-wrap gap-2">
-                            <Button variant="secondary" size="sm" onclick={chooseDownloadDir}>
-                                <IconFolderOpen size={14} /> Choose folder
-                            </Button>
-                            <Button variant="secondary" size="sm" onclick={useSystemDownloads}>
-                                <IconDownload size={14} /> Use Downloads
-                            </Button>
-                            <Button variant="ghost" size="sm" onclick={useTemporaryDownloads}>
-                                <IconClock size={14} /> Use temporary
-                            </Button>
-                        </div>
+                            {settings.downloadDir ? 'Custom' : 'Temporary'}
+                        </span>
                     </div>
-                </section>
 
-            {/if}
+                    <div
+                        class="flex h-9 min-w-0 items-center rounded-lg border border-anasthasia-border bg-anasthasia-bg px-3 font-mono text-xs {settings.downloadDir
+                            ? 'text-anasthasia-text'
+                            : 'text-anasthasia-muted'}"
+                        title={settings.downloadDir ?? undefined}
+                    >
+                        <span class="truncate">{settings.downloadDir ?? 'Temporary folder'}</span>
+                    </div>
+
+                    <div class="flex flex-wrap gap-2">
+                        <Button variant="secondary" size="sm" onclick={chooseDownloadDir}>
+                            <IconFolderOpen size={14} /> Choose folder
+                        </Button>
+                        <Button variant="secondary" size="sm" onclick={useSystemDownloads}>
+                            <IconDownload size={14} /> Use Downloads
+                        </Button>
+                        <Button variant="ghost" size="sm" onclick={useTemporaryDownloads}>
+                            <IconClock size={14} /> Use temporary
+                        </Button>
+                    </div>
+                </div>
+            </section>
+        {/if}
     </div>
 </div>

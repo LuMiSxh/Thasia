@@ -97,5 +97,3 @@ pub struct ChapterMeta {
     pub scanlator: Option<String>,
     pub downloaded: bool,
 }
-
-

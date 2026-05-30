@@ -3,7 +3,7 @@
 use crate::Generator;
 use async_trait::async_trait;
 use std::path::{Path, PathBuf};
-use thasia_core::{Result, ThasiaError, models::ProcessedImage};
+use thasia_core::{Result, ThasiaError, models::ProcessedImage, sanitize_filename_component};
 
 pub struct RawGenerator {
     output_dir: PathBuf,
@@ -26,7 +26,8 @@ impl Default for RawGenerator {
 #[async_trait]
 impl Generator for RawGenerator {
     async fn init(&mut self, output_dir: &Path, volume_name: &str) -> Result<()> {
-        self.output_dir = output_dir.join(volume_name);
+        let safe_volume_name = sanitize_filename_component(volume_name)?;
+        self.output_dir = output_dir.join(safe_volume_name);
         tokio::fs::create_dir_all(&self.output_dir)
             .await
             .map_err(ThasiaError::Io)?;

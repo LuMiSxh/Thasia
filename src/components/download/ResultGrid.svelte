@@ -1,5 +1,6 @@
 <script lang="ts">
     import { IconBook2, IconChevronRight, IconPhotoOff } from '@tabler/icons-svelte';
+    import { SvelteSet } from 'svelte/reactivity';
     import type { SearchResult } from '$types/bindings';
 
     let {
@@ -10,12 +11,10 @@
         onPick: (series: SearchResult) => void;
     } = $props();
 
-    let failedImages = $state<Set<number>>(new Set());
+    const failedImages = new SvelteSet<number>();
 
     function markImageFailed(id: number) {
-        const next = new Set(failedImages);
-        next.add(id);
-        failedImages = next;
+        failedImages.add(id);
     }
 </script>
 
@@ -35,22 +34,29 @@
                         onerror={() => markImageFailed(result.id)}
                     />
                 {:else}
-                    <div class="flex h-full items-center justify-center px-4 text-center text-xs text-anasthasia-muted">
+                    <div
+                        class="flex h-full items-center justify-center px-4 text-center text-xs text-anasthasia-muted"
+                    >
                         <IconPhotoOff size={22} />
                     </div>
                 {/if}
-                <div class="absolute right-2 top-2 rounded bg-black/65 px-1.5 py-0.5 text-[10px] font-bold uppercase text-white">
+                <div
+                    class="absolute top-2 right-2 rounded bg-black/65 px-1.5 py-0.5 text-[10px] font-bold text-white uppercase"
+                >
                     {result.initialized ? 'Loaded' : 'New'}
                 </div>
             </div>
             <div class="flex min-h-24 flex-col justify-between gap-2 px-2.5 py-2.5">
-                <div class="line-clamp-3 text-sm font-semibold leading-5">{result.title}</div>
+                <div class="line-clamp-3 text-sm leading-5 font-semibold">{result.title}</div>
                 <div class="flex items-center justify-between gap-2 text-xs text-anasthasia-muted">
                     <span class="flex min-w-0 items-center gap-1">
                         <IconBook2 size={13} />
                         <span class="truncate">Manga #{result.id}</span>
                     </span>
-                    <IconChevronRight size={14} class="shrink-0 transition-transform group-hover:translate-x-0.5" />
+                    <IconChevronRight
+                        size={14}
+                        class="shrink-0 transition-transform group-hover:translate-x-0.5"
+                    />
                 </div>
             </div>
         </button>

@@ -179,6 +179,8 @@ pub struct ConvertOptions {
     pub create_directory: bool,
     pub image_format: ImageFormat,
     pub max_width: Option<u32>,
+    pub force_reencode: bool,
+    pub clean_tones: bool,
     pub output_format: OutputFormat,
     pub direction: Direction,
     pub bundle: BundleMode,

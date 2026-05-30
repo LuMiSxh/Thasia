@@ -5,7 +5,9 @@ use async_zip::{
     tokio::write::ZipFileWriter,
 };
 use std::path::Path;
-use thasia_core::{Result, ThasiaError, models::ProcessedImage};
+use thasia_core::{
+    Result, ThasiaError, escape_xml_text, models::ProcessedImage, sanitize_filename_component,
+};
 use tokio::fs::File;
 
 const COMIC_INFO: &str = include_str!("../templates/comic_info.xml");
@@ -38,10 +40,11 @@ impl Generator for CbzGenerator {
         tokio::fs::create_dir_all(output_dir)
             .await
             .map_err(ThasiaError::Io)?;
-        let path = output_dir.join(format!("{volume_name}.cbz"));
+        let safe_volume_name = sanitize_filename_component(volume_name)?;
+        let path = output_dir.join(format!("{safe_volume_name}.cbz"));
         let file = File::create(&path).await.map_err(ThasiaError::Io)?;
         self.writer = Some(BaseZipFileWriter::with_tokio(file));
-        self.volume_name = volume_name.to_string();
+        self.volume_name = safe_volume_name;
         Ok(())
     }
 
@@ -80,8 +83,9 @@ impl Generator for CbzGenerator {
             .take()
             .ok_or_else(|| ThasiaError::Fatal("CbzGenerator not initialized".into()))?;
 
+        let title = escape_xml_text(&self.volume_name);
         let xml = COMIC_INFO
-            .replace("%title%", &self.volume_name)
+            .replace("%title%", &title)
             .replace("%pagecount%", &self.page_count.to_string());
 
         let builder = ZipEntryBuilder::new("ComicInfo.xml".into(), Compression::Deflate);

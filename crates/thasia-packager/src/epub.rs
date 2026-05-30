@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 use thasia_core::{
     Result, ThasiaError,
     models::{Direction, ProcessedImage},
+    sanitize_filename_component,
 };
 
 const PAGE_XHTML: &str = include_str!("../templates/epub_page.xhtml");
@@ -56,8 +57,9 @@ impl Generator for EpubGenerator {
         tokio::fs::create_dir_all(output_dir)
             .await
             .map_err(ThasiaError::Io)?;
+        let safe_volume_name = sanitize_filename_component(volume_name)?;
         self.output_dir = output_dir.to_path_buf();
-        self.volume_name = volume_name.to_string();
+        self.volume_name = safe_volume_name;
         Ok(())
     }
 

@@ -1,10 +1,17 @@
 [workspace]
-members = ["crates/*", "src-tauri"]
+members = [
+    "crates/thasia-core",
+    "crates/thasia-packager",
+    "crates/thasia-parser",
+    "crates/thasia-processor",
+    "crates/thasia-source",
+    "src-tauri",
+]
 resolver = "2"
 
 [workspace.package]
 edition = "2024"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["LuMiSxh"]
 license = "BSD-3 Clause"
 repository = "https://github.com/LuMiSxh/Thasia"
@@ -33,7 +40,7 @@ async-trait = "0.1"
 ravif = "0.13"
 rav1e = { version = "0.8", default-features = false }
 webp = "0.3"
-clap = { version = "4", features = ["derive"] }
+avif-decode = { version = "1.0.2", default-features = false }
 epub-builder = "0.8"
 zip = "8.6"
 specta = { version = "=2.0.0-rc.24", features = ["derive"] }
@@ -41,10 +48,3 @@ ordered-float = "5"
 url = "2"
 regex = "1"
 natord = "1"
-
-[profile.release]
-lto = "fat"
-codegen-units = 1
-opt-level = 3
-strip = true
-panic = "abort"

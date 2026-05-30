@@ -37,7 +37,7 @@
         {
             icon: IconPhoto,
             label: 'Image format',
-            value: `${wizard.imageFormat.toUpperCase()}${wizard.maxWidth ? ` (max ${wizard.maxWidth}px)` : ''}`,
+            value: `${wizard.imageFormat.toUpperCase()}${wizard.maxWidth ? ` (max ${wizard.maxWidth}px)` : ''}${wizard.forceReencode ? ' · force re-encode' : ''}${wizard.cleanTones ? ' · clean tones' : ''}`,
         },
         { icon: IconPackage, label: 'Container', value: wizard.container.toUpperCase() },
         ...(wizard.container === 'epub'

@@ -16,8 +16,10 @@
 
     let version = $state('...');
     let runtime = $state<RuntimeState>({ state: 'not_running' });
+    let primaryShortcutLabel = $state('⌘');
 
     onMount(async () => {
+        primaryShortcutLabel = navigator.platform.startsWith('Mac') ? '⌘' : 'Ctrl';
         try {
             version = await getVersion();
         } catch {
@@ -74,13 +76,16 @@
     ></div>
 
     <!-- Content -->
-    <div class="relative z-10 flex h-full w-full flex-col justify-center gap-8 px-14 py-10 md:max-w-xl">
+    <div
+        class="relative z-10 flex h-full w-full flex-col justify-center gap-8 px-14 py-10 md:max-w-xl"
+    >
         <!-- Wordmark -->
         <div class="flex flex-col items-start gap-2.5">
             <div class="flex flex-wrap items-center gap-2">
                 <Badge variant="mono">v{version}</Badge>
                 <Badge variant={runtimeBadge(runtime)}>
-                    <IconServer size={12} /> {runtimeLabel(runtime)}
+                    <IconServer size={12} />
+                    {runtimeLabel(runtime)}
                 </Badge>
             </div>
             <div class="text-accent-gradient text-7xl leading-none font-bold tracking-tight">
@@ -111,7 +116,9 @@
                         <IconZip size={22} class="text-anasthasia-accent" />
                     </div>
                     <div class="text-left">
-                        <div class="text-base font-bold text-anasthasia-text">Convert local manga</div>
+                        <div class="text-base font-bold text-anasthasia-text">
+                            Convert local manga
+                        </div>
                         <div class="mt-0.5 text-xs text-anasthasia-muted">
                             Folder, ZIP, or CBZ into reader-ready output
                         </div>
@@ -136,7 +143,7 @@
                     </div>
                     <div class="min-w-0 flex-1">
                         <div class="text-sm font-bold text-anasthasia-text">Discover</div>
-                        <div class="truncate text-xs text-anasthasia-muted">Catalogs and downloads</div>
+                        <div class="truncate text-xs text-anasthasia-muted">Catalogs/Downloads</div>
                     </div>
                     <IconChevronRight
                         size={14}
@@ -165,7 +172,7 @@
         </div>
         <div class="flex items-center gap-2 text-xs text-anasthasia-muted">
             <span>Or press</span>
-            <Kbd>⌘</Kbd>
+            <Kbd>{primaryShortcutLabel}</Kbd>
             <Kbd>2</Kbd>
             <span>to jump straight in</span>
         </div>

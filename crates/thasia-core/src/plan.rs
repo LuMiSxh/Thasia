@@ -1,13 +1,10 @@
-//! Shared conversion-plan types and helpers used by both the CLI and the
-//! Tauri backend. Owns the bundle-mode definition and the volume-naming logic
-//! so the two binaries can't drift.
+//! Shared conversion-plan types and helpers used by the Tauri backend.
 
 use crate::models::ParsedImage;
 use std::collections::BTreeMap;
 
 /// How chapters/scan-volumes are grouped into output volumes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-#[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
 #[cfg_attr(
     feature = "tauri",
     derive(serde::Serialize, serde::Deserialize, specta::Type)

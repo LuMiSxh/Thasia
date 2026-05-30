@@ -1,10 +1,38 @@
 name: 'publish'
 
 on:
-    workflow_dispatch: # Only run this workflow when manually triggered.
+    workflow_dispatch:
+        inputs:
+            tag:
+                description: 'Release tag (e.g. v0.3.0) — must match workspace version'
+                required: true
+                type: string
+
+env:
+    CARGO_TERM_COLOR: always
+    CARGO_INCREMENTAL: '0'
 
 jobs:
+    validate:
+        permissions:
+            contents: read
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v6
+
+            - name: Verify tag matches workspace version
+              shell: bash
+              run: |
+                  cargo_version="$(grep '^version = ' Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')"
+                  tag_version="${{ inputs.tag }}"
+                  tag_version="${tag_version#v}"
+                  if [ "$cargo_version" != "$tag_version" ]; then
+                    echo "::error::Tag version ($tag_version) does not match workspace version ($cargo_version)"
+                    exit 1
+                  fi
+
     publish-thasia:
+        needs: validate
         permissions:
             contents: write
         strategy:
@@ -13,20 +41,12 @@ jobs:
                 include:
                     - platform: 'macos-latest' # Apple Silicon
                       args: '--target aarch64-apple-darwin'
-                      cli_target: 'aarch64-apple-darwin'
-                      cli_name: 'thasia-cli-macos-aarch64'
                     - platform: 'macos-latest' # Intel Mac
                       args: '--target x86_64-apple-darwin'
-                      cli_target: 'x86_64-apple-darwin'
-                      cli_name: 'thasia-cli-macos-x86_64'
                     - platform: 'ubuntu-22.04' # Linux
                       args: ''
-                      cli_target: ''
-                      cli_name: 'thasia-cli-linux-x86_64'
                     - platform: 'windows-latest' # Windows
                       args: ''
-                      cli_target: ''
-                      cli_name: 'thasia-cli-windows-x86_64'
 
         runs-on: ${{ matrix.platform }}
         steps:
@@ -37,13 +57,13 @@ jobs:
               run: |
                   sudo apt-get update
                   # webkit2gtk-4.1 is required for Tauri v2
-                  sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf nasm
+                  sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf nasm cmake lld
 
             - name: install dependencies (macOS only)
               if: matrix.platform == 'macos-latest'
-              # nasm is required for rav1e (AVIF encoding) to compile successfully
+              # nasm is required for rav1e (AVIF encoding); cmake is required for AVIF decode fallback.
               run: |
-                  brew install nasm
+                  brew install nasm cmake
 
             - name: Configure long paths for Windows
               if: matrix.platform == 'windows-latest'
@@ -59,58 +79,51 @@ jobs:
               uses: actions/setup-node@v6
               with:
                   node-version: lts/*
+                  cache: 'pnpm'
 
             - name: install Rust stable
               uses: dtolnay/rust-toolchain@stable
               with:
                   targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+                  components: llvm-tools-preview
+
+            - name: Verify CMake is available
+              run: cmake --version
 
             - name: Rust cache
               uses: swatinem/rust-cache@v2
               with:
-                  # Updated to cache the entire multi-crate workspace
                   workspaces: '. -> target'
+                  cache-on-failure: true
 
             - name: install frontend dependencies
               run: pnpm install --frozen-lockfile
 
-            # 1. Build the Headless CLI first
-            - name: Build Headless CLI
-              run: cargo build --release --bin thasia-cli ${{ matrix.args }}
+            - name: Extract changelog for this version
+              id: changelog
+              shell: bash
+              run: |
+                  version="${{ inputs.tag }}"
+                  version="${version#v}"
+                  awk "/^## \[${version}\]/{found=1; next} /^## \[/{if(found) exit} found{print}" CHANGELOG.md > release_notes.md
+                  if [ ! -s release_notes.md ]; then
+                    echo "Thasia ${{ inputs.tag }}" > release_notes.md
+                  fi
+                  {
+                    echo 'notes<<EOF'
+                    cat release_notes.md
+                    echo EOF
+                  } >> "$GITHUB_OUTPUT"
 
-            # 2. Build & Draft Release for the Tauri App
             - name: Build & Publish Tauri App
               uses: tauri-apps/tauri-action@v0
               id: tauri_build
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               with:
-                  tagName: v__VERSION__
-                  releaseName: 'Thasia v__VERSION__'
-                  releaseBody: 'See the assets to download this version and install.'
+                  tagName: ${{ inputs.tag }}
+                  releaseName: 'Thasia ${{ inputs.tag }}'
+                  releaseBody: ${{ steps.changelog.outputs.notes }}
                   releaseDraft: true
                   prerelease: false
                   args: ${{ matrix.args }}
-
-            # 3. Rename the built CLI binary for clarity
-            - name: Prepare CLI Binary
-              shell: bash
-              run: |
-                  TARGET_DIR="target"
-                  if [ -n "${{ matrix.cli_target }}" ]; then
-                    TARGET_DIR="target/${{ matrix.cli_target }}"
-                  fi
-
-                  if [ "${{ matrix.platform }}" = "windows-latest" ]; then
-                    mv "$TARGET_DIR/release/thasia-cli.exe" "${{ matrix.cli_name }}.exe"
-                  else
-                    mv "$TARGET_DIR/release/thasia-cli" "${{ matrix.cli_name }}"
-                  fi
-
-            # 4. Upload the CLI to the draft release created by Tauri
-            - name: Upload CLI to Release
-              env:
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-              shell: bash
-              run: |
-                  gh release upload "v${{ steps.tauri_build.outputs.appVersion }}" ${{ matrix.cli_name }}*
