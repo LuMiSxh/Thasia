@@ -5,11 +5,9 @@ use crate::{
 };
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
-use thasia_core::{
-    ThasiaError,
-    models::{ImageFormat, ParsedImage, ProcessedImage},
-};
-use thasia_source::Source;
+use std::time::{Duration, Instant};
+use thasia_core::prelude::*;
+use thasia_source::prelude::{FetchedImage, Source};
 use tokio::sync::mpsc;
 use tracing::warn;
 
@@ -19,6 +17,23 @@ pub struct EncodeOptions {
     pub max_width: Option<u32>,
     pub force_reencode: bool,
     pub clean_tones: bool,
+    pub color_enhance: ColorEnhanceMode,
+    pub sharpen: SharpenMode,
+}
+
+struct RawImage {
+    parsed: ParsedImage,
+    bytes: FetchedImage,
+    original_ext: String,
+    fetch_duration: Duration,
+}
+
+struct EncodedImage {
+    data: Vec<u8>,
+    ext: String,
+    width: u32,
+    height: u32,
+    stats: ProcessingStats,
 }
 
 /// Two-stage pipeline:
@@ -32,14 +47,6 @@ pub struct EncodeOptions {
 ///
 /// This matches Palaxy's approach: N cores are always busy encoding; no thread
 /// thrashing from spawning one blocking task per image.
-pub async fn start_pipeline<S: Source + 'static>(
-    source: Arc<S>,
-    parsed_rx: mpsc::Receiver<ParsedImage>,
-    options: EncodeOptions,
-) -> mpsc::Receiver<thasia_core::Result<ProcessedImage>> {
-    start_pipeline_inner(source, parsed_rx, options, None).await
-}
-
 pub async fn start_pipeline_with_cancel<S: Source + 'static>(
     source: Arc<S>,
     parsed_rx: mpsc::Receiver<ParsedImage>,
@@ -63,7 +70,7 @@ async fn start_pipeline_inner<S: Source + 'static>(
 
     // Bounded channel: async fetch → sync Rayon encode.
     // Buffer = num_cores * 2 lets the fetch stage stay slightly ahead of encoding.
-    let (raw_tx, raw_rx) = mpsc::channel::<(ParsedImage, Vec<u8>, String)>(num_cores * 2);
+    let (raw_tx, raw_rx) = mpsc::channel::<RawImage>(num_cores * 2);
 
     // ── Stage 1: async fetch ──────────────────────────────────────────────────
     // Source advertises its preferred concurrency; local FS sources stay small
@@ -99,6 +106,7 @@ async fn start_pipeline_inner<S: Source + 'static>(
                     .to_lowercase();
 
                 let label = || parsed.source.relative_path.clone();
+                let fetch_start = Instant::now();
                 match with_retries(&label(), || async {
                     source
                         .fetch(&parsed.source)
@@ -111,7 +119,14 @@ async fn start_pipeline_inner<S: Source + 'static>(
                         if is_cancelled(&cancel) {
                             return;
                         }
-                        let _ = raw_tx.send((parsed, bytes, ext)).await;
+                        let _ = raw_tx
+                            .send(RawImage {
+                                parsed,
+                                bytes,
+                                original_ext: ext,
+                                fetch_duration: fetch_start.elapsed(),
+                            })
+                            .await;
                     }
                     Err(e) => warn!("Skipping {} (fetch failed): {}", label(), e),
                 }
@@ -141,7 +156,7 @@ async fn start_pipeline_inner<S: Source + 'static>(
         }
 
         rayon::scope(move |s| {
-            while let Some((parsed, bytes, ext)) = raw_rx.blocking_recv() {
+            while let Some(raw) = raw_rx.blocking_recv() {
                 if is_cancelled(&cancel_encode) {
                     break;
                 }
@@ -154,15 +169,17 @@ async fn start_pipeline_inner<S: Source + 'static>(
                         let _ = slot_tx.send(());
                         return;
                     }
-                    let result = encode_image(bytes, &ext, opts).map(|(data, enc_ext, w, h)| {
-                        ProcessedImage {
-                            parsed_data: parsed,
-                            image_data: data,
-                            ext: enc_ext,
-                            width: w,
-                            height: h,
-                        }
-                    });
+                    let result =
+                        encode_image(raw.bytes, &raw.original_ext, opts, raw.fetch_duration).map(
+                            |encoded| ProcessedImage {
+                                parsed_data: raw.parsed,
+                                image_data: encoded.data,
+                                ext: encoded.ext,
+                                width: encoded.width,
+                                height: encoded.height,
+                                stats: encoded.stats,
+                            },
+                        );
                     // Release slot before blocking_send so the coordinator can
                     // keep the encode pool fed even if result_tx is temporarily full.
                     let _ = slot_tx.send(());
@@ -185,44 +202,114 @@ fn is_cancelled(cancel: &Option<Arc<AtomicBool>>) -> bool {
 }
 
 fn encode_image(
-    bytes: Vec<u8>,
+    bytes: FetchedImage,
     original_ext: &str,
     opts: EncodeOptions,
-) -> thasia_core::Result<(Vec<u8>, String, u32, u32)> {
+    fetch_duration: Duration,
+) -> thasia_core::Result<EncodedImage> {
+    let total_start = Instant::now();
+    let input_bytes = bytes.len() as u64;
     if opts.format == ImageFormat::Original {
         // Header-only dimension read — orders of magnitude faster than a full
         // decode, which is critical for the "no re-encoding" fast path. Keep
         // this best-effort so supported source extensions can still pass
         // through even when the `image` crate cannot decode that format.
-        let (w, h) = image_dimensions_best_effort(&bytes);
-        return Ok((bytes, original_ext.to_string(), w, h));
+        let (w, h) = image_dimensions_best_effort(bytes.as_ref());
+        let bytes = bytes.into_vec();
+        let output_bytes = bytes.len() as u64;
+        return Ok(EncodedImage {
+            data: bytes,
+            ext: original_ext.to_string(),
+            width: w,
+            height: h,
+            stats: ProcessingStats {
+                input_bytes,
+                output_bytes,
+                passthrough: true,
+                fetch_ms: duration_ms(fetch_duration),
+                total_ms: duration_ms(total_start.elapsed()),
+                ..ProcessingStats::default()
+            },
+        });
     }
 
     if can_passthrough(original_ext, opts) {
-        let (w, h) = image_dimensions_best_effort(&bytes);
-        return Ok((bytes, target_extension(opts.format).to_string(), w, h));
+        let (w, h) = image_dimensions_best_effort(bytes.as_ref());
+        let bytes = bytes.into_vec();
+        let output_bytes = bytes.len() as u64;
+        return Ok(EncodedImage {
+            data: bytes,
+            ext: target_extension(opts.format).to_string(),
+            width: w,
+            height: h,
+            stats: ProcessingStats {
+                input_bytes,
+                output_bytes,
+                passthrough: true,
+                fetch_ms: duration_ms(fetch_duration),
+                total_ms: duration_ms(total_start.elapsed()),
+                ..ProcessingStats::default()
+            },
+        });
     }
 
-    let mut img = decode_image(&bytes, original_ext)?;
+    let decode_start = Instant::now();
+    let mut img = decode_image(bytes.as_ref(), original_ext)?;
+    let decode_ms = duration_ms(decode_start.elapsed());
     // Drop the compressed bytes now — AVIF/WebP encoding is the hot path and
     // holding the JPEG buffer alongside the decoded pixel buffer wastes memory.
     drop(bytes);
 
-    TransformPipeline::new(opts.max_width, opts.clean_tones).apply(&mut img);
+    let transform_start = Instant::now();
+    TransformPipeline::new(
+        opts.max_width,
+        opts.clean_tones,
+        opts.color_enhance,
+        opts.sharpen,
+    )
+    .apply(&mut img);
+    let transform_ms = duration_ms(transform_start.elapsed());
 
     let (w, h) = (img.width(), img.height());
 
+    let encode_start = Instant::now();
     let (data, ext) = match opts.format {
         ImageFormat::Avif => (convert_to_avif(&img)?, "avif".to_string()),
         ImageFormat::Webp => (convert_to_webp(&img)?, "webp".to_string()),
         ImageFormat::Original => unreachable!(),
     };
+    let encode_ms = duration_ms(encode_start.elapsed());
+    let output_bytes = data.len() as u64;
 
-    Ok((data, ext, w, h))
+    Ok(EncodedImage {
+        data,
+        ext,
+        width: w,
+        height: h,
+        stats: ProcessingStats {
+            input_bytes,
+            output_bytes,
+            passthrough: false,
+            fetch_ms: duration_ms(fetch_duration),
+            decode_ms,
+            transform_ms,
+            encode_ms,
+            total_ms: duration_ms(total_start.elapsed()),
+        },
+    })
+}
+
+fn duration_ms(duration: Duration) -> f64 {
+    duration.as_secs_f64() * 1000.0
 }
 
 fn can_passthrough(original_ext: &str, opts: EncodeOptions) -> bool {
-    if opts.force_reencode || opts.max_width.is_some() || opts.clean_tones {
+    if opts.force_reencode
+        || opts.max_width.is_some()
+        || opts.clean_tones
+        || opts.color_enhance != ColorEnhanceMode::Off
+        || opts.sharpen != SharpenMode::Off
+    {
         return false;
     }
     normalize_ext(original_ext) == target_extension(opts.format)
@@ -344,6 +431,8 @@ mod tests {
             max_width: None,
             force_reencode: false,
             clean_tones: false,
+            color_enhance: ColorEnhanceMode::Off,
+            sharpen: SharpenMode::Off,
         };
         assert!(can_passthrough("avif", opts));
     }
@@ -355,6 +444,8 @@ mod tests {
             max_width: None,
             force_reencode: true,
             clean_tones: false,
+            color_enhance: ColorEnhanceMode::Off,
+            sharpen: SharpenMode::Off,
         };
         assert!(!can_passthrough("avif", opts));
     }
@@ -366,6 +457,8 @@ mod tests {
             max_width: Some(1920),
             force_reencode: false,
             clean_tones: false,
+            color_enhance: ColorEnhanceMode::Off,
+            sharpen: SharpenMode::Off,
         };
         assert!(!can_passthrough("webp", opts));
     }
@@ -377,8 +470,36 @@ mod tests {
             max_width: None,
             force_reencode: false,
             clean_tones: true,
+            color_enhance: ColorEnhanceMode::Off,
+            sharpen: SharpenMode::Off,
         };
         assert!(!can_passthrough("avif", opts));
+    }
+
+    #[test]
+    fn color_enhance_disables_passthrough() {
+        let opts = EncodeOptions {
+            format: ImageFormat::Avif,
+            max_width: None,
+            force_reencode: false,
+            clean_tones: false,
+            color_enhance: ColorEnhanceMode::Mild,
+            sharpen: SharpenMode::Off,
+        };
+        assert!(!can_passthrough("avif", opts));
+    }
+
+    #[test]
+    fn sharpen_disables_passthrough() {
+        let opts = EncodeOptions {
+            format: ImageFormat::Webp,
+            max_width: None,
+            force_reencode: false,
+            clean_tones: false,
+            color_enhance: ColorEnhanceMode::Off,
+            sharpen: SharpenMode::Mild,
+        };
+        assert!(!can_passthrough("webp", opts));
     }
 
     #[test]

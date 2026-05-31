@@ -70,6 +70,8 @@
             defaults.maxWidth,
             defaults.forceReencode,
             defaults.cleanTones,
+            defaults.colorEnhance,
+            defaults.sharpen,
             defaults.showKeyHints,
             defaults.defaultOutputDir,
             maxWidthEnabled,
@@ -218,6 +220,8 @@
                         bind:enableMaxWidth={maxWidthEnabled}
                         bind:forceReencode={defaults.forceReencode}
                         bind:cleanTones={defaults.cleanTones}
+                        bind:colorEnhance={defaults.colorEnhance}
+                        bind:sharpen={defaults.sharpen}
                     />
 
                     <div

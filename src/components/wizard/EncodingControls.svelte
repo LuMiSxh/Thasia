@@ -2,7 +2,15 @@
     import { slide } from 'svelte/transition';
     import { cubicInOut } from 'svelte/easing';
     import { duration, Input, SegmentedControl, Toggle } from 'anasthasia';
-    import { IconEraser, IconPhoto, IconRefresh, IconRuler } from '@tabler/icons-svelte';
+    import {
+        IconColorSwatch,
+        IconEraser,
+        IconFocus2,
+        IconPhoto,
+        IconRefresh,
+        IconRuler,
+    } from '@tabler/icons-svelte';
+    import type { ColorEnhanceMode, SharpenMode } from '$lib/wizard/state.svelte';
 
     interface Props {
         format: 'avif' | 'webp' | 'original';
@@ -10,6 +18,8 @@
         enableMaxWidth: boolean;
         forceReencode: boolean;
         cleanTones: boolean;
+        colorEnhance: ColorEnhanceMode;
+        sharpen: SharpenMode;
     }
 
     let {
@@ -18,6 +28,8 @@
         enableMaxWidth = $bindable(),
         forceReencode = $bindable(),
         cleanTones = $bindable(),
+        colorEnhance = $bindable(),
+        sharpen = $bindable(),
     }: Props = $props();
 
     const collapse = { duration: duration.base, easing: cubicInOut };
@@ -32,6 +44,8 @@
         if (format === 'original') {
             forceReencode = false;
             cleanTones = false;
+            colorEnhance = 'off';
+            sharpen = 'off';
         }
     });
 </script>
@@ -88,6 +102,49 @@
             </div>
         </div>
         <Toggle bind:checked={cleanTones} disabled={format === 'original'} />
+    </div>
+
+    <div class="mx-4 border-t border-anasthasia-border"></div>
+
+    <!-- Enhance -->
+    <div class="flex flex-col gap-2.5 px-4 py-3">
+        <div class="flex items-center gap-2">
+            <IconColorSwatch size={14} class="flex-shrink-0 text-anasthasia-muted" />
+            <div>
+                <div class="text-sm font-medium">Color enhance</div>
+                <div class="text-xs text-anasthasia-muted">Lift faded color scans</div>
+            </div>
+        </div>
+        <SegmentedControl
+            options={[
+                { value: 'off', label: 'Off' },
+                { value: 'mild', label: 'Mild' },
+                { value: 'balanced', label: 'Balanced' },
+                { value: 'strong', label: 'Strong' },
+            ]}
+            bind:value={colorEnhance}
+            disabled={format === 'original'}
+        />
+    </div>
+
+    <div class="mx-4 border-t border-anasthasia-border"></div>
+
+    <div class="flex flex-col gap-2.5 px-4 py-3">
+        <div class="flex items-center gap-2">
+            <IconFocus2 size={14} class="flex-shrink-0 text-anasthasia-muted" />
+            <div>
+                <div class="text-sm font-medium">Sharpen</div>
+                <div class="text-xs text-anasthasia-muted">Mild unsharp mask for soft scans</div>
+            </div>
+        </div>
+        <SegmentedControl
+            options={[
+                { value: 'off', label: 'Off' },
+                { value: 'mild', label: 'Mild' },
+            ]}
+            bind:value={sharpen}
+            disabled={format === 'original'}
+        />
     </div>
 
     <div class="mx-4 border-t border-anasthasia-border"></div>

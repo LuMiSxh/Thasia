@@ -7,12 +7,13 @@ pub use epub::EpubGenerator;
 pub use raw::RawGenerator;
 
 use async_trait::async_trait;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use thasia_core::{Result, models::ProcessedImage};
 
 #[async_trait]
 pub trait Generator: Send {
     async fn init(&mut self, output_dir: &Path, volume_name: &str) -> Result<()>;
     async fn add_page(&mut self, image: ProcessedImage) -> Result<()>;
+    fn output_path(&self) -> Option<PathBuf>;
     async fn finalize(self: Box<Self>) -> Result<()>;
 }

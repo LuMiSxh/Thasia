@@ -1,5 +1,6 @@
 mod commands;
 mod events;
+mod pipeline_plan;
 mod protocol;
 mod state;
 mod tracing_setup;
@@ -17,6 +18,7 @@ fn make_specta_builder() -> SpectaBuilder<tauri::Wry> {
         .commands(collect_commands![
             commands::scan::scan_source,
             commands::scan::scan_current_source,
+            commands::convert::build_pipeline_plan,
             commands::convert::convert,
             commands::cancel::cancel_conversion,
             commands::discovery::get_discovery_settings,

@@ -5,7 +5,7 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 use thasia_core::{
     BundleMode,
-    models::{Direction, ImageFormat, OutputFormat, ParsedImage},
+    models::{ColorEnhanceMode, Direction, ImageFormat, OutputFormat, ParsedImage, SharpenMode},
 };
 use thasia_source::suwayomi::{SuwayomiClient, SuwayomiInstaller, SuwayomiManager};
 use tokio::sync::{Mutex, RwLock as AsyncRwLock};
@@ -181,6 +181,10 @@ pub struct ConvertOptions {
     pub max_width: Option<u32>,
     pub force_reencode: bool,
     pub clean_tones: bool,
+    #[serde(default)]
+    pub color_enhance: ColorEnhanceMode,
+    #[serde(default)]
+    pub sharpen: SharpenMode,
     pub output_format: OutputFormat,
     pub direction: Direction,
     pub bundle: BundleMode,
@@ -239,6 +243,61 @@ pub struct VolumeEdit {
     pub volume_num: u32,
     /// Pages in final display order (after drag reorder + excludes + additions).
     pub pages: Vec<PageEditEntry>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(rename_all = "snake_case")]
+pub enum PipelineCostClass {
+    Cheap,
+    Medium,
+    Expensive,
+    Experimental,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct PipelineStepEffects {
+    pub dimensions: bool,
+    pub pixels: bool,
+    pub alpha: bool,
+    pub metadata: bool,
+    pub passthrough: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct PipelineStep {
+    pub id: String,
+    pub label: String,
+    pub category: String,
+    pub enabled: bool,
+    pub default_enabled: bool,
+    pub exclusive_group: Option<String>,
+    pub conflicts: Vec<String>,
+    pub effects: PipelineStepEffects,
+    pub cost: PipelineCostClass,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct PipelineStage {
+    pub id: String,
+    pub label: String,
+    pub enabled: bool,
+    pub steps: Vec<PipelineStep>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct PipelinePlan {
+    pub total_pages: u32,
+    pub included_pages: u32,
+    pub excluded_pages: u32,
+    pub added_pages: u32,
+    pub volumes: u32,
+    pub image_format: ImageFormat,
+    pub output_format: OutputFormat,
+    pub stages: Vec<PipelineStage>,
 }
 
 #[cfg(test)]

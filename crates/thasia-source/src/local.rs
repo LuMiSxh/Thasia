@@ -1,5 +1,6 @@
-use crate::Source;
+use crate::{FetchedImage, Source};
 use async_trait::async_trait;
+use memmap2::MmapOptions;
 use std::fs::File;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
@@ -12,6 +13,7 @@ const MAX_ARCHIVE_IMAGES: usize = 20_000;
 const MAX_ARCHIVE_ENTRY_BYTES: u64 = 512 * 1024 * 1024;
 const MAX_ARCHIVE_TOTAL_BYTES: u64 = 4 * 1024 * 1024 * 1024;
 const MAX_ARCHIVE_COMPRESSION_RATIO: u64 = 200;
+const MMAP_MIN_BYTES: u64 = 1024 * 1024;
 
 #[derive(Debug, Default)]
 pub struct LocalSource {
@@ -48,73 +50,6 @@ impl LocalSource {
         .map_err(|e| ThasiaError::Fatal(e.to_string()))??;
 
         Ok(Self::from_temp_dir(temp))
-    }
-
-    /// Extracts a CBZ/ZIP archive into `dest_dir`, renaming images to
-    /// `001.ext`, `002.ext`, … (sorted by natural order of the original names).
-    ///
-    /// Only image files are extracted; directory entries and non-image files
-    /// are skipped.
-    pub async fn extract_chapter_cbz(cbz_path: PathBuf, dest_dir: PathBuf) -> Result<()> {
-        tokio::task::spawn_blocking(move || {
-            std::fs::create_dir_all(&dest_dir).map_err(ThasiaError::Io)?;
-            let file = std::fs::File::open(&cbz_path).map_err(ThasiaError::Io)?;
-            let mut archive = zip::ZipArchive::new(file)
-                .map_err(|e| ThasiaError::Fatal(format!("Failed to open archive: {e}")))?;
-
-            // Phase 1: collect image entry names sorted by natural order.
-            let mut image_names: Vec<String> = Vec::new();
-            let mut total_uncompressed = 0u64;
-            for i in 0..archive.len() {
-                let entry = archive
-                    .by_index(i)
-                    .map_err(|e| ThasiaError::Fatal(format!("Archive read error: {e}")))?;
-                if entry.is_dir() {
-                    continue;
-                }
-                let Some(enclosed) = entry.enclosed_name() else {
-                    continue;
-                };
-                if !is_supported_image_path(&enclosed) {
-                    continue;
-                }
-                validate_archive_entry_size(entry.size(), entry.compressed_size())?;
-                total_uncompressed = total_uncompressed.saturating_add(entry.size());
-                if total_uncompressed > MAX_ARCHIVE_TOTAL_BYTES {
-                    return Err(ThasiaError::Fatal(format!(
-                        "Archive is too large after extraction: {} bytes",
-                        total_uncompressed
-                    )));
-                }
-                image_names.push(entry.name().to_string());
-                if image_names.len() > MAX_ARCHIVE_IMAGES {
-                    return Err(ThasiaError::Fatal(format!(
-                        "Archive contains too many images: more than {MAX_ARCHIVE_IMAGES}"
-                    )));
-                }
-            }
-            image_names.sort_by(|a, b| natord::compare(a, b));
-
-            // Phase 2: extract and rename sequentially.
-            for (index, name) in image_names.iter().enumerate() {
-                let ext = std::path::Path::new(name.as_str())
-                    .extension()
-                    .and_then(|e| e.to_str())
-                    .unwrap_or("jpg")
-                    .to_lowercase();
-                let dest_file = dest_dir.join(format!("{:03}.{ext}", index + 1));
-                let mut entry = archive
-                    .by_name(name.as_str())
-                    .map_err(|e| ThasiaError::Fatal(format!("Archive entry not found: {e}")))?;
-                validate_archive_entry_size(entry.size(), entry.compressed_size())?;
-                let mut out = std::fs::File::create(&dest_file).map_err(ThasiaError::Io)?;
-                std::io::copy(&mut entry, &mut out).map_err(ThasiaError::Io)?;
-            }
-
-            Ok::<(), ThasiaError>(())
-        })
-        .await
-        .map_err(|e| ThasiaError::Fatal(e.to_string()))?
     }
 
     /// Returns true if the given path looks like a ZIP or CBZ archive.
@@ -161,7 +96,7 @@ impl Source for LocalSource {
                 let relative = entry
                     .path()
                     .strip_prefix(&root)
-                    .unwrap()
+                    .unwrap_or_else(|_| entry.path())
                     .to_string_lossy()
                     .into_owned();
                 let img = DiscoveredImage {
@@ -177,9 +112,9 @@ impl Source for LocalSource {
         Ok(rx)
     }
 
-    async fn fetch(&self, img: &DiscoveredImage) -> Result<Vec<u8>> {
+    async fn fetch(&self, img: &DiscoveredImage) -> Result<FetchedImage> {
         let path = img.absolute_path.clone();
-        tokio::task::spawn_blocking(move || read_file_sequential(&path))
+        tokio::task::spawn_blocking(move || fetch_local_file(&path))
             .await
             .map_err(|e| ThasiaError::Fatal(e.to_string()))?
             .map_err(ThasiaError::Io)
@@ -269,45 +204,70 @@ fn copy_bounded<R: Read, W: Write>(reader: &mut R, writer: &mut W, max_bytes: u6
     Ok(written)
 }
 
-fn read_file_sequential(path: &Path) -> std::io::Result<Vec<u8>> {
-    let mut file = open_file_for_sequential_read(path)?;
-    advise_sequential_read(&file);
+fn fetch_local_file(path: &Path) -> std::io::Result<FetchedImage> {
+    let mut file = platform::open_file_for_sequential_read(path)?;
+    platform::advise_sequential_read(&file);
+    let len = file.metadata().map(|metadata| metadata.len()).unwrap_or(0);
+    if len >= MMAP_MIN_BYTES {
+        match map_file(&file) {
+            Ok(map) => return Ok(FetchedImage::Mmap(map)),
+            Err(err) => {
+                tracing::debug!(
+                    "Falling back to buffered read for {}: {err}",
+                    path.display()
+                );
+            }
+        }
+    }
 
-    let capacity = file
-        .metadata()
-        .ok()
-        .and_then(|metadata| usize::try_from(metadata.len()).ok())
-        .unwrap_or(0);
+    read_open_file(&mut file, len).map(FetchedImage::Vec)
+}
+
+fn read_open_file(file: &mut File, len: u64) -> std::io::Result<Vec<u8>> {
+    let capacity = usize::try_from(len).unwrap_or(0);
     let mut bytes = Vec::with_capacity(capacity);
     file.read_to_end(&mut bytes)?;
     Ok(bytes)
 }
 
-#[cfg(target_os = "windows")]
-fn open_file_for_sequential_read(path: &Path) -> std::io::Result<File> {
-    use std::os::windows::fs::OpenOptionsExt;
-
-    const FILE_FLAG_SEQUENTIAL_SCAN: u32 = 0x0800_0000;
-
-    std::fs::OpenOptions::new()
-        .read(true)
-        .custom_flags(FILE_FLAG_SEQUENTIAL_SCAN)
-        .open(path)
+fn map_file(file: &File) -> std::io::Result<memmap2::Mmap> {
+    // SAFETY: The map is read-only and tied to this file's current contents.
+    // If the user mutates/truncates source files while conversion is running,
+    // the OS may invalidate the mapping; normal conversions treat sources as
+    // immutable for the duration of the job.
+    unsafe { MmapOptions::new().map(file) }
 }
 
-#[cfg(not(target_os = "windows"))]
-fn open_file_for_sequential_read(path: &Path) -> std::io::Result<File> {
-    File::open(path)
-}
+mod platform {
+    use std::fs::File;
+    use std::path::Path;
 
-#[cfg(target_os = "linux")]
-fn advise_sequential_read(file: &File) {
-    use std::os::fd::AsRawFd;
+    #[cfg(target_os = "windows")]
+    pub fn open_file_for_sequential_read(path: &Path) -> std::io::Result<File> {
+        use std::os::windows::fs::OpenOptionsExt;
 
-    unsafe {
-        libc::posix_fadvise(file.as_raw_fd(), 0, 0, libc::POSIX_FADV_SEQUENTIAL);
+        const FILE_FLAG_SEQUENTIAL_SCAN: u32 = 0x0800_0000;
+
+        std::fs::OpenOptions::new()
+            .read(true)
+            .custom_flags(FILE_FLAG_SEQUENTIAL_SCAN)
+            .open(path)
     }
-}
 
-#[cfg(not(target_os = "linux"))]
-fn advise_sequential_read(_file: &File) {}
+    #[cfg(not(target_os = "windows"))]
+    pub fn open_file_for_sequential_read(path: &Path) -> std::io::Result<File> {
+        File::open(path)
+    }
+
+    #[cfg(target_os = "linux")]
+    pub fn advise_sequential_read(file: &File) {
+        use std::os::fd::AsRawFd;
+
+        unsafe {
+            libc::posix_fadvise(file.as_raw_fd(), 0, 0, libc::POSIX_FADV_SEQUENTIAL);
+        }
+    }
+
+    #[cfg(not(target_os = "linux"))]
+    pub fn advise_sequential_read(_file: &File) {}
+}

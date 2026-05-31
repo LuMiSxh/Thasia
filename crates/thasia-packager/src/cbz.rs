@@ -4,7 +4,7 @@ use async_zip::{
     Compression, ZipEntryBuilder, base::write::ZipFileWriter as BaseZipFileWriter,
     tokio::write::ZipFileWriter,
 };
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use thasia_core::{
     Result, ThasiaError, escape_xml_text, models::ProcessedImage, sanitize_filename_component,
 };
@@ -14,6 +14,7 @@ const COMIC_INFO: &str = include_str!("../templates/comic_info.xml");
 
 pub struct CbzGenerator {
     writer: Option<ZipFileWriter<File>>,
+    output_path: Option<PathBuf>,
     volume_name: String,
     page_count: u32,
 }
@@ -22,6 +23,7 @@ impl CbzGenerator {
     pub fn new() -> Self {
         Self {
             writer: None,
+            output_path: None,
             volume_name: String::new(),
             page_count: 0,
         }
@@ -44,6 +46,7 @@ impl Generator for CbzGenerator {
         let path = output_dir.join(format!("{safe_volume_name}.cbz"));
         let file = File::create(&path).await.map_err(ThasiaError::Io)?;
         self.writer = Some(BaseZipFileWriter::with_tokio(file));
+        self.output_path = Some(path);
         self.volume_name = safe_volume_name;
         Ok(())
     }
@@ -75,6 +78,10 @@ impl Generator for CbzGenerator {
 
         self.page_count += 1;
         Ok(())
+    }
+
+    fn output_path(&self) -> Option<PathBuf> {
+        self.output_path.clone()
     }
 
     async fn finalize(mut self: Box<Self>) -> Result<()> {

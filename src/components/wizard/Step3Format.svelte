@@ -78,6 +78,8 @@
                 bind:enableMaxWidth
                 bind:forceReencode={wizard.forceReencode}
                 bind:cleanTones={wizard.cleanTones}
+                bind:colorEnhance={wizard.colorEnhance}
+                bind:sharpen={wizard.sharpen}
             />
         </div>
 

@@ -11,6 +11,9 @@ export type VolumeEdit = {
     }>;
 };
 
+export type ColorEnhanceMode = 'off' | 'mild' | 'balanced' | 'strong';
+export type SharpenMode = 'off' | 'mild';
+
 export class WizardStore {
     // Step 1 — Source
     sourcePath = $state('');
@@ -25,6 +28,8 @@ export class WizardStore {
     maxWidth = $state<number | null>(null);
     forceReencode = $state(false);
     cleanTones = $state(false);
+    colorEnhance = $state<ColorEnhanceMode>('off');
+    sharpen = $state<SharpenMode>('off');
 
     // Step 4 — Container
     container = $state<'cbz' | 'epub' | 'raw'>('cbz');
@@ -92,6 +97,8 @@ export class WizardStore {
         this.maxWidth = null;
         this.forceReencode = false;
         this.cleanTones = false;
+        this.colorEnhance = 'off';
+        this.sharpen = 'off';
         this.container = 'cbz';
         this.direction = 'ltr';
         this.bundle = 'auto';

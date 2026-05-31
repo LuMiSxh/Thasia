@@ -59,10 +59,6 @@ impl SuwayomiManager {
         }
     }
 
-    pub fn installer(&self) -> Arc<SuwayomiInstaller> {
-        self.installer.clone()
-    }
-
     pub async fn start(&self) -> Result<u16> {
         if self.installer.installed_version().await.is_none() {
             self.set_state(RuntimeState::NotInstalled).await;

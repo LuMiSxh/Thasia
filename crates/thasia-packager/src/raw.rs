@@ -47,6 +47,10 @@ impl Generator for RawGenerator {
         Ok(())
     }
 
+    fn output_path(&self) -> Option<PathBuf> {
+        Some(self.output_dir.clone())
+    }
+
     async fn finalize(self: Box<Self>) -> Result<()> {
         Ok(())
     }

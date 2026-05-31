@@ -68,6 +68,13 @@ impl Generator for EpubGenerator {
         Ok(())
     }
 
+    fn output_path(&self) -> Option<PathBuf> {
+        if self.output_dir.as_os_str().is_empty() || self.volume_name.is_empty() {
+            return None;
+        }
+        Some(self.output_dir.join(format!("{}.epub", self.volume_name)))
+    }
+
     async fn finalize(self: Box<Self>) -> Result<()> {
         let output_path = self.output_dir.join(format!("{}.epub", self.volume_name));
         let volume_name = self.volume_name.clone();
