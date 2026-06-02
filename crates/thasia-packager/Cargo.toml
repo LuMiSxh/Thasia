@@ -13,3 +13,4 @@ tokio = { workspace = true }
 async_zip = { workspace = true }
 async-trait = { workspace = true }
 epub-builder = { workspace = true }
+thiserror = { workspace = true }

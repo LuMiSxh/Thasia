@@ -1,6 +1,7 @@
 <script lang="ts">
     import { Button, Dialog, Input, Select } from 'anasthasia';
     import { commands, type ExtensionInfo, type SourceInfo } from '$types/bindings';
+    import { formatAppError } from '$lib/errors';
     import { IconDownload, IconPackage, IconRefresh, IconSearch } from '@tabler/icons-svelte';
 
     let {
@@ -43,7 +44,7 @@
         error = '';
         const result = await commands.listAvailableExtensions();
         if (result.status === 'ok') extensions = result.data;
-        else error = result.error;
+        else error = formatAppError(result.error);
         loading = false;
     }
 
@@ -58,7 +59,7 @@
         const result = ext.installed
             ? await commands.uninstallExtension(ext.pkg_name)
             : await commands.installExtension(ext.pkg_name);
-        if (result.status === 'error') error = result.error;
+        if (result.status === 'error') error = formatAppError(result.error);
         await loadExtensions();
         await onRefresh();
         busyPkg = '';

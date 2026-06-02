@@ -18,6 +18,7 @@
         IconClock,
     } from '@tabler/icons-svelte';
     import { commands, events, type DiscoverySettings, type RuntimeState } from '$types/bindings';
+    import { formatAppError } from '$lib/errors';
     import {
         DEFAULT_DISCOVERY_SETTINGS,
         loadDiscoverySettings,
@@ -85,17 +86,17 @@
 
     async function run(
         label: string,
-        action: () => Promise<{ status: 'ok'; data: unknown } | { status: 'error'; error: string }>
+        action: () => Promise<{ status: 'ok'; data: unknown } | { status: 'error'; error: unknown }>
     ) {
         if (busy) return;
         busy = label;
         error = '';
         try {
             const result = await action();
-            if (result.status === 'error') error = result.error;
+            if (result.status === 'error') error = formatAppError(result.error);
             await refresh();
         } catch (e) {
-            error = String(e);
+            error = formatAppError(e);
         } finally {
             busy = '';
         }

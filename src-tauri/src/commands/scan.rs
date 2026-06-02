@@ -1,3 +1,4 @@
+use crate::app_error::{AppError, CommandResult};
 use crate::protocol::image_url;
 use crate::state::{ConvState, PageMeta, ScanGroups, VolumeMeta};
 use ordered_float::OrderedFloat;
@@ -13,14 +14,12 @@ use thasia_source::{LocalSource, Source};
 pub async fn scan_source(
     path: String,
     state: State<'_, RwLock<ConvState>>,
-) -> Result<Vec<VolumeMeta>, String> {
+) -> CommandResult<Vec<VolumeMeta>> {
     let source_path = PathBuf::from(&path);
 
     // Build the source — handles both directories and ZIP/CBZ archives
     let source = if LocalSource::is_archive(&source_path) {
-        LocalSource::from_archive(source_path)
-            .await
-            .map_err(|e| e.to_string())?
+        LocalSource::from_archive(source_path).await?
     } else {
         LocalSource::new(source_path)
     };
@@ -29,7 +28,7 @@ pub async fn scan_source(
 
     // Store scan result + keep source alive (holds TempDir for ZIP extractions)
     {
-        let mut s = state.write().map_err(|e| e.to_string())?;
+        let mut s = state.write()?;
         s.scan_result = Some(scan_result_for_state);
         s.source = Some(std::sync::Arc::new(source));
     }
@@ -41,29 +40,29 @@ pub async fn scan_source(
 #[specta::specta]
 pub async fn scan_current_source(
     state: State<'_, RwLock<ConvState>>,
-) -> Result<Vec<VolumeMeta>, String> {
+) -> CommandResult<Vec<VolumeMeta>> {
     let source = {
-        let s = state.read().map_err(|e| e.to_string())?;
-        s.source
-            .clone()
-            .ok_or_else(|| "No source is prepared for conversion.".to_string())?
+        let s = state.read()?;
+        s.source.clone().ok_or_else(|| AppError::Message {
+            message: "No source is prepared for conversion.".to_string(),
+        })?
     };
 
     let (result, scan_result_for_state) = scan_local_source(source.as_ref()).await?;
 
     {
-        let mut s = state.write().map_err(|e| e.to_string())?;
+        let mut s = state.write()?;
         s.scan_result = Some(scan_result_for_state);
     }
 
     Ok(result)
 }
 
-async fn scan_local_source(source: &LocalSource) -> Result<(Vec<VolumeMeta>, ScanGroups), String> {
+async fn scan_local_source(source: &LocalSource) -> CommandResult<(Vec<VolumeMeta>, ScanGroups)> {
     let resolver = Resolver::new(RuleConfig::default());
 
     // Discover all images
-    let mut rx = source.discover().await.map_err(|e| e.to_string())?;
+    let mut rx = source.discover().await?;
 
     // Collect discovered images for batch resolution (so natord-fallback can
     // run across siblings for directories with unparseable filenames).

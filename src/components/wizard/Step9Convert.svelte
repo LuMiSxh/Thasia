@@ -1,6 +1,7 @@
 <script lang="ts">
     import { onMount, onDestroy } from 'svelte';
     import { wizard } from '$lib/wizard/state.svelte';
+    import { formatAppError } from '$lib/errors';
     import { buildConvertOptions, buildVolumeEdits } from '$lib/wizard/payload';
     import { commands, events, type ConversionOutput } from '$types/bindings';
     import { goto } from '$app/navigation';
@@ -147,11 +148,11 @@
             );
             if (result.status === 'error') {
                 status = 'error';
-                errorMessage = result.error;
+                errorMessage = formatAppError(result.error);
             }
         } catch (e) {
             status = 'error';
-            errorMessage = String(e);
+            errorMessage = formatAppError(e);
         } finally {
             if (timer) {
                 clearInterval(timer);

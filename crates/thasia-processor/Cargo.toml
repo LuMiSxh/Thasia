@@ -20,3 +20,4 @@ ravif = { workspace = true }
 rav1e = { workspace = true }
 webp = { workspace = true }
 avif-decode = { workspace = true }
+thiserror = { workspace = true }

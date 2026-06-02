@@ -1,13 +1,13 @@
 use crate::suwayomi::types::{
     ChapterMeta, ExtensionInfo, MangaDetail, SearchPage, SearchResult, SourceInfo,
 };
+use crate::{Result, SourceError};
 use regex::Regex;
 use reqwest::header::CONTENT_TYPE;
 use serde::Deserialize;
 use serde::de::DeserializeOwned;
 use std::path::Path;
 use std::sync::{Arc, LazyLock};
-use thasia_core::{Result, ThasiaError};
 use tokio::sync::Semaphore;
 use tokio::task::JoinSet;
 use tracing::warn;
@@ -218,14 +218,12 @@ impl SuwayomiClient {
         let resp: FetchChapterPagesResponse = self.query(mutation, Some(vars)).await?;
         let pages = resp.fetch_chapter_pages.pages;
         if pages.is_empty() {
-            return Err(ThasiaError::Discovery(format!(
+            return Err(SourceError::suwayomi(format!(
                 "No pages returned for chapter ID {chapter_id}"
             )));
         }
 
-        tokio::fs::create_dir_all(destination)
-            .await
-            .map_err(ThasiaError::Io)?;
+        tokio::fs::create_dir_all(destination).await?;
 
         let semaphore = Arc::new(Semaphore::new(8));
         let mut tasks = JoinSet::new();
@@ -236,7 +234,7 @@ impl SuwayomiClient {
             let destination = destination.to_path_buf();
             tasks.spawn(async move {
                 let _permit = semaphore.acquire_owned().await.map_err(|e| {
-                    ThasiaError::Discovery(format!("Page download worker failed: {e}"))
+                    SourceError::suwayomi(format!("Page download worker failed: {e}"))
                 })?;
                 client
                     .download_page_image(index, &page_url, &destination)
@@ -245,7 +243,7 @@ impl SuwayomiClient {
         }
 
         while let Some(result) = tasks.join_next().await {
-            result.map_err(|e| ThasiaError::Discovery(e.to_string()))??;
+            result??;
         }
 
         Ok(())
@@ -260,26 +258,18 @@ impl SuwayomiClient {
         let url = self
             .absolute_url(Some(page_url.to_string()))
             .unwrap_or_else(|| page_url.to_string());
-        let response = self
-            .http
-            .get(url)
-            .send()
-            .await
-            .map_err(|e| ThasiaError::Discovery(e.to_string()))?;
+        let response = self.http.get(url).send().await?;
         let content_type = response
             .headers()
             .get(CONTENT_TYPE)
             .and_then(|value| value.to_str().ok())
             .map(str::to_string);
         let final_url = response.url().to_string();
-        let bytes = error_for_status_with_body(response)
-            .await?
-            .bytes()
-            .await
-            .map_err(|e| ThasiaError::Discovery(e.to_string()))?;
+        let bytes = error_for_status_with_body(response).await?.bytes().await?;
         let extension = image_extension(content_type.as_deref(), &final_url);
         let path = destination.join(format!("{:03}.{extension}", index + 1));
-        tokio::fs::write(path, bytes).await.map_err(ThasiaError::Io)
+        tokio::fs::write(path, bytes).await?;
+        Ok(())
     }
 
     async fn query<T: DeserializeOwned>(
@@ -292,66 +282,48 @@ impl SuwayomiClient {
             "variables": variables.unwrap_or(serde_json::json!({}))
         });
 
-        let response = self
-            .http
-            .post(&self.graphql_url)
-            .json(&body)
-            .send()
-            .await
-            .map_err(|e| ThasiaError::Discovery(e.to_string()))?;
+        let response = self.http.post(&self.graphql_url).json(&body).send().await?;
 
         let status = response.status();
-        let text = response
-            .text()
-            .await
-            .map_err(|e| ThasiaError::Discovery(e.to_string()))?;
+        let text = response.text().await?;
 
         if !status.is_success() {
-            return Err(ThasiaError::Discovery(format!(
+            return Err(SourceError::suwayomi(format!(
                 "GraphQL error ({}): {}",
                 status, text
             )));
         }
 
-        let gql_resp: GqlResponse<T> =
-            serde_json::from_str(&text).map_err(|e| ThasiaError::Discovery(e.to_string()))?;
+        let gql_resp: GqlResponse<T> = serde_json::from_str(&text)?;
 
         if let Some(errors) = gql_resp.errors
             && !errors.is_empty()
         {
-            return Err(ThasiaError::Discovery(format!(
+            return Err(SourceError::suwayomi(format!(
                 "GraphQL errors: {:?}",
                 errors
             )));
         }
 
         gql_resp.data.ok_or_else(|| {
-            ThasiaError::Discovery("GraphQL response contained no data and no errors".into())
+            SourceError::suwayomi("GraphQL response contained no data and no errors")
         })
     }
 
     async fn rest_get<T: DeserializeOwned>(&self, path: &str) -> Result<T> {
         let text = self.rest_status(path).await?;
-        serde_json::from_str(&text).map_err(|e| ThasiaError::Discovery(e.to_string()))
+        Ok(serde_json::from_str(&text)?)
     }
 
     async fn rest_status(&self, path: &str) -> Result<String> {
         let url = format!("{}/{}", self.base_url, path.trim_start_matches('/'));
-        let response = self
-            .http
-            .get(url)
-            .send()
-            .await
-            .map_err(|e| ThasiaError::Discovery(e.to_string()))?;
+        let response = self.http.get(url).send().await?;
 
         let status = response.status();
-        let text = response
-            .text()
-            .await
-            .map_err(|e| ThasiaError::Discovery(e.to_string()))?;
+        let text = response.text().await?;
 
         if !status.is_success() && !status.is_redirection() {
-            return Err(ThasiaError::Discovery(format!(
+            return Err(SourceError::suwayomi(format!(
                 "Suwayomi REST error ({}): {}",
                 status, text
             )));
@@ -563,7 +535,7 @@ async fn error_for_status_with_body(response: reqwest::Response) -> Result<reqwe
     } else {
         format!("HTTP status {status} for url ({url}): {}", body.trim())
     };
-    Err(ThasiaError::Discovery(message))
+    Err(SourceError::suwayomi(message))
 }
 
 #[cfg(test)]

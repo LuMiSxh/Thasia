@@ -1,10 +1,10 @@
 use crate::suwayomi::installer::SuwayomiInstaller;
 use crate::suwayomi::types::RuntimeState;
+use crate::{Result, SourceError};
 use std::net::TcpListener;
 use std::path::PathBuf;
 use std::process::Stdio;
 use std::sync::Arc;
-use thasia_core::{Result, ThasiaError};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::{Child, Command};
 use tokio::sync::{Mutex, RwLock};
@@ -62,27 +62,21 @@ impl SuwayomiManager {
     pub async fn start(&self) -> Result<u16> {
         if self.installer.installed_version().await.is_none() {
             self.set_state(RuntimeState::NotInstalled).await;
-            return Err(ThasiaError::Discovery(
-                "Suwayomi-Server is not installed".into(),
-            ));
+            return Err(SourceError::suwayomi("Suwayomi-Server is not installed"));
         }
         if let RuntimeState::Ready { port } = self.snapshot().await {
             return Ok(port);
         }
 
         self.set_state(RuntimeState::Starting).await;
-        tokio::fs::create_dir_all(self.installer.data_dir())
-            .await
-            .map_err(ThasiaError::Io)?;
+        tokio::fs::create_dir_all(self.installer.data_dir()).await?;
 
         // Captured-log directory sits next to thasia.log under the app data
         // root (NOT inside suwayomi-data, so Suwayomi's own rootDir stays
         // contained). Suwayomi's internal application.log is unaffected; it
         // continues to live under <rootDir>/logs/ and rotates on its own.
         let log_dir = self.installer.root().join("logs");
-        tokio::fs::create_dir_all(&log_dir)
-            .await
-            .map_err(ThasiaError::Io)?;
+        tokio::fs::create_dir_all(&log_dir).await?;
 
         // Sweep stale JVM crash dumps from previous sessions. We use a single
         // `hs_err.log` going forward; this drops the historical N-per-crash files.
@@ -100,8 +94,8 @@ impl SuwayomiManager {
         let jar = self.installer.jar_path();
         if !java.exists() || !jar.exists() {
             self.set_state(RuntimeState::NotInstalled).await;
-            return Err(ThasiaError::Discovery(
-                "Suwayomi Java runtime or server jar is missing".into(),
+            return Err(SourceError::suwayomi(
+                "Suwayomi Java runtime or server jar is missing",
             ));
         }
 
@@ -127,7 +121,7 @@ impl SuwayomiManager {
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .kill_on_drop(true);
-        let mut child = cmd.spawn().map_err(ThasiaError::Io)?;
+        let mut child = cmd.spawn()?;
 
         // Pipe child stdout/stderr through Rust so we can rotate the captured
         // logs daily (max 7 files each, ≈ 1 week retention). Without this the
@@ -241,8 +235,8 @@ impl SuwayomiManager {
             }
             sleep(Duration::from_millis(500)).await;
         }
-        Err(ThasiaError::Discovery(
-            "Timed out waiting for Suwayomi-Server".into(),
+        Err(SourceError::suwayomi(
+            "Timed out waiting for Suwayomi-Server",
         ))
     }
 
@@ -257,8 +251,8 @@ impl SuwayomiManager {
 }
 
 fn free_port() -> Result<u16> {
-    let listener = TcpListener::bind(("127.0.0.1", 0)).map_err(ThasiaError::Io)?;
-    Ok(listener.local_addr().map_err(ThasiaError::Io)?.port())
+    let listener = TcpListener::bind(("127.0.0.1", 0))?;
+    Ok(listener.local_addr()?.port())
 }
 
 /// Stream a child stdout/stderr pipe into a daily-rotating log file

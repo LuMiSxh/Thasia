@@ -1,8 +1,8 @@
 use crate::suwayomi::types::{InstallProgress, InstalledInfo, ReleaseInfo};
+use crate::{Result, SourceError};
 use futures_util::StreamExt;
 use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};
-use thasia_core::{Result, ThasiaError};
 use tokio::io::AsyncWriteExt;
 use tokio::sync::mpsc;
 
@@ -16,11 +16,8 @@ pub struct SuwayomiInstaller {
 
 impl SuwayomiInstaller {
     pub fn new(root: PathBuf) -> Result<Self> {
-        std::fs::create_dir_all(&root).map_err(ThasiaError::Io)?;
-        let http = reqwest::Client::builder()
-            .user_agent("Thasia")
-            .build()
-            .map_err(|e| ThasiaError::Discovery(e.to_string()))?;
+        std::fs::create_dir_all(&root)?;
+        let http = reqwest::Client::builder().user_agent("Thasia").build()?;
         Ok(Self { root, http })
     }
 
@@ -102,10 +99,8 @@ impl SuwayomiInstaller {
             self.release_for_version(version).await?
         };
 
-        tokio::fs::create_dir_all(&self.root)
-            .await
-            .map_err(ThasiaError::Io)?;
-        let temp = tempfile::tempdir_in(&self.root).map_err(ThasiaError::Io)?;
+        tokio::fs::create_dir_all(&self.root).await?;
+        let temp = tempfile::tempdir_in(&self.root)?;
         let archive_path = temp.path().join(&release.asset_name);
         self.download_asset(&release, &archive_path, progress.clone())
             .await?;
@@ -116,46 +111,29 @@ impl SuwayomiInstaller {
         let _ = progress.send(InstallProgress::Extracting).await;
         let extracted = temp.path().join("extract");
         let normalized = temp.path().join("normalized");
-        tokio::fs::create_dir_all(&extracted)
-            .await
-            .map_err(ThasiaError::Io)?;
+        tokio::fs::create_dir_all(&extracted).await?;
         extract_archive(&archive_path, &extracted, &release.asset_name).await?;
         let server_root = find_server_root(&extracted).await?;
-        tokio::fs::create_dir_all(&normalized)
-            .await
-            .map_err(ThasiaError::Io)?;
-        tokio::fs::rename(server_root, normalized.join("Suwayomi-Server"))
-            .await
-            .map_err(ThasiaError::Io)?;
+        tokio::fs::create_dir_all(&normalized).await?;
+        tokio::fs::rename(server_root, normalized.join("Suwayomi-Server")).await?;
 
         let final_dir = self.bin_dir();
         if final_dir.exists() {
-            tokio::fs::remove_dir_all(&final_dir)
-                .await
-                .map_err(ThasiaError::Io)?;
+            tokio::fs::remove_dir_all(&final_dir).await?;
         }
-        tokio::fs::rename(&normalized, &final_dir)
-            .await
-            .map_err(ThasiaError::Io)?;
+        tokio::fs::rename(&normalized, &final_dir).await?;
 
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
             if self.java_path().exists() {
-                let mut perms = tokio::fs::metadata(self.java_path())
-                    .await
-                    .map_err(ThasiaError::Io)?
-                    .permissions();
+                let mut perms = tokio::fs::metadata(self.java_path()).await?.permissions();
                 perms.set_mode(perms.mode() | 0o755);
-                tokio::fs::set_permissions(self.java_path(), perms)
-                    .await
-                    .map_err(ThasiaError::Io)?;
+                tokio::fs::set_permissions(self.java_path(), perms).await?;
             }
         }
 
-        tokio::fs::write(final_dir.join("VERSION"), &release.version)
-            .await
-            .map_err(ThasiaError::Io)?;
+        tokio::fs::write(final_dir.join("VERSION"), &release.version).await?;
         let _ = progress
             .send(InstallProgress::Complete {
                 version: release.version,
@@ -167,9 +145,7 @@ impl SuwayomiInstaller {
     pub async fn uninstall(&self) -> Result<()> {
         let dir = self.bin_dir();
         if dir.exists() {
-            tokio::fs::remove_dir_all(dir)
-                .await
-                .map_err(ThasiaError::Io)?;
+            tokio::fs::remove_dir_all(dir).await?;
         }
         Ok(())
     }
@@ -177,13 +153,9 @@ impl SuwayomiInstaller {
     pub async fn reset_data(&self) -> Result<()> {
         let dir = self.data_dir();
         if dir.exists() {
-            tokio::fs::remove_dir_all(&dir)
-                .await
-                .map_err(ThasiaError::Io)?;
+            tokio::fs::remove_dir_all(&dir).await?;
         }
-        tokio::fs::create_dir_all(dir)
-            .await
-            .map_err(ThasiaError::Io)?;
+        tokio::fs::create_dir_all(dir).await?;
         Ok(())
     }
 
@@ -193,13 +165,10 @@ impl SuwayomiInstaller {
             .http
             .get(url)
             .send()
-            .await
-            .map_err(|e| ThasiaError::Discovery(e.to_string()))?
-            .error_for_status()
-            .map_err(|e| ThasiaError::Discovery(e.to_string()))?
+            .await?
+            .error_for_status()?
             .json()
-            .await
-            .map_err(|e| ThasiaError::Discovery(e.to_string()))?;
+            .await?;
 
         let suffix = asset_suffix();
         let asset = release
@@ -207,7 +176,7 @@ impl SuwayomiInstaller {
             .iter()
             .find(|asset| asset.name.ends_with(suffix))
             .ok_or_else(|| {
-                ThasiaError::Discovery(format!("No Suwayomi release asset for {suffix}"))
+                SourceError::suwayomi(format!("No Suwayomi release asset for {suffix}"))
             })?;
         let checksum_url = release
             .assets
@@ -234,20 +203,16 @@ impl SuwayomiInstaller {
             .http
             .get(&release.download_url)
             .send()
-            .await
-            .map_err(|e| ThasiaError::Discovery(e.to_string()))?
-            .error_for_status()
-            .map_err(|e| ThasiaError::Discovery(e.to_string()))?;
+            .await?
+            .error_for_status()?;
         let total = response.content_length().or(Some(release.size));
         let mut stream = response.bytes_stream();
-        let mut file = tokio::fs::File::create(archive_path)
-            .await
-            .map_err(ThasiaError::Io)?;
+        let mut file = tokio::fs::File::create(archive_path).await?;
         let mut downloaded = 0u64;
 
         while let Some(chunk) = stream.next().await {
-            let chunk = chunk.map_err(|e| ThasiaError::Discovery(e.to_string()))?;
-            file.write_all(&chunk).await.map_err(ThasiaError::Io)?;
+            let chunk = chunk?;
+            file.write_all(&chunk).await?;
             downloaded += chunk.len() as u64;
             let _ = progress
                 .send(InstallProgress::Downloading {
@@ -256,7 +221,7 @@ impl SuwayomiInstaller {
                 })
                 .await;
         }
-        file.flush().await.map_err(ThasiaError::Io)?;
+        file.flush().await?;
         Ok(())
     }
 
@@ -268,18 +233,15 @@ impl SuwayomiInstaller {
             .http
             .get(url)
             .send()
-            .await
-            .map_err(|e| ThasiaError::Discovery(e.to_string()))?
-            .error_for_status()
-            .map_err(|e| ThasiaError::Discovery(e.to_string()))?
+            .await?
+            .error_for_status()?
             .text()
-            .await
-            .map_err(|e| ThasiaError::Discovery(e.to_string()))?;
+            .await?;
         let expected = checksums
             .lines()
             .find(|line| line.contains(&release.asset_name))
             .and_then(|line| line.split_whitespace().next())
-            .ok_or_else(|| ThasiaError::Discovery("Checksum for Suwayomi asset not found".into()))?
+            .ok_or_else(|| SourceError::suwayomi("Checksum for Suwayomi asset not found"))?
             .to_string();
 
         // Stream the archive through the hasher in 64 KB chunks instead of
@@ -287,12 +249,12 @@ impl SuwayomiInstaller {
         let archive_path = archive_path.to_path_buf();
         let actual = tokio::task::spawn_blocking(move || -> Result<String> {
             use std::io::Read;
-            let file = std::fs::File::open(&archive_path).map_err(ThasiaError::Io)?;
+            let file = std::fs::File::open(&archive_path)?;
             let mut reader = std::io::BufReader::new(file);
             let mut hasher = Sha256::new();
             let mut buf = [0u8; 65536];
             loop {
-                let n = reader.read(&mut buf).map_err(ThasiaError::Io)?;
+                let n = reader.read(&mut buf)?;
                 if n == 0 {
                     break;
                 }
@@ -306,11 +268,10 @@ impl SuwayomiInstaller {
             }
             Ok(hex)
         })
-        .await
-        .map_err(|e| ThasiaError::Discovery(e.to_string()))??;
+        .await??;
 
         if actual != expected {
-            return Err(ThasiaError::Discovery("Suwayomi checksum mismatch".into()));
+            return Err(SourceError::suwayomi("Suwayomi checksum mismatch"));
         }
         Ok(())
     }
@@ -344,24 +305,23 @@ async fn extract_archive(archive: &Path, destination: &Path, name: &str) -> Resu
     let destination = destination.to_path_buf();
     let name = name.to_string();
     tokio::task::spawn_blocking(move || -> Result<()> {
-        let file = std::fs::File::open(&archive).map_err(ThasiaError::Io)?;
+        let file = std::fs::File::open(&archive)?;
         if name.ends_with(".zip") {
             let mut zip = zip::ZipArchive::new(file)
-                .map_err(|e| ThasiaError::Discovery(format!("Failed to open Suwayomi zip: {e}")))?;
+                .map_err(|e| SourceError::suwayomi(format!("Failed to open Suwayomi zip: {e}")))?;
             zip.extract(&destination).map_err(|e| {
-                ThasiaError::Discovery(format!("Failed to extract Suwayomi zip: {e}"))
+                SourceError::suwayomi(format!("Failed to extract Suwayomi zip: {e}"))
             })?;
         } else {
             let gz = flate2::read::GzDecoder::new(file);
             let mut tar = tar::Archive::new(gz);
             tar.unpack(&destination).map_err(|e| {
-                ThasiaError::Discovery(format!("Failed to extract Suwayomi archive: {e}"))
+                SourceError::suwayomi(format!("Failed to extract Suwayomi archive: {e}"))
             })?;
         }
         Ok(())
     })
-    .await
-    .map_err(|e| ThasiaError::Discovery(e.to_string()))?
+    .await?
 }
 
 async fn find_server_root(extracted: &Path) -> Result<PathBuf> {
@@ -381,12 +341,11 @@ async fn find_server_root(extracted: &Path) -> Result<PathBuf> {
                 return Ok(root);
             }
         }
-        Err(ThasiaError::Discovery(
-            "Extracted Suwayomi archive did not contain bin/Suwayomi-Server.jar".into(),
+        Err(SourceError::suwayomi(
+            "Extracted Suwayomi archive did not contain bin/Suwayomi-Server.jar",
         ))
     })
-    .await
-    .map_err(|e| ThasiaError::Discovery(e.to_string()))?
+    .await?
 }
 
 fn jar_root(path: &Path) -> Option<PathBuf> {

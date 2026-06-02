@@ -40,11 +40,11 @@ impl Resolver {
     /// extracted — the batch resolver assigns a fallback. If you have many
     /// images, prefer `resolve_batch` so siblings get a consistent natord-based
     /// ordering when filenames are unparseable.
-    pub fn resolve(&self, img: DiscoveredImage) -> Result<ParsedImage, String> {
+    pub fn resolve(&self, img: DiscoveredImage) -> ParsedImage {
         let mut fields = self.classify_path(&img.relative_path);
         // Default to 1.0 when truly nothing parseable — caller can override.
         let page = fields.page.take().unwrap_or(1.0);
-        Ok(ParsedImage {
+        ParsedImage {
             source: img,
             identifier: ChapterIdentifier {
                 volume: fields.volume,
@@ -52,7 +52,7 @@ impl Resolver {
             },
             page_number: page,
             is_cover: fields.is_cover,
-        })
+        }
     }
 
     /// Resolve a batch of images. For directories where any filename couldn't
@@ -134,7 +134,14 @@ impl Resolver {
             };
         }
 
-        let (filename_full, dirs) = components.split_last().unwrap();
+        let Some((filename_full, dirs)) = components.split_last() else {
+            return PartialFields {
+                volume: None,
+                chapter: None,
+                page: None,
+                is_cover: false,
+            };
+        };
         // Strip extension from the filename for classification.
         let filename_stem = Path::new(filename_full)
             .file_stem()
@@ -281,7 +288,7 @@ mod tests {
 
     #[test]
     fn hakuneko_style_dir() {
-        let p = resolver().resolve(img("001-002/001.jpg")).unwrap();
+        let p = resolver().resolve(img("001-002/001.jpg"));
         assert_eq!(p.identifier.volume, Some(1));
         assert_eq!(p.identifier.chapter, Some(2.0));
         assert_eq!(p.page_number, 1.0);
@@ -290,7 +297,7 @@ mod tests {
 
     #[test]
     fn explicit_vol_ch_labels() {
-        let p = resolver().resolve(img("Vol 1/Ch 04/001.jpg")).unwrap();
+        let p = resolver().resolve(img("Vol 1/Ch 04/001.jpg"));
         assert_eq!(p.identifier.volume, Some(1));
         assert_eq!(p.identifier.chapter, Some(4.0));
         assert_eq!(p.page_number, 1.0);
@@ -298,14 +305,14 @@ mod tests {
 
     #[test]
     fn float_chapter() {
-        let p = resolver().resolve(img("Vol 2/Ch 10.5/001.png")).unwrap();
+        let p = resolver().resolve(img("Vol 2/Ch 10.5/001.png"));
         assert_eq!(p.identifier.chapter, Some(10.5));
     }
 
     #[test]
     fn pure_number_depth_fallback() {
         // "1/14/001.jpg" — depth_mapping kicks in (volume/chapter/page).
-        let p = resolver().resolve(img("1/14/001.jpg")).unwrap();
+        let p = resolver().resolve(img("1/14/001.jpg"));
         assert_eq!(p.identifier.volume, Some(1));
         assert_eq!(p.identifier.chapter, Some(14.0));
         assert_eq!(p.page_number, 1.0);
@@ -313,7 +320,7 @@ mod tests {
 
     #[test]
     fn cover_detection_in_dir() {
-        let p = resolver().resolve(img("Vol 1/cover.jpg")).unwrap();
+        let p = resolver().resolve(img("Vol 1/cover.jpg"));
         assert!(p.is_cover);
     }
 
@@ -323,7 +330,7 @@ mod tests {
     fn series_title_doesnt_leak_volume_token() {
         // The old parser saw `V` in "Verse" and set volume=1. New parser
         // classifies "Spider-Verse" as Noise — no spurious volume.
-        let p = resolver().resolve(img("Spider-Verse/001.jpg")).unwrap();
+        let p = resolver().resolve(img("Spider-Verse/001.jpg"));
         assert_eq!(p.identifier.volume, None);
         assert_eq!(p.page_number, 1.0);
     }
@@ -331,7 +338,7 @@ mod tests {
     #[test]
     fn title_with_dash_number_isnt_hakuneko() {
         // "My Manga - 5" is title noise, not Hakuneko (\d-\d).
-        let p = resolver().resolve(img("My Manga - 5/001.jpg")).unwrap();
+        let p = resolver().resolve(img("My Manga - 5/001.jpg"));
         assert_eq!(p.identifier.volume, None);
         assert_eq!(p.identifier.chapter, None);
         assert_eq!(p.page_number, 1.0);
@@ -430,7 +437,7 @@ mod tests {
     #[test]
     fn trailing_number_in_filename() {
         // "story_007.jpg" — TRAILING_NUM_RE fallback extracts 7.
-        let p = resolver().resolve(img("story_007.jpg")).unwrap();
+        let p = resolver().resolve(img("story_007.jpg"));
         assert_eq!(p.page_number, 7.0);
     }
 

@@ -1,14 +1,16 @@
 pub mod cbz;
 pub mod epub;
+pub mod error;
 pub mod raw;
 
 pub use cbz::CbzGenerator;
 pub use epub::EpubGenerator;
+pub use error::{PackagerError, Result};
 pub use raw::RawGenerator;
 
 use async_trait::async_trait;
 use std::path::{Path, PathBuf};
-use thasia_core::{Result, models::ProcessedImage};
+use thasia_core::models::ProcessedImage;
 
 #[async_trait]
 pub trait Generator: Send {

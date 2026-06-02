@@ -1,4 +1,6 @@
+mod app_error;
 mod commands;
+mod conversion;
 mod events;
 mod pipeline_plan;
 mod protocol;
@@ -96,7 +98,7 @@ pub fn run() {
             let discovery = app.state::<state::DiscoveryState>();
             let settings = tauri::async_runtime::block_on(async {
                 discovery.refresh_installed_version().await?;
-                Ok::<_, String>(discovery.settings.read().await.clone())
+                Ok::<_, state::StateError>(discovery.settings.read().await.clone())
             })
             .map_err(Box::<dyn std::error::Error>::from)?;
             if settings.enabled && settings.auto_start && settings.installed_version.is_some() {
@@ -111,7 +113,9 @@ pub fn run() {
                         && let Err(err) = discovery.prepare_suwayomi_config().await
                     {
                         let _ = events::SuwayomiStateChangedEvent {
-                            state: RuntimeState::Error { message: err },
+                            state: RuntimeState::Error {
+                                message: err.to_string(),
+                            },
                         }
                         .emit(&state_handle);
                         return;

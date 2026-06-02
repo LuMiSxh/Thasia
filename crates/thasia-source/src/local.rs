@@ -1,10 +1,10 @@
-use crate::{FetchedImage, Source};
+use crate::{FetchedImage, Result, Source, SourceError};
 use async_trait::async_trait;
 use memmap2::MmapOptions;
 use std::fs::File;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
-use thasia_core::{Result, ThasiaError, models::DiscoveredImage};
+use thasia_core::models::DiscoveredImage;
 use tokio::sync::mpsc;
 use walkdir::WalkDir;
 
@@ -40,14 +40,13 @@ impl LocalSource {
 
     /// Extracts a ZIP or CBZ archive to a temp dir and returns a LocalSource over it.
     pub async fn from_archive(path: PathBuf) -> Result<Self> {
-        let temp = tempfile::TempDir::new().map_err(ThasiaError::Io)?;
+        let temp = tempfile::TempDir::new()?;
         let temp_path = temp.path().to_path_buf();
 
         tokio::task::spawn_blocking(move || {
             extract_archive_images_preserve_paths(&path, &temp_path)
         })
-        .await
-        .map_err(|e| ThasiaError::Fatal(e.to_string()))??;
+        .await??;
 
         Ok(Self::from_temp_dir(temp))
     }
@@ -114,10 +113,7 @@ impl Source for LocalSource {
 
     async fn fetch(&self, img: &DiscoveredImage) -> Result<FetchedImage> {
         let path = img.absolute_path.clone();
-        tokio::task::spawn_blocking(move || fetch_local_file(&path))
-            .await
-            .map_err(|e| ThasiaError::Fatal(e.to_string()))?
-            .map_err(ThasiaError::Io)
+        Ok(tokio::task::spawn_blocking(move || fetch_local_file(&path)).await??)
     }
 }
 
@@ -130,13 +126,13 @@ fn is_supported_image_path(path: &Path) -> bool {
 
 fn validate_archive_entry_size(uncompressed: u64, compressed: u64) -> Result<()> {
     if uncompressed > MAX_ARCHIVE_ENTRY_BYTES {
-        return Err(ThasiaError::Fatal(format!(
+        return Err(SourceError::archive(format!(
             "Archive entry is too large: {} bytes",
             uncompressed
         )));
     }
     if compressed > 0 && uncompressed / compressed > MAX_ARCHIVE_COMPRESSION_RATIO {
-        return Err(ThasiaError::Fatal(format!(
+        return Err(SourceError::archive(format!(
             "Archive entry compression ratio is suspicious: {}:{}",
             uncompressed, compressed
         )));
@@ -145,9 +141,8 @@ fn validate_archive_entry_size(uncompressed: u64, compressed: u64) -> Result<()>
 }
 
 fn extract_archive_images_preserve_paths(path: &Path, dest_root: &Path) -> Result<()> {
-    let file = std::fs::File::open(path).map_err(ThasiaError::Io)?;
-    let mut archive = zip::ZipArchive::new(file)
-        .map_err(|e| ThasiaError::Fatal(format!("Failed to open archive: {e}")))?;
+    let file = std::fs::File::open(path)?;
+    let mut archive = zip::ZipArchive::new(file)?;
 
     let mut image_count = 0usize;
     let mut total_uncompressed = 0u64;
@@ -155,7 +150,7 @@ fn extract_archive_images_preserve_paths(path: &Path, dest_root: &Path) -> Resul
     for i in 0..archive.len() {
         let mut entry = archive
             .by_index(i)
-            .map_err(|e| ThasiaError::Fatal(format!("Archive read error: {e}")))?;
+            .map_err(|e| SourceError::archive(format!("Archive read error: {e}")))?;
         if entry.is_dir() {
             continue;
         }
@@ -169,24 +164,24 @@ fn extract_archive_images_preserve_paths(path: &Path, dest_root: &Path) -> Resul
         validate_archive_entry_size(entry.size(), entry.compressed_size())?;
         total_uncompressed = total_uncompressed.saturating_add(entry.size());
         if total_uncompressed > MAX_ARCHIVE_TOTAL_BYTES {
-            return Err(ThasiaError::Fatal(format!(
+            return Err(SourceError::archive(format!(
                 "Archive is too large after extraction: {} bytes",
                 total_uncompressed
             )));
         }
         image_count += 1;
         if image_count > MAX_ARCHIVE_IMAGES {
-            return Err(ThasiaError::Fatal(format!(
+            return Err(SourceError::archive(format!(
                 "Archive contains too many images: more than {MAX_ARCHIVE_IMAGES}"
             )));
         }
 
         let dest = dest_root.join(enclosed);
         if let Some(parent) = dest.parent() {
-            std::fs::create_dir_all(parent).map_err(ThasiaError::Io)?;
+            std::fs::create_dir_all(parent)?;
         }
         let entry_size = entry.size();
-        let mut out = std::fs::File::create(&dest).map_err(ThasiaError::Io)?;
+        let mut out = std::fs::File::create(&dest)?;
         copy_bounded(&mut entry, &mut out, entry_size)?;
     }
 
@@ -195,11 +190,9 @@ fn extract_archive_images_preserve_paths(path: &Path, dest_root: &Path) -> Resul
 
 fn copy_bounded<R: Read, W: Write>(reader: &mut R, writer: &mut W, max_bytes: u64) -> Result<u64> {
     let mut limited = reader.take(max_bytes.saturating_add(1));
-    let written = std::io::copy(&mut limited, writer).map_err(ThasiaError::Io)?;
+    let written = std::io::copy(&mut limited, writer)?;
     if written > max_bytes {
-        return Err(ThasiaError::Fatal(
-            "Archive entry exceeded declared size".into(),
-        ));
+        return Err(SourceError::archive("Archive entry exceeded declared size"));
     }
     Ok(written)
 }

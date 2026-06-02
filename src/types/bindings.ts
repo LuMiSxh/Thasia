@@ -5,10 +5,10 @@ import * as __TAURI_EVENT from "@tauri-apps/api/event";
 
 /** Commands */
 export const commands = {
-	scanSource: (path: string) => typedError<VolumeMeta[], string>(__TAURI_INVOKE("scan_source", { path })),
-	scanCurrentSource: () => typedError<VolumeMeta[], string>(__TAURI_INVOKE("scan_current_source")),
-	buildPipelinePlan: (options: ConvertOptions, edits: VolumeEdit[]) => typedError<PipelinePlan, string>(__TAURI_INVOKE("build_pipeline_plan", { options, edits })),
-	convert: (options: ConvertOptions, edits: VolumeEdit[]) => typedError<null, string>(__TAURI_INVOKE("convert", { options, edits })),
+	scanSource: (path: string) => typedError<VolumeMeta[], AppError>(__TAURI_INVOKE("scan_source", { path })),
+	scanCurrentSource: () => typedError<VolumeMeta[], AppError>(__TAURI_INVOKE("scan_current_source")),
+	buildPipelinePlan: (options: ConvertOptions, edits: VolumeEdit[]) => typedError<PipelinePlan, AppError>(__TAURI_INVOKE("build_pipeline_plan", { options, edits })),
+	convert: (options: ConvertOptions, edits: VolumeEdit[]) => typedError<null, AppError>(__TAURI_INVOKE("convert", { options, edits })),
 	/**
 	 *  Request cooperative cancellation of an in-flight `convert`.
 	 *
@@ -16,29 +16,29 @@ export const commands = {
 	 *  inside a volume, so the request takes effect within ~one image's encode time
 	 *  in the worst case (not mid-encode).
 	 */
-	cancelConversion: () => typedError<null, string>(__TAURI_INVOKE("cancel_conversion")),
-	getDiscoverySettings: () => typedError<DiscoverySettings, string>(__TAURI_INVOKE("get_discovery_settings")),
-	setDiscoverySettings: (settings: DiscoverySettings) => typedError<null, string>(__TAURI_INVOKE("set_discovery_settings", { settings })),
-	suwayomiStatus: () => typedError<RuntimeState, string>(__TAURI_INVOKE("suwayomi_status")),
+	cancelConversion: () => typedError<null, AppError>(__TAURI_INVOKE("cancel_conversion")),
+	getDiscoverySettings: () => typedError<DiscoverySettings, AppError>(__TAURI_INVOKE("get_discovery_settings")),
+	setDiscoverySettings: (settings: DiscoverySettings) => typedError<null, AppError>(__TAURI_INVOKE("set_discovery_settings", { settings })),
+	suwayomiStatus: () => typedError<RuntimeState, AppError>(__TAURI_INVOKE("suwayomi_status")),
 	suwayomiInstalledInfo: () => typedError<{
 	version: string,
 	size: number,
-} | null, string>(__TAURI_INVOKE("suwayomi_installed_info")),
-	suwayomiInstall: (version: string | null) => typedError<null, string>(__TAURI_INVOKE("suwayomi_install", { version })),
-	suwayomiUninstall: () => typedError<null, string>(__TAURI_INVOKE("suwayomi_uninstall")),
-	suwayomiCheckUpdate: () => typedError<UpdateInfo, string>(__TAURI_INVOKE("suwayomi_check_update")),
-	suwayomiStart: () => typedError<number, string>(__TAURI_INVOKE("suwayomi_start")),
-	suwayomiStop: () => typedError<null, string>(__TAURI_INVOKE("suwayomi_stop")),
-	suwayomiRestart: () => typedError<number, string>(__TAURI_INVOKE("suwayomi_restart")),
-	suwayomiResetData: () => typedError<null, string>(__TAURI_INVOKE("suwayomi_reset_data")),
-	suwayomiOpenDataFolder: () => typedError<null, string>(__TAURI_INVOKE("suwayomi_open_data_folder")),
-	listInstalledSources: () => typedError<SourceInfo[], string>(__TAURI_INVOKE("list_installed_sources")),
-	listAvailableExtensions: () => typedError<ExtensionInfo[], string>(__TAURI_INVOKE("list_available_extensions")),
-	installExtension: (pkg: string) => typedError<null, string>(__TAURI_INVOKE("install_extension", { pkg })),
-	uninstallExtension: (pkg: string) => typedError<null, string>(__TAURI_INVOKE("uninstall_extension", { pkg })),
-	searchSource: (sourceId: string, query: string, page: number) => typedError<SearchPage, string>(__TAURI_INVOKE("search_source", { sourceId, query, page })),
-	listChapters: (mangaId: number) => typedError<ChapterMeta[], string>(__TAURI_INVOKE("list_chapters", { mangaId })),
-	downloadSeries: (mangaId: number, chapters: ChapterMeta[], convertAfter: boolean) => typedError<null, string>(__TAURI_INVOKE("download_series", { mangaId, chapters, convertAfter })),
+} | null, AppError>(__TAURI_INVOKE("suwayomi_installed_info")),
+	suwayomiInstall: (version: string | null) => typedError<null, AppError>(__TAURI_INVOKE("suwayomi_install", { version })),
+	suwayomiUninstall: () => typedError<null, AppError>(__TAURI_INVOKE("suwayomi_uninstall")),
+	suwayomiCheckUpdate: () => typedError<UpdateInfo, AppError>(__TAURI_INVOKE("suwayomi_check_update")),
+	suwayomiStart: () => typedError<number, AppError>(__TAURI_INVOKE("suwayomi_start")),
+	suwayomiStop: () => typedError<null, AppError>(__TAURI_INVOKE("suwayomi_stop")),
+	suwayomiRestart: () => typedError<number, AppError>(__TAURI_INVOKE("suwayomi_restart")),
+	suwayomiResetData: () => typedError<null, AppError>(__TAURI_INVOKE("suwayomi_reset_data")),
+	suwayomiOpenDataFolder: () => typedError<null, AppError>(__TAURI_INVOKE("suwayomi_open_data_folder")),
+	listInstalledSources: () => typedError<SourceInfo[], AppError>(__TAURI_INVOKE("list_installed_sources")),
+	listAvailableExtensions: () => typedError<ExtensionInfo[], AppError>(__TAURI_INVOKE("list_available_extensions")),
+	installExtension: (pkg: string) => typedError<null, AppError>(__TAURI_INVOKE("install_extension", { pkg })),
+	uninstallExtension: (pkg: string) => typedError<null, AppError>(__TAURI_INVOKE("uninstall_extension", { pkg })),
+	searchSource: (sourceId: string, query: string, page: number) => typedError<SearchPage, AppError>(__TAURI_INVOKE("search_source", { sourceId, query, page })),
+	listChapters: (mangaId: number) => typedError<ChapterMeta[], AppError>(__TAURI_INVOKE("list_chapters", { mangaId })),
+	downloadSeries: (mangaId: number, chapters: ChapterMeta[], convertAfter: boolean) => typedError<null, AppError>(__TAURI_INVOKE("download_series", { mangaId, chapters, convertAfter })),
 };
 
 /** Events */
@@ -56,6 +56,8 @@ export const events = {
 };
 
 /* Types */
+export type AppError = { kind: "core"; code: string; message: string; severity: ErrorSeverity; causes: string[] } | { kind: "convert"; code: string; message: string; severity: ErrorSeverity; causes: string[] } | { kind: "source"; code: string; message: string; severity: ErrorSeverity; causes: string[] } | { kind: "io"; message: string } | { kind: "json"; message: string } | { kind: "semaphore"; message: string } | { kind: "task"; message: string } | { kind: "open_path"; message: string } | { kind: "state_lock"; message: string } | { kind: "suwayomi_not_installed" } | { kind: "suwayomi_not_running" } | { kind: "suwayomi_starting" } | { kind: "suwayomi_runtime"; message: string } | { kind: "suwayomi_not_ready" } | { kind: "cancelled" } | { kind: "message"; message: string };
+
 // How chapters/scan-volumes are grouped into output volumes.
 export type BundleMode =
 // Group pages by detected volume number.
@@ -166,6 +168,8 @@ export type DownloadStartEvent = {
 	series_title: string,
 	total_chapters: number,
 };
+
+export type ErrorSeverity = "warning" | "recoverable" | "fatal";
 
 export type ExtensionInfo = {
 	pkg_name: string,

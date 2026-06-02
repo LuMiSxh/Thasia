@@ -1,12 +1,14 @@
+pub mod error;
 pub mod local;
 pub mod prelude;
 pub mod suwayomi;
 
+pub use error::{Result, SourceError};
 pub use local::LocalSource;
 
 use async_trait::async_trait;
 use memmap2::Mmap;
-use thasia_core::{Result, models::DiscoveredImage};
+use thasia_core::models::DiscoveredImage;
 use tokio::sync::mpsc;
 
 pub enum FetchedImage {

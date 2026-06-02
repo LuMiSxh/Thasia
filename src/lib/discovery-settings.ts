@@ -1,4 +1,5 @@
 import { commands, type DiscoverySettings } from '$types/bindings';
+import { formatAppError } from '$lib/errors';
 
 export const DEFAULT_DISCOVERY_SETTINGS: DiscoverySettings = {
     enabled: false,
@@ -17,7 +18,7 @@ export async function loadDiscoverySettings(): Promise<DiscoverySettings> {
 
 export async function saveDiscoverySettings(settings: DiscoverySettings): Promise<void> {
     const result = await commands.setDiscoverySettings(settings);
-    if (result.status === 'error') throw new Error(result.error);
+    if (result.status === 'error') throw new Error(formatAppError(result.error));
     if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('thasia:discovery-settings-changed'));
     }

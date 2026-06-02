@@ -1,5 +1,6 @@
 <script lang="ts">
     import { wizard } from '$lib/wizard/state.svelte';
+    import { formatAppError } from '$lib/errors';
     import { buildConvertOptions, buildVolumeEdits } from '$lib/wizard/payload';
     import { commands, type PipelinePlan } from '$types/bindings';
     import {
@@ -76,7 +77,7 @@
                     pipelineError = '';
                 } else {
                     pipelinePlan = null;
-                    pipelineError = result.error;
+                    pipelineError = formatAppError(result.error);
                 }
             });
     });

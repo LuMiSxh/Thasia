@@ -1,9 +1,9 @@
 //! Raw directory generator — dumps processed images to a flat directory.
 
-use crate::Generator;
+use crate::{Generator, Result};
 use async_trait::async_trait;
 use std::path::{Path, PathBuf};
-use thasia_core::{Result, ThasiaError, models::ProcessedImage, sanitize_filename_component};
+use thasia_core::{models::ProcessedImage, sanitize_filename_component};
 
 pub struct RawGenerator {
     output_dir: PathBuf,
@@ -28,9 +28,7 @@ impl Generator for RawGenerator {
     async fn init(&mut self, output_dir: &Path, volume_name: &str) -> Result<()> {
         let safe_volume_name = sanitize_filename_component(volume_name)?;
         self.output_dir = output_dir.join(safe_volume_name);
-        tokio::fs::create_dir_all(&self.output_dir)
-            .await
-            .map_err(ThasiaError::Io)?;
+        tokio::fs::create_dir_all(&self.output_dir).await?;
         Ok(())
     }
 
@@ -41,9 +39,7 @@ impl Generator for RawGenerator {
             img.ext
         );
         let dest = self.output_dir.join(filename);
-        tokio::fs::write(dest, &img.image_data)
-            .await
-            .map_err(ThasiaError::Io)?;
+        tokio::fs::write(dest, &img.image_data).await?;
         Ok(())
     }
 

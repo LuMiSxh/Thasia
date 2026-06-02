@@ -1,12 +1,13 @@
 use crate::{
     encode::{convert_to_avif, convert_to_webp},
+    error::{ProcessorError, Result as ProcessorResult},
     retry::with_retries,
-    transform::TransformPipeline,
+    transform::{TransformOptions, TransformPipeline},
 };
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
-use thasia_core::prelude::*;
+use thasia_core::prelude::{ImageFormat, ParsedImage, ProcessedImage, ProcessingStats};
 use thasia_source::prelude::{FetchedImage, Source};
 use tokio::sync::mpsc;
 use tracing::warn;
@@ -14,11 +15,8 @@ use tracing::warn;
 #[derive(Debug, Clone, Copy)]
 pub struct EncodeOptions {
     pub format: ImageFormat,
-    pub max_width: Option<u32>,
     pub force_reencode: bool,
-    pub clean_tones: bool,
-    pub color_enhance: ColorEnhanceMode,
-    pub sharpen: SharpenMode,
+    pub transform: TransformOptions,
 }
 
 struct RawImage {
@@ -52,7 +50,7 @@ pub async fn start_pipeline_with_cancel<S: Source + 'static>(
     parsed_rx: mpsc::Receiver<ParsedImage>,
     options: EncodeOptions,
     cancel: Arc<AtomicBool>,
-) -> mpsc::Receiver<thasia_core::Result<ProcessedImage>> {
+) -> mpsc::Receiver<ProcessorResult<ProcessedImage>> {
     start_pipeline_inner(source, parsed_rx, options, Some(cancel)).await
 }
 
@@ -61,7 +59,7 @@ async fn start_pipeline_inner<S: Source + 'static>(
     mut parsed_rx: mpsc::Receiver<ParsedImage>,
     options: EncodeOptions,
     cancel: Option<Arc<AtomicBool>>,
-) -> mpsc::Receiver<thasia_core::Result<ProcessedImage>> {
+) -> mpsc::Receiver<ProcessorResult<ProcessedImage>> {
     let (result_tx, result_rx) = mpsc::channel(64);
 
     let num_cores = std::thread::available_parallelism()
@@ -83,11 +81,9 @@ async fn start_pipeline_inner<S: Source + 'static>(
             if is_cancelled(&cancel_fetch) {
                 break;
             }
-            let permit = fetch_sem
-                .clone()
-                .acquire_owned()
-                .await
-                .expect("fetch semaphore was unexpectedly closed");
+            let Ok(permit) = fetch_sem.clone().acquire_owned().await else {
+                break;
+            };
             let source = source.clone();
             let raw_tx = raw_tx.clone();
             let cancel = cancel_fetch.clone();
@@ -169,7 +165,7 @@ async fn start_pipeline_inner<S: Source + 'static>(
                         let _ = slot_tx.send(());
                         return;
                     }
-                    let result =
+                    let result: ProcessorResult<ProcessedImage> =
                         encode_image(raw.bytes, &raw.original_ext, opts, raw.fetch_duration).map(
                             |encoded| ProcessedImage {
                                 parsed_data: raw.parsed,
@@ -206,7 +202,7 @@ fn encode_image(
     original_ext: &str,
     opts: EncodeOptions,
     fetch_duration: Duration,
-) -> thasia_core::Result<EncodedImage> {
+) -> ProcessorResult<EncodedImage> {
     let total_start = Instant::now();
     let input_bytes = bytes.len() as u64;
     if opts.format == ImageFormat::Original {
@@ -261,13 +257,7 @@ fn encode_image(
     drop(bytes);
 
     let transform_start = Instant::now();
-    TransformPipeline::new(
-        opts.max_width,
-        opts.clean_tones,
-        opts.color_enhance,
-        opts.sharpen,
-    )
-    .apply(&mut img);
+    TransformPipeline::new(opts.transform).apply(&mut img);
     let transform_ms = duration_ms(transform_start.elapsed());
 
     let (w, h) = (img.width(), img.height());
@@ -276,7 +266,11 @@ fn encode_image(
     let (data, ext) = match opts.format {
         ImageFormat::Avif => (convert_to_avif(&img)?, "avif".to_string()),
         ImageFormat::Webp => (convert_to_webp(&img)?, "webp".to_string()),
-        ImageFormat::Original => unreachable!(),
+        ImageFormat::Original => {
+            return Err(ProcessorError::UnsupportedFormat(
+                "original output can only be used via passthrough",
+            ));
+        }
     };
     let encode_ms = duration_ms(encode_start.elapsed());
     let output_bytes = data.len() as u64;
@@ -304,12 +298,7 @@ fn duration_ms(duration: Duration) -> f64 {
 }
 
 fn can_passthrough(original_ext: &str, opts: EncodeOptions) -> bool {
-    if opts.force_reencode
-        || opts.max_width.is_some()
-        || opts.clean_tones
-        || opts.color_enhance != ColorEnhanceMode::Off
-        || opts.sharpen != SharpenMode::Off
-    {
+    if opts.force_reencode || opts.transform.disables_passthrough() {
         return false;
     }
     normalize_ext(original_ext) == target_extension(opts.format)
@@ -345,22 +334,21 @@ fn encode_in_flight_limit(num_cores: usize) -> usize {
     num_cores.saturating_mul(4).max(1)
 }
 
-fn decode_image(bytes: &[u8], original_ext: &str) -> thasia_core::Result<image::DynamicImage> {
+fn decode_image(bytes: &[u8], original_ext: &str) -> ProcessorResult<image::DynamicImage> {
     if normalize_ext(original_ext) == "avif" {
         return decode_avif(bytes);
     }
 
-    image::load_from_memory(bytes)
-        .map_err(|e| ThasiaError::Fatal(format!("Failed to load image: {e}")))
+    image::load_from_memory(bytes).map_err(ProcessorError::decode)
 }
 
-fn decode_avif(bytes: &[u8]) -> thasia_core::Result<image::DynamicImage> {
+fn decode_avif(bytes: &[u8]) -> ProcessorResult<image::DynamicImage> {
     use avif_decode::{Decoder, Image};
     use image::{DynamicImage, ImageBuffer};
 
     let decoded = Decoder::from_avif(bytes)
         .and_then(Decoder::to_image)
-        .map_err(|e| ThasiaError::Fatal(format!("AVIF decode failed: {e}")))?;
+        .map_err(ProcessorError::avif_decode)?;
 
     match decoded {
         Image::Rgb8(img) => {
@@ -371,7 +359,7 @@ fn decode_avif(bytes: &[u8]) -> thasia_core::Result<image::DynamicImage> {
                 .collect::<Vec<_>>();
             ImageBuffer::from_vec(width as u32, height as u32, raw)
                 .map(DynamicImage::ImageRgb8)
-                .ok_or_else(|| ThasiaError::Fatal("AVIF RGB buffer had invalid length".into()))
+                .ok_or(ProcessorError::InvalidBuffer("AVIF RGB"))
         }
         Image::Rgba8(img) => {
             let (pixels, width, height) = img.into_contiguous_buf();
@@ -381,14 +369,14 @@ fn decode_avif(bytes: &[u8]) -> thasia_core::Result<image::DynamicImage> {
                 .collect::<Vec<_>>();
             ImageBuffer::from_vec(width as u32, height as u32, raw)
                 .map(DynamicImage::ImageRgba8)
-                .ok_or_else(|| ThasiaError::Fatal("AVIF RGBA buffer had invalid length".into()))
+                .ok_or(ProcessorError::InvalidBuffer("AVIF RGBA"))
         }
         Image::Gray8(img) => {
             let (pixels, width, height) = img.into_contiguous_buf();
             let raw = pixels.into_iter().map(|px| px.value()).collect::<Vec<_>>();
             ImageBuffer::from_vec(width as u32, height as u32, raw)
                 .map(DynamicImage::ImageLuma8)
-                .ok_or_else(|| ThasiaError::Fatal("AVIF gray buffer had invalid length".into()))
+                .ok_or(ProcessorError::InvalidBuffer("AVIF gray"))
         }
         Image::Rgb16(img) => {
             let (pixels, width, height) = img.into_contiguous_buf();
@@ -398,7 +386,7 @@ fn decode_avif(bytes: &[u8]) -> thasia_core::Result<image::DynamicImage> {
                 .collect::<Vec<_>>();
             ImageBuffer::from_vec(width as u32, height as u32, raw)
                 .map(DynamicImage::ImageRgb16)
-                .ok_or_else(|| ThasiaError::Fatal("AVIF RGB16 buffer had invalid length".into()))
+                .ok_or(ProcessorError::InvalidBuffer("AVIF RGB16"))
         }
         Image::Rgba16(img) => {
             let (pixels, width, height) = img.into_contiguous_buf();
@@ -408,14 +396,14 @@ fn decode_avif(bytes: &[u8]) -> thasia_core::Result<image::DynamicImage> {
                 .collect::<Vec<_>>();
             ImageBuffer::from_vec(width as u32, height as u32, raw)
                 .map(DynamicImage::ImageRgba16)
-                .ok_or_else(|| ThasiaError::Fatal("AVIF RGBA16 buffer had invalid length".into()))
+                .ok_or(ProcessorError::InvalidBuffer("AVIF RGBA16"))
         }
         Image::Gray16(img) => {
             let (pixels, width, height) = img.into_contiguous_buf();
             let raw = pixels.into_iter().map(|px| px.value()).collect::<Vec<_>>();
             ImageBuffer::from_vec(width as u32, height as u32, raw)
                 .map(DynamicImage::ImageLuma16)
-                .ok_or_else(|| ThasiaError::Fatal("AVIF gray16 buffer had invalid length".into()))
+                .ok_or(ProcessorError::InvalidBuffer("AVIF gray16"))
         }
     }
 }
@@ -423,29 +411,27 @@ fn decode_avif(bytes: &[u8]) -> thasia_core::Result<image::DynamicImage> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use thasia_core::prelude::{ColorEnhanceMode, SharpenMode};
+
+    fn encode_options(format: ImageFormat) -> EncodeOptions {
+        EncodeOptions {
+            format,
+            force_reencode: false,
+            transform: TransformOptions::default(),
+        }
+    }
 
     #[test]
     fn passthrough_same_target_format_when_not_forced() {
-        let opts = EncodeOptions {
-            format: ImageFormat::Avif,
-            max_width: None,
-            force_reencode: false,
-            clean_tones: false,
-            color_enhance: ColorEnhanceMode::Off,
-            sharpen: SharpenMode::Off,
-        };
+        let opts = encode_options(ImageFormat::Avif);
         assert!(can_passthrough("avif", opts));
     }
 
     #[test]
     fn force_reencode_disables_passthrough() {
         let opts = EncodeOptions {
-            format: ImageFormat::Avif,
-            max_width: None,
             force_reencode: true,
-            clean_tones: false,
-            color_enhance: ColorEnhanceMode::Off,
-            sharpen: SharpenMode::Off,
+            ..encode_options(ImageFormat::Avif)
         };
         assert!(!can_passthrough("avif", opts));
     }
@@ -453,12 +439,11 @@ mod tests {
     #[test]
     fn resize_disables_passthrough() {
         let opts = EncodeOptions {
-            format: ImageFormat::Webp,
-            max_width: Some(1920),
-            force_reencode: false,
-            clean_tones: false,
-            color_enhance: ColorEnhanceMode::Off,
-            sharpen: SharpenMode::Off,
+            transform: TransformOptions {
+                max_width: Some(1920),
+                ..TransformOptions::default()
+            },
+            ..encode_options(ImageFormat::Webp)
         };
         assert!(!can_passthrough("webp", opts));
     }
@@ -466,12 +451,11 @@ mod tests {
     #[test]
     fn cleanup_disables_passthrough() {
         let opts = EncodeOptions {
-            format: ImageFormat::Avif,
-            max_width: None,
-            force_reencode: false,
-            clean_tones: true,
-            color_enhance: ColorEnhanceMode::Off,
-            sharpen: SharpenMode::Off,
+            transform: TransformOptions {
+                clean_tones: true,
+                ..TransformOptions::default()
+            },
+            ..encode_options(ImageFormat::Avif)
         };
         assert!(!can_passthrough("avif", opts));
     }
@@ -479,12 +463,11 @@ mod tests {
     #[test]
     fn color_enhance_disables_passthrough() {
         let opts = EncodeOptions {
-            format: ImageFormat::Avif,
-            max_width: None,
-            force_reencode: false,
-            clean_tones: false,
-            color_enhance: ColorEnhanceMode::Mild,
-            sharpen: SharpenMode::Off,
+            transform: TransformOptions {
+                color_enhance: ColorEnhanceMode::Mild,
+                ..TransformOptions::default()
+            },
+            ..encode_options(ImageFormat::Avif)
         };
         assert!(!can_passthrough("avif", opts));
     }
@@ -492,14 +475,25 @@ mod tests {
     #[test]
     fn sharpen_disables_passthrough() {
         let opts = EncodeOptions {
-            format: ImageFormat::Webp,
-            max_width: None,
-            force_reencode: false,
-            clean_tones: false,
-            color_enhance: ColorEnhanceMode::Off,
-            sharpen: SharpenMode::Mild,
+            transform: TransformOptions {
+                sharpen: SharpenMode::Mild,
+                ..TransformOptions::default()
+            },
+            ..encode_options(ImageFormat::Webp)
         };
         assert!(!can_passthrough("webp", opts));
+    }
+
+    #[test]
+    fn transform_options_identify_passthrough_compatibility() {
+        assert!(!TransformOptions::default().disables_passthrough());
+        assert!(
+            TransformOptions {
+                sharpen: SharpenMode::Mild,
+                ..TransformOptions::default()
+            }
+            .disables_passthrough()
+        );
     }
 
     #[test]

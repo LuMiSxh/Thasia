@@ -3,7 +3,7 @@
 
 use super::constants::*;
 use super::grayscale::{ImageTone, classify_image_tone};
-use thasia_core::ThasiaError;
+use crate::{ProcessorError, Result};
 use tracing::trace;
 
 pub fn auto_tune_avif(img: &image::DynamicImage, tone: ImageTone) -> (f32, u8) {
@@ -34,7 +34,7 @@ pub fn auto_tune_avif(img: &image::DynamicImage, tone: ImageTone) -> (f32, u8) {
     (quality, speed)
 }
 
-pub fn convert_to_avif(img: &image::DynamicImage) -> Result<Vec<u8>, ThasiaError> {
+pub fn convert_to_avif(img: &image::DynamicImage) -> Result<Vec<u8>> {
     let width = img.width() as usize;
     let height = img.height() as usize;
     let tone = classify_image_tone(img);
@@ -66,7 +66,7 @@ fn encode_gray(
     img: &image::DynamicImage,
     width: usize,
     height: usize,
-) -> Result<Vec<u8>, ThasiaError> {
+) -> Result<Vec<u8>> {
     // Fast path: avoid allocating a luma buffer for RGB/RGBA images — use the
     // red channel as Y (exact for R=G=B grayscale; negligible error otherwise).
     if let Some(rgb) = img.as_rgb8() {
@@ -81,7 +81,7 @@ fn encode_gray(
                 ravif::MatrixCoefficients::BT601,
             )
             .map(|e| e.avif_file)
-            .map_err(|e| ThasiaError::Fatal(format!("AVIF gray encode failed: {e}")));
+            .map_err(ProcessorError::avif_encode);
     }
 
     if let Some(rgba) = img.as_rgba8() {
@@ -96,7 +96,7 @@ fn encode_gray(
                 ravif::MatrixCoefficients::BT601,
             )
             .map(|e| e.avif_file)
-            .map_err(|e| ThasiaError::Fatal(format!("AVIF gray encode failed: {e}")));
+            .map_err(ProcessorError::avif_encode);
     }
 
     let luma = img.to_luma8();
@@ -111,7 +111,7 @@ fn encode_gray(
             rav1e::prelude::PixelRange::Full,
             ravif::MatrixCoefficients::BT601,
         )
-        .map_err(|e| ThasiaError::Fatal(format!("AVIF gray encode failed: {e}")))?;
+        .map_err(ProcessorError::avif_encode)?;
 
     Ok(encoded.avif_file)
 }
@@ -121,7 +121,7 @@ fn encode_color(
     img: &image::DynamicImage,
     width: usize,
     height: usize,
-) -> Result<Vec<u8>, ThasiaError> {
+) -> Result<Vec<u8>> {
     use ravif::{Img, RGB8};
 
     let rgb_cow = if let Some(r) = img.as_rgb8() {
@@ -136,7 +136,7 @@ fn encode_color(
 
     let encoded = encoder
         .encode_rgb(Img::new(rgb_slice, width, height))
-        .map_err(|e| ThasiaError::Fatal(format!("AVIF color encode failed: {e}")))?;
+        .map_err(ProcessorError::avif_encode)?;
 
     Ok(encoded.avif_file)
 }

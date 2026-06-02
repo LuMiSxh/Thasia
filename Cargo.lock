@@ -5347,6 +5347,7 @@ dependencies = [
  "async_zip",
  "epub-builder",
  "thasia-core",
+ "thiserror 2.0.18",
  "tokio",
 ]
 
@@ -5373,6 +5374,7 @@ dependencies = [
  "rayon",
  "thasia-core",
  "thasia-source",
+ "thiserror 2.0.18",
  "tokio",
  "tracing",
  "webp",
@@ -5397,6 +5399,7 @@ dependencies = [
  "tar",
  "tempfile",
  "thasia-core",
+ "thiserror 2.0.18",
  "tokio",
  "tracing",
  "tracing-appender",

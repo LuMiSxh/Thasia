@@ -30,12 +30,7 @@ pub fn handle(request: Request<Vec<u8>>) -> Response<Vec<u8>> {
 
     let mime = mime_for_path(&path);
 
-    Response::builder()
-        .status(200)
-        .header("Content-Type", mime)
-        .header("Access-Control-Allow-Origin", "*")
-        .body(bytes)
-        .unwrap()
+    response_with_headers(200, bytes, Some(mime))
 }
 
 fn extract_path_param(uri: &str) -> Option<String> {
@@ -63,10 +58,23 @@ fn mime_for_path(path: &std::path::Path) -> &'static str {
 }
 
 fn error_response(status: u16, msg: &str) -> Response<Vec<u8>> {
-    Response::builder()
+    response_with_headers(status, msg.as_bytes().to_vec(), None)
+}
+
+fn response_with_headers(
+    status: u16,
+    body: Vec<u8>,
+    content_type: Option<&'static str>,
+) -> Response<Vec<u8>> {
+    let mut builder = Response::builder()
         .status(status)
-        .body(msg.as_bytes().to_vec())
-        .unwrap()
+        .header("Access-Control-Allow-Origin", "*");
+    if let Some(content_type) = content_type {
+        builder = builder.header("Content-Type", content_type);
+    }
+    builder
+        .body(body)
+        .unwrap_or_else(|_| Response::new(Vec::new()))
 }
 
 #[cfg(test)]

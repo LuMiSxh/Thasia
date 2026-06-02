@@ -1,13 +1,11 @@
-use crate::Generator;
+use crate::{Generator, PackagerError, Result};
 use async_trait::async_trait;
 use async_zip::{
     Compression, ZipEntryBuilder, base::write::ZipFileWriter as BaseZipFileWriter,
     tokio::write::ZipFileWriter,
 };
 use std::path::{Path, PathBuf};
-use thasia_core::{
-    Result, ThasiaError, escape_xml_text, models::ProcessedImage, sanitize_filename_component,
-};
+use thasia_core::{escape_xml_text, models::ProcessedImage, sanitize_filename_component};
 use tokio::fs::File;
 
 const COMIC_INFO: &str = include_str!("../templates/comic_info.xml");
@@ -39,12 +37,10 @@ impl Default for CbzGenerator {
 #[async_trait]
 impl Generator for CbzGenerator {
     async fn init(&mut self, output_dir: &Path, volume_name: &str) -> Result<()> {
-        tokio::fs::create_dir_all(output_dir)
-            .await
-            .map_err(ThasiaError::Io)?;
+        tokio::fs::create_dir_all(output_dir).await?;
         let safe_volume_name = sanitize_filename_component(volume_name)?;
         let path = output_dir.join(format!("{safe_volume_name}.cbz"));
-        let file = File::create(&path).await.map_err(ThasiaError::Io)?;
+        let file = File::create(&path).await?;
         self.writer = Some(BaseZipFileWriter::with_tokio(file));
         self.output_path = Some(path);
         self.volume_name = safe_volume_name;
@@ -55,7 +51,7 @@ impl Generator for CbzGenerator {
         let writer = self
             .writer
             .as_mut()
-            .ok_or_else(|| ThasiaError::Fatal("CbzGenerator not initialized".into()))?;
+            .ok_or(PackagerError::NotInitialized("CBZ writer"))?;
 
         // page_number is f32 (parser/sort key) but the caller reassigns it to
         // sequential integers before this point, so cast back for filename formatting.
@@ -71,10 +67,7 @@ impl Generator for CbzGenerator {
         };
 
         let builder = ZipEntryBuilder::new(filename.into(), compression);
-        writer
-            .write_entry_whole(builder, &img.image_data)
-            .await
-            .map_err(|e| ThasiaError::Fatal(e.to_string()))?;
+        writer.write_entry_whole(builder, &img.image_data).await?;
 
         self.page_count += 1;
         Ok(())
@@ -88,7 +81,7 @@ impl Generator for CbzGenerator {
         let mut writer = self
             .writer
             .take()
-            .ok_or_else(|| ThasiaError::Fatal("CbzGenerator not initialized".into()))?;
+            .ok_or(PackagerError::NotInitialized("CBZ writer"))?;
 
         let title = escape_xml_text(&self.volume_name);
         let xml = COMIC_INFO
@@ -96,15 +89,9 @@ impl Generator for CbzGenerator {
             .replace("%pagecount%", &self.page_count.to_string());
 
         let builder = ZipEntryBuilder::new("ComicInfo.xml".into(), Compression::Deflate);
-        writer
-            .write_entry_whole(builder, xml.as_bytes())
-            .await
-            .map_err(|e| ThasiaError::Fatal(e.to_string()))?;
+        writer.write_entry_whole(builder, xml.as_bytes()).await?;
 
-        writer
-            .close()
-            .await
-            .map_err(|e| ThasiaError::Fatal(e.to_string()))?;
+        writer.close().await?;
         Ok(())
     }
 }

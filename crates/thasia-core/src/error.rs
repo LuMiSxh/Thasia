@@ -1,5 +1,4 @@
 use miette::Diagnostic;
-use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 #[derive(Debug, Error, Diagnostic)]
@@ -24,6 +23,26 @@ pub enum ThasiaError {
     #[diagnostic(code(thasia::parse::unresolved))]
     UnresolvedPath { path: String },
 
+    #[error("Output name cannot be empty")]
+    #[diagnostic(code(thasia::filename::empty))]
+    EmptyFilename,
+
+    #[error("Invalid output name component: {value}")]
+    #[diagnostic(code(thasia::filename::invalid_component))]
+    InvalidFilenameComponent { value: String },
+
+    #[error("Output name cannot end with a dot or space: {value}")]
+    #[diagnostic(code(thasia::filename::trailing_dot_or_space))]
+    FilenameTrailingDotOrSpace { value: String },
+
+    #[error("Output name contains characters that are not safe for filenames: {value}")]
+    #[diagnostic(code(thasia::filename::unsafe_character))]
+    UnsafeFilenameCharacter { value: String },
+
+    #[error("Output name is reserved on Windows: {value}")]
+    #[diagnostic(code(thasia::filename::windows_reserved))]
+    WindowsReservedFilename { value: String },
+
     // --- LEVEL 3: Fatal Level (Abort) ---
     #[error("Fatal Pipeline Error: {0}")]
     #[diagnostic(code(thasia::fatal::pipeline_aborted))]
@@ -36,35 +55,6 @@ pub enum ThasiaError {
     #[error("I/O Error: {0}")]
     #[diagnostic(code(thasia::fatal::io))]
     Io(#[from] std::io::Error),
-}
-
-/// A structured error representation that can be sent to a frontend via Tauri
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "tauri", derive(specta::Type))]
-pub struct SerializableError {
-    pub code: String,
-    pub message: String,
-    pub severity: u8, // 1 = Warning, 2 = Skip, 3 = Fatal
-}
-
-impl From<&ThasiaError> for SerializableError {
-    fn from(err: &ThasiaError) -> Self {
-        use miette::Diagnostic as _;
-        let code = err
-            .code()
-            .map(|c| c.to_string())
-            .unwrap_or_else(|| "thasia::unknown".into());
-        let severity = match err {
-            ThasiaError::ItemProcessFailed { .. } => 1,
-            ThasiaError::VolumeSkipped { .. } | ThasiaError::UnresolvedPath { .. } => 2,
-            _ => 3,
-        };
-        Self {
-            code,
-            message: err.to_string(),
-            severity,
-        }
-    }
 }
 
 pub type Result<T> = std::result::Result<T, ThasiaError>;

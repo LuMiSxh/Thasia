@@ -1,15 +1,12 @@
 use backoff::{ExponentialBackoff, future::retry};
 use std::time::Duration;
-use thasia_core::ThasiaError;
 use tracing::{error, warn};
 
-pub async fn with_retries<F, Fut, T>(
-    context: &str,
-    operation: F,
-) -> std::result::Result<T, ThasiaError>
+pub async fn with_retries<F, Fut, T, E>(context: &str, operation: F) -> std::result::Result<T, E>
 where
     F: Fn() -> Fut,
-    Fut: std::future::Future<Output = std::result::Result<T, backoff::Error<ThasiaError>>>,
+    Fut: std::future::Future<Output = std::result::Result<T, backoff::Error<E>>>,
+    E: std::error::Error + Send + Sync + 'static,
 {
     let backoff = ExponentialBackoff {
         max_elapsed_time: Some(Duration::from_secs(15)),

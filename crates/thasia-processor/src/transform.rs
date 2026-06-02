@@ -2,6 +2,23 @@ use crate::encode::grayscale::{ImageTone, classify_image_tone};
 use image::DynamicImage;
 use thasia_core::models::{ColorEnhanceMode, SharpenMode};
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct TransformOptions {
+    pub max_width: Option<u32>,
+    pub clean_tones: bool,
+    pub color_enhance: ColorEnhanceMode,
+    pub sharpen: SharpenMode,
+}
+
+impl TransformOptions {
+    pub fn disables_passthrough(self) -> bool {
+        self.max_width.is_some()
+            || self.clean_tones
+            || self.color_enhance != ColorEnhanceMode::Off
+            || self.sharpen != SharpenMode::Off
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TransformStep {
     NormalizeColor,
@@ -19,42 +36,29 @@ const DEFAULT_STEPS: &[TransformStep] = &[
 
 #[derive(Debug, Clone, Copy)]
 pub struct TransformPipeline {
-    max_width: Option<u32>,
-    clean_tones: bool,
-    color_enhance: ColorEnhanceMode,
-    sharpen: SharpenMode,
+    options: TransformOptions,
 }
 
 impl TransformPipeline {
-    pub fn new(
-        max_width: Option<u32>,
-        clean_tones: bool,
-        color_enhance: ColorEnhanceMode,
-        sharpen: SharpenMode,
-    ) -> Self {
-        Self {
-            max_width,
-            clean_tones,
-            color_enhance,
-            sharpen,
-        }
+    pub fn new(options: TransformOptions) -> Self {
+        Self { options }
     }
 
     pub fn apply(&self, img: &mut DynamicImage) {
         for step in DEFAULT_STEPS {
             step.apply(img);
         }
-        if let Some(max_width) = self.max_width {
+        if let Some(max_width) = self.options.max_width {
             TransformStep::ResizeMaxWidth(max_width).apply(img);
         }
-        if self.clean_tones {
+        if self.options.clean_tones {
             TransformStep::CleanScanTones.apply(img);
         }
-        if self.color_enhance != ColorEnhanceMode::Off {
-            TransformStep::EnhanceColor(self.color_enhance).apply(img);
+        if self.options.color_enhance != ColorEnhanceMode::Off {
+            TransformStep::EnhanceColor(self.options.color_enhance).apply(img);
         }
-        if self.sharpen != SharpenMode::Off {
-            TransformStep::Sharpen(self.sharpen).apply(img);
+        if self.options.sharpen != SharpenMode::Off {
+            TransformStep::Sharpen(self.options.sharpen).apply(img);
         }
     }
 }
@@ -99,14 +103,21 @@ fn resize_max_width(img: &mut DynamicImage, max_width: u32) {
 }
 
 fn drop_opaque_alpha(img: &mut DynamicImage) {
-    let rgb = {
+    let Some(rgb) = ({
         let Some(rgba) = img.as_rgba8() else {
             return;
         };
         if !rgba.as_raw().chunks_exact(4).all(|px| px[3] == 255) {
             return;
         }
-        DynamicImage::ImageRgba8(rgba.clone()).to_rgb8()
+        let (width, height) = rgba.dimensions();
+        let mut raw = Vec::with_capacity(rgba.as_raw().len() / 4 * 3);
+        for px in rgba.as_raw().chunks_exact(4) {
+            raw.extend_from_slice(&px[..3]);
+        }
+        image::RgbImage::from_raw(width, height, raw)
+    }) else {
+        return;
     };
     *img = DynamicImage::ImageRgb8(rgb);
 }

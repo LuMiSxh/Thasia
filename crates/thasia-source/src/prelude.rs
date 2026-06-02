@@ -1,1 +1,1 @@
-pub use crate::{FetchedImage, LocalSource, Source};
+pub use crate::{FetchedImage, LocalSource, Result, Source, SourceError};

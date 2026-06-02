@@ -8,24 +8,24 @@ const WINDOWS_RESERVED_NAMES: &[&str] = &[
 pub fn sanitize_filename_component(input: &str) -> Result<String> {
     let trimmed = input.trim();
     if trimmed.is_empty() {
-        return Err(ThasiaError::Fatal("Output name cannot be empty".into()));
+        return Err(ThasiaError::EmptyFilename);
     }
     if matches!(trimmed, "." | "..") || trimmed.contains("..") {
-        return Err(ThasiaError::Fatal(format!(
-            "Invalid output name component: {input}"
-        )));
+        return Err(ThasiaError::InvalidFilenameComponent {
+            value: input.to_string(),
+        });
     }
     if trimmed.ends_with('.') || trimmed.ends_with(' ') {
-        return Err(ThasiaError::Fatal(format!(
-            "Output name cannot end with a dot or space: {input}"
-        )));
+        return Err(ThasiaError::FilenameTrailingDotOrSpace {
+            value: input.to_string(),
+        });
     }
     if trimmed.chars().any(|c| {
         c.is_control() || matches!(c, '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|')
     }) {
-        return Err(ThasiaError::Fatal(format!(
-            "Output name contains characters that are not safe for filenames: {input}"
-        )));
+        return Err(ThasiaError::UnsafeFilenameCharacter {
+            value: input.to_string(),
+        });
     }
 
     let stem = trimmed
@@ -34,9 +34,9 @@ pub fn sanitize_filename_component(input: &str) -> Result<String> {
         .unwrap_or(trimmed)
         .to_ascii_uppercase();
     if WINDOWS_RESERVED_NAMES.contains(&stem.as_str()) {
-        return Err(ThasiaError::Fatal(format!(
-            "Output name is reserved on Windows: {input}"
-        )));
+        return Err(ThasiaError::WindowsReservedFilename {
+            value: input.to_string(),
+        });
     }
 
     Ok(trimmed.to_string())

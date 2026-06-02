@@ -1,3 +1,4 @@
+use crate::app_error::CommandResult;
 use crate::state::ConvState;
 use std::sync::RwLock;
 use std::sync::atomic::Ordering;
@@ -10,8 +11,8 @@ use tauri::State;
 /// in the worst case (not mid-encode).
 #[tauri::command]
 #[specta::specta]
-pub async fn cancel_conversion(state: State<'_, RwLock<ConvState>>) -> Result<(), String> {
-    let s = state.read().map_err(|e| e.to_string())?;
+pub async fn cancel_conversion(state: State<'_, RwLock<ConvState>>) -> CommandResult<()> {
+    let s = state.read()?;
     s.cancel.store(true, Ordering::SeqCst);
     Ok(())
 }

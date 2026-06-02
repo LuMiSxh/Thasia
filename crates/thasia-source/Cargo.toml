@@ -17,6 +17,7 @@ natord = "1.0"
 zip = { workspace = true }
 serde = { workspace = true }
 specta = { workspace = true }
+thiserror = { workspace = true }
 reqwest = { version = "0.13", default-features = false, features = [
     "json",
     "stream",
