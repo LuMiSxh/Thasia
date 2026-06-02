@@ -1,4 +1,6 @@
+mod events;
 mod page_edits;
+mod runner;
 mod volume;
 
 use std::path::PathBuf;
@@ -10,7 +12,9 @@ use thiserror::Error;
 
 use crate::app_error::ErrorSeverity;
 
+pub(crate) use events::{ConversionEvents, TauriConversionEvents};
 pub(crate) use page_edits::resolve_edit_pages;
+pub(crate) use runner::run_tauri_conversion;
 pub(crate) use volume::{ConversionStats, PackageSelection, convert_volume, duration_ms};
 
 pub(crate) type ConvertResult<T> = Result<T, ConvertError>;

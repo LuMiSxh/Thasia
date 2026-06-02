@@ -1,4 +1,4 @@
-use super::{ConvertError, ConvertResult};
+use super::{ConversionEvents, ConvertError, ConvertResult};
 use crate::events::{ConversionOutput, ImageProgressEvent};
 use crate::state::ConvertOptions;
 use std::collections::BTreeMap;
@@ -6,8 +6,6 @@ use std::path::Path;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
-use tauri::AppHandle;
-use tauri_specta::Event;
 use thasia_core::prelude::{OutputFormat, ProcessedImage, VolumePlan};
 use thasia_packager::{CbzGenerator, EpubGenerator, Generator, RawGenerator};
 use thasia_processor::{EncodeOptions, start_pipeline_with_cancel};
@@ -83,7 +81,7 @@ pub(crate) async fn convert_volume(
     encode_opts: EncodeOptions,
     source: Arc<LocalSource>,
     cancel: Arc<AtomicBool>,
-    app: &AppHandle,
+    events: &dyn ConversionEvents,
 ) -> ConvertResult<VolumeConversionResult> {
     let started = Instant::now();
     let vol_num = plan.volume_num;
@@ -121,7 +119,7 @@ pub(crate) async fn convert_volume(
         let img = result?;
         current += 1;
         stats.add_image(&img);
-        emit_image_progress(app, vol_num, current, total, started.elapsed(), &stats);
+        emit_image_progress(events, vol_num, current, total, started.elapsed(), &stats);
         pending.insert(page_index(&img), img);
         while let Some(img) = pending.remove(&next_page) {
             pkg.add_page(img).await?;
@@ -166,7 +164,7 @@ fn package_generator(package: PackageSelection) -> Box<dyn Generator> {
 }
 
 fn emit_image_progress(
-    app: &AppHandle,
+    events: &dyn ConversionEvents,
     volume_num: u32,
     current: u32,
     total: u32,
@@ -174,7 +172,7 @@ fn emit_image_progress(
     stats: &ConversionStats,
 ) {
     let pages_per_sec = current as f64 / elapsed.as_secs_f64().max(0.001);
-    ImageProgressEvent {
+    events.image_progress(ImageProgressEvent {
         volume_num,
         current,
         total,
@@ -189,9 +187,7 @@ fn emit_image_progress(
         decode_ms: duration_ms(stats.decode_time),
         transform_ms: duration_ms(stats.transform_time),
         encode_ms: duration_ms(stats.encode_time),
-    }
-    .emit(app)
-    .ok();
+    });
 }
 
 fn duration_from_ms(ms: f64) -> Duration {
