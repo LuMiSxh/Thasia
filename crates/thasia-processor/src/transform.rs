@@ -15,6 +15,7 @@ pub struct TransformOptions {
     pub auto_crop: bool,
     /// Padding added around the cropped area in pixels.
     pub crop_padding: u32,
+    pub moire_reduction: bool,
 }
 
 impl TransformOptions {
@@ -25,6 +26,7 @@ impl TransformOptions {
             || self.sharpen != SharpenMode::Off
             || self.split_double_page
             || self.auto_crop
+            || self.moire_reduction
     }
 }
 
@@ -56,12 +58,20 @@ pub enum TransformStep {
     Sharpen(SharpenMode),
     ResizeMaxWidth(u32),
     AutoCrop(u32),
+    MoireReduction,
 }
 
 const DEFAULT_STEPS: &[TransformStep] = &[
     TransformStep::NormalizeColor,
     TransformStep::DropOpaqueAlpha,
 ];
+
+/// Kernel radius for the bilateral screentone smoother.
+const BILATERAL_RADIUS: i32 = 2;
+/// Spatial Gaussian sigma.
+const BILATERAL_SIGMA_SPACE: f32 = 1.5;
+/// Range Gaussian sigma (luma units 0-255).
+const BILATERAL_SIGMA_RANGE: f32 = 30.0;
 
 #[derive(Debug, Clone, Copy)]
 pub struct TransformPipeline {
@@ -76,6 +86,9 @@ impl TransformPipeline {
     pub fn apply(&self, img: &mut DynamicImage) {
         for step in DEFAULT_STEPS {
             step.apply(img);
+        }
+        if self.options.moire_reduction {
+            TransformStep::MoireReduction.apply(img);
         }
         if let Some(max_width) = self.options.max_width {
             TransformStep::ResizeMaxWidth(max_width).apply(img);
@@ -105,6 +118,7 @@ impl TransformStep {
             TransformStep::Sharpen(mode) => sharpen(img, mode),
             TransformStep::ResizeMaxWidth(max_width) => resize_max_width(img, max_width),
             TransformStep::AutoCrop(padding) => auto_crop(img, padding),
+            TransformStep::MoireReduction => moire_reduction(img),
         }
     }
 }
@@ -280,6 +294,101 @@ fn sharpen(img: &mut DynamicImage, mode: SharpenMode) {
 const CROP_BG_LUMA: u8 = 235;
 // A row/column is background if this fraction of its pixels are bright.
 const CROP_BG_ROW_RATIO: f32 = 0.97;
+
+fn moire_reduction(img: &mut DynamicImage) {
+    // Bilateral filter on the luma channel: smooths screentone high-frequency
+    // patterns while preserving ink edges (large luma gradients are down-weighted).
+    let (w, h) = (img.width(), img.height());
+    if w < 3 || h < 3 {
+        return;
+    }
+
+    // Precompute spatial kernel weights once.
+    let r = BILATERAL_RADIUS;
+    let diam = (2 * r + 1) as usize;
+    let mut spatial: Vec<f32> = Vec::with_capacity(diam * diam);
+    for dy in -r..=r {
+        for dx in -r..=r {
+            let d2 = (dx * dx + dy * dy) as f32;
+            spatial.push((-d2 / (2.0 * BILATERAL_SIGMA_SPACE * BILATERAL_SIGMA_SPACE)).exp());
+        }
+    }
+
+    let range_coeff = -1.0 / (2.0 * BILATERAL_SIGMA_RANGE * BILATERAL_SIGMA_RANGE);
+
+    match img {
+        DynamicImage::ImageRgb8(buf) => {
+            let input = buf.clone();
+            let raw = buf.as_flat_samples_mut();
+            let (stride, data) = (w as usize * 3, raw.samples);
+            for y in 0..h {
+                for x in 0..w {
+                    let center_luma = pixel_luma_rgb(&input, x, y);
+                    let mut sum_w = 0.0f32;
+                    let mut sum_r = 0.0f32;
+                    let mut sum_g = 0.0f32;
+                    let mut sum_b = 0.0f32;
+                    let mut ki = 0;
+                    for dy in -r..=r {
+                        for dx in -r..=r {
+                            let nx = (x as i32 + dx).clamp(0, w as i32 - 1) as u32;
+                            let ny = (y as i32 + dy).clamp(0, h as i32 - 1) as u32;
+                            let n_luma = pixel_luma_rgb(&input, nx, ny);
+                            let range_w = ((n_luma as f32 - center_luma as f32).powi(2) * range_coeff).exp();
+                            let w_total = spatial[ki] * range_w;
+                            let base = (ny as usize * (w as usize) + nx as usize) * 3;
+                            let nr = input.as_raw()[base] as f32;
+                            let ng = input.as_raw()[base + 1] as f32;
+                            let nb = input.as_raw()[base + 2] as f32;
+                            sum_r += w_total * nr;
+                            sum_g += w_total * ng;
+                            sum_b += w_total * nb;
+                            sum_w += w_total;
+                            ki += 1;
+                        }
+                    }
+                    let base = (y as usize * w as usize + x as usize) * 3;
+                    data[base]     = (sum_r / sum_w).round() as u8;
+                    data[base + 1] = (sum_g / sum_w).round() as u8;
+                    data[base + 2] = (sum_b / sum_w).round() as u8;
+                    let _ = stride; // used implicitly via base indexing
+                }
+            }
+        }
+        DynamicImage::ImageLuma8(buf) => {
+            let input = buf.clone();
+            let raw = buf.as_flat_samples_mut().samples;
+            for y in 0..h {
+                for x in 0..w {
+                    let center = input.get_pixel(x, y).0[0] as f32;
+                    let mut sum_w = 0.0f32;
+                    let mut sum_v = 0.0f32;
+                    let mut ki = 0;
+                    for dy in -r..=r {
+                        for dx in -r..=r {
+                            let nx = (x as i32 + dx).clamp(0, w as i32 - 1) as u32;
+                            let ny = (y as i32 + dy).clamp(0, h as i32 - 1) as u32;
+                            let nv = input.get_pixel(nx, ny).0[0] as f32;
+                            let range_w = ((nv - center).powi(2) * range_coeff).exp();
+                            let w_total = spatial[ki] * range_w;
+                            sum_v += w_total * nv;
+                            sum_w += w_total;
+                            ki += 1;
+                        }
+                    }
+                    raw[(y * w + x) as usize] = (sum_v / sum_w).round() as u8;
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
+#[inline(always)]
+fn pixel_luma_rgb(img: &image::RgbImage, x: u32, y: u32) -> u8 {
+    let p = img.get_pixel(x, y).0;
+    luma_approx(p[0], p[1], p[2])
+}
 
 fn auto_crop(img: &mut DynamicImage, padding: u32) {
     let (w, h) = (img.width(), img.height());
