@@ -8,7 +8,7 @@
 
 Convert, optimize, and package your manga into CBZ or EPUB formats. Featuring intelligent auto-detection, a visual page editor, advanced AVIF/WebP encoding, and a fully parallelized pipeline.
 
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![License](https://img.shields.io/badge/license-BSD%203-blue.svg)](LICENSE)
 [![Version](https://img.shields.io/github/v/release/LuMiSxh/Thasia)](https://github.com/LuMiSxh/Thasia/releases)
 
 [Features](#features) • [Installation](#installation) • [Quick Start](#quick-start) • [Development](#development)
