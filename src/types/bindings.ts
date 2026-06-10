@@ -11,7 +11,7 @@ export const commands = {
 	convert: (options: ConvertOptions, edits: VolumeEdit[]) => typedError<null, AppError>(__TAURI_INVOKE("convert", { options, edits })),
 	/**
 	 *  Request cooperative cancellation of an in-flight `convert`.
-	 *
+	 * 
 	 *  Cancellation is checked between volumes and between encoded-image deliveries
 	 *  inside a volume, so the request takes effect within ~one image's encode time
 	 *  in the worst case (not mid-encode).
@@ -59,9 +59,9 @@ export const events = {
 export type AppError = { kind: "core"; code: string; message: string; severity: ErrorSeverity; causes: string[] } | { kind: "convert"; code: string; message: string; severity: ErrorSeverity; causes: string[] } | { kind: "source"; code: string; message: string; severity: ErrorSeverity; causes: string[] } | { kind: "io"; message: string } | { kind: "json"; message: string } | { kind: "semaphore"; message: string } | { kind: "task"; message: string } | { kind: "open_path"; message: string } | { kind: "state_lock"; message: string } | { kind: "suwayomi_not_installed" } | { kind: "suwayomi_not_running" } | { kind: "suwayomi_starting" } | { kind: "suwayomi_runtime"; message: string } | { kind: "suwayomi_not_ready" } | { kind: "cancelled" } | { kind: "message"; message: string };
 
 // How chapters/scan-volumes are grouped into output volumes.
-export type BundleMode =
+export type BundleMode = 
 // Group pages by detected volume number.
-"auto" |
+"auto" | 
 // Merge everything into a single output volume.
 "flatten";
 
@@ -74,9 +74,9 @@ export type ChapterDownloadEvent = {
 };
 
 // Phase of an in-progress chapter download batch.
-export type ChapterDownloadPhase =
+export type ChapterDownloadPhase = 
 // Waiting for the next chapter to finish downloading.
-"downloading" |
+"downloading" | 
 // A single chapter finished downloading.
 "complete";
 
@@ -91,13 +91,13 @@ export type ChapterMeta = {
 };
 
 // Optional color enhancement for washed-out color pages.
-export type ColorEnhanceMode =
+export type ColorEnhanceMode = 
 // Leave colors untouched.
-"Off" |
+"Off" | 
 // Subtle contrast and saturation lift.
-"Mild" |
+"Mild" | 
 // Moderate contrast and saturation lift.
-"Balanced" |
+"Balanced" | 
 // Stronger lift for very faded scans.
 "Strong";
 
@@ -135,6 +135,11 @@ export type ConvertOptions = {
 	clean_tones: boolean,
 	color_enhance?: ColorEnhanceMode,
 	sharpen?: SharpenMode,
+	auto_crop?: boolean,
+	crop_padding?: number,
+	moire_reduction?: boolean,
+	eink_dither?: boolean,
+	split_double_page?: boolean,
 	output_format: OutputFormat,
 	direction: Direction,
 	bundle: BundleMode,
@@ -143,9 +148,9 @@ export type ConvertOptions = {
 };
 
 // EPUB reading direction.
-export type Direction =
+export type Direction = 
 // Left-to-right (Western comics, manhwa).
-"Ltr" |
+"Ltr" | 
 // Right-to-left (manga, manhua).
 "Rtl";
 
@@ -180,11 +185,11 @@ export type ExtensionInfo = {
 };
 
 // Target image encoding format.
-export type ImageFormat =
+export type ImageFormat = 
 // AVIF (AV1 Image Format) — best compression, slowest encoding.
-"Avif" |
+"Avif" | 
 // WebP — good compression, faster than AVIF.
-"Webp" |
+"Webp" | 
 // Keep original format without re-encoding.
 "Original";
 
@@ -214,11 +219,11 @@ export type InstalledInfo = {
 };
 
 // Output container format.
-export type OutputFormat =
+export type OutputFormat = 
 // Comic Book ZIP — widely supported by comic readers.
-"Cbz" |
+"Cbz" | 
 // EPUB 3 fixed-layout — e-readers and reading apps.
-"Epub" |
+"Epub" | 
 // Raw directory — one flat folder per volume.
 "Raw";
 
@@ -233,9 +238,9 @@ export type PageEditEntry = {
  *  `{ "kind": "original", "page_index": 3, "source_volume_num": 1 }` or
  *  `{ "kind": "custom",   "path": "/abs/path.png" }`.
  */
-export type PageEditSource = { kind: "original";
+export type PageEditSource = { kind: "original"; 
 // Index into the scan_result pages for `source_volume_num`.
-page_index: number;
+page_index: number; 
 // Which scan volume to look up `page_index` in. None = parent VolumeEdit's volume.
 source_volume_num: number | null } | { kind: "custom"; path: string };
 
@@ -309,9 +314,9 @@ export type SearchResult = {
 };
 
 // Optional sharpening for soft scans.
-export type SharpenMode =
+export type SharpenMode = 
 // Leave sharpness untouched.
-"Off" |
+"Off" | 
 // Mild unsharp-mask pass.
 "Mild";
 

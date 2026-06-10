@@ -159,7 +159,7 @@
                         <div
                             class="px-2 pb-2 transition-opacity duration-150 {sidebar.isOpen
                                 ? 'opacity-100'
-                                : 'pointer-events-none opacity-0'}"
+                                : 'hidden opacity-0'}"
                         >
                             <SectionLabel>Wizard</SectionLabel>
                         </div>

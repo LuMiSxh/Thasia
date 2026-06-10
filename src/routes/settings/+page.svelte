@@ -72,6 +72,11 @@
             defaults.cleanTones,
             defaults.colorEnhance,
             defaults.sharpen,
+            defaults.autoCrop,
+            defaults.cropPadding,
+            defaults.moireReduction,
+            defaults.einkDither,
+            defaults.splitDoublePage,
             defaults.showKeyHints,
             defaults.defaultOutputDir,
             maxWidthEnabled,
@@ -222,6 +227,11 @@
                         bind:cleanTones={defaults.cleanTones}
                         bind:colorEnhance={defaults.colorEnhance}
                         bind:sharpen={defaults.sharpen}
+                        bind:autoCrop={defaults.autoCrop}
+                        bind:cropPadding={defaults.cropPadding}
+                        bind:moireReduction={defaults.moireReduction}
+                        bind:einkDither={defaults.einkDither}
+                        bind:splitDoublePage={defaults.splitDoublePage}
                     />
 
                     <div
