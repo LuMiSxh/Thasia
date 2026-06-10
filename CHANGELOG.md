@@ -7,6 +7,24 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **Conversion observability** — conversion progress now carries live elapsed time, throughput, estimated remaining time, byte counters, passthrough/encoded page counts, and aggregate fetch/decode/transform/encode timings for the final result view.
+- **Pipeline review contract** — the backend now exposes an ordered pipeline plan with active/skipped stages, transform metadata, page counts, and volume counts so the review page can render the conversion pipeline without guessing backend behavior.
+- **Optional image enhancement transforms** — conversion can now apply deterministic color enhancement for washed-out color scans and mild sharpening for soft pages. Both are off by default, disable passthrough when enabled, and are exposed in wizard/settings defaults.
+- **Memory-mapped local image reads** — large local source images can now be decoded from read-only memory maps during re-encode jobs, reducing compressed-input copies before the decode stage.
+- **Conversion result outputs** — completed conversions now report the generated volume paths in the final result view and completion event.
+
+### Changed
+
+- Optional pixel transforms now run after max-width downscaling so expensive cleanup, enhancement, and sharpening work on fewer pixels when resizing is enabled.
+- Internal conversion code now uses concrete pipeline/result types, shared wizard payload builders, focused pipeline-plan modules, and typed `thiserror` conversion errors instead of passing opaque tuples and string errors through the backend.
+- Platform-specific local file-read hints are grouped behind a source-local platform module, making future OS-specific read/mmap tuning easier to isolate.
+
+### Removed
+
+- Removed unused no-cancel pipeline entry points, an unused CBZ extraction helper, and an unused Suwayomi manager accessor.
+
 ## [0.3.0] - 2026-05-30
 
 ### Added

@@ -5,39 +5,40 @@ import * as __TAURI_EVENT from "@tauri-apps/api/event";
 
 /** Commands */
 export const commands = {
-	scanSource: (path: string) => typedError<VolumeMeta[], string>(__TAURI_INVOKE("scan_source", { path })),
-	scanCurrentSource: () => typedError<VolumeMeta[], string>(__TAURI_INVOKE("scan_current_source")),
-	convert: (options: ConvertOptions, edits: VolumeEdit[]) => typedError<null, string>(__TAURI_INVOKE("convert", { options, edits })),
+	scanSource: (path: string) => typedError<VolumeMeta[], AppError>(__TAURI_INVOKE("scan_source", { path })),
+	scanCurrentSource: () => typedError<VolumeMeta[], AppError>(__TAURI_INVOKE("scan_current_source")),
+	buildPipelinePlan: (options: ConvertOptions, edits: VolumeEdit[]) => typedError<PipelinePlan, AppError>(__TAURI_INVOKE("build_pipeline_plan", { options, edits })),
+	convert: (options: ConvertOptions, edits: VolumeEdit[]) => typedError<null, AppError>(__TAURI_INVOKE("convert", { options, edits })),
 	/**
 	 *  Request cooperative cancellation of an in-flight `convert`.
-	 * 
+	 *
 	 *  Cancellation is checked between volumes and between encoded-image deliveries
 	 *  inside a volume, so the request takes effect within ~one image's encode time
 	 *  in the worst case (not mid-encode).
 	 */
-	cancelConversion: () => typedError<null, string>(__TAURI_INVOKE("cancel_conversion")),
-	getDiscoverySettings: () => typedError<DiscoverySettings, string>(__TAURI_INVOKE("get_discovery_settings")),
-	setDiscoverySettings: (settings: DiscoverySettings) => typedError<null, string>(__TAURI_INVOKE("set_discovery_settings", { settings })),
-	suwayomiStatus: () => typedError<RuntimeState, string>(__TAURI_INVOKE("suwayomi_status")),
+	cancelConversion: () => typedError<null, AppError>(__TAURI_INVOKE("cancel_conversion")),
+	getDiscoverySettings: () => typedError<DiscoverySettings, AppError>(__TAURI_INVOKE("get_discovery_settings")),
+	setDiscoverySettings: (settings: DiscoverySettings) => typedError<null, AppError>(__TAURI_INVOKE("set_discovery_settings", { settings })),
+	suwayomiStatus: () => typedError<RuntimeState, AppError>(__TAURI_INVOKE("suwayomi_status")),
 	suwayomiInstalledInfo: () => typedError<{
 	version: string,
 	size: number,
-} | null, string>(__TAURI_INVOKE("suwayomi_installed_info")),
-	suwayomiInstall: (version: string | null) => typedError<null, string>(__TAURI_INVOKE("suwayomi_install", { version })),
-	suwayomiUninstall: () => typedError<null, string>(__TAURI_INVOKE("suwayomi_uninstall")),
-	suwayomiCheckUpdate: () => typedError<UpdateInfo, string>(__TAURI_INVOKE("suwayomi_check_update")),
-	suwayomiStart: () => typedError<number, string>(__TAURI_INVOKE("suwayomi_start")),
-	suwayomiStop: () => typedError<null, string>(__TAURI_INVOKE("suwayomi_stop")),
-	suwayomiRestart: () => typedError<number, string>(__TAURI_INVOKE("suwayomi_restart")),
-	suwayomiResetData: () => typedError<null, string>(__TAURI_INVOKE("suwayomi_reset_data")),
-	suwayomiOpenDataFolder: () => typedError<null, string>(__TAURI_INVOKE("suwayomi_open_data_folder")),
-	listInstalledSources: () => typedError<SourceInfo[], string>(__TAURI_INVOKE("list_installed_sources")),
-	listAvailableExtensions: () => typedError<ExtensionInfo[], string>(__TAURI_INVOKE("list_available_extensions")),
-	installExtension: (pkg: string) => typedError<null, string>(__TAURI_INVOKE("install_extension", { pkg })),
-	uninstallExtension: (pkg: string) => typedError<null, string>(__TAURI_INVOKE("uninstall_extension", { pkg })),
-	searchSource: (sourceId: string, query: string, page: number) => typedError<SearchPage, string>(__TAURI_INVOKE("search_source", { sourceId, query, page })),
-	listChapters: (mangaId: number) => typedError<ChapterMeta[], string>(__TAURI_INVOKE("list_chapters", { mangaId })),
-	downloadSeries: (mangaId: number, chapters: ChapterMeta[], convertAfter: boolean) => typedError<null, string>(__TAURI_INVOKE("download_series", { mangaId, chapters, convertAfter })),
+} | null, AppError>(__TAURI_INVOKE("suwayomi_installed_info")),
+	suwayomiInstall: (version: string | null) => typedError<null, AppError>(__TAURI_INVOKE("suwayomi_install", { version })),
+	suwayomiUninstall: () => typedError<null, AppError>(__TAURI_INVOKE("suwayomi_uninstall")),
+	suwayomiCheckUpdate: () => typedError<UpdateInfo, AppError>(__TAURI_INVOKE("suwayomi_check_update")),
+	suwayomiStart: () => typedError<number, AppError>(__TAURI_INVOKE("suwayomi_start")),
+	suwayomiStop: () => typedError<null, AppError>(__TAURI_INVOKE("suwayomi_stop")),
+	suwayomiRestart: () => typedError<number, AppError>(__TAURI_INVOKE("suwayomi_restart")),
+	suwayomiResetData: () => typedError<null, AppError>(__TAURI_INVOKE("suwayomi_reset_data")),
+	suwayomiOpenDataFolder: () => typedError<null, AppError>(__TAURI_INVOKE("suwayomi_open_data_folder")),
+	listInstalledSources: () => typedError<SourceInfo[], AppError>(__TAURI_INVOKE("list_installed_sources")),
+	listAvailableExtensions: () => typedError<ExtensionInfo[], AppError>(__TAURI_INVOKE("list_available_extensions")),
+	installExtension: (pkg: string) => typedError<null, AppError>(__TAURI_INVOKE("install_extension", { pkg })),
+	uninstallExtension: (pkg: string) => typedError<null, AppError>(__TAURI_INVOKE("uninstall_extension", { pkg })),
+	searchSource: (sourceId: string, query: string, page: number) => typedError<SearchPage, AppError>(__TAURI_INVOKE("search_source", { sourceId, query, page })),
+	listChapters: (mangaId: number) => typedError<ChapterMeta[], AppError>(__TAURI_INVOKE("list_chapters", { mangaId })),
+	downloadSeries: (mangaId: number, chapters: ChapterMeta[], convertAfter: boolean) => typedError<null, AppError>(__TAURI_INVOKE("download_series", { mangaId, chapters, convertAfter })),
 };
 
 /** Events */
@@ -55,10 +56,12 @@ export const events = {
 };
 
 /* Types */
+export type AppError = { kind: "core"; code: string; message: string; severity: ErrorSeverity; causes: string[] } | { kind: "convert"; code: string; message: string; severity: ErrorSeverity; causes: string[] } | { kind: "source"; code: string; message: string; severity: ErrorSeverity; causes: string[] } | { kind: "io"; message: string } | { kind: "json"; message: string } | { kind: "semaphore"; message: string } | { kind: "task"; message: string } | { kind: "open_path"; message: string } | { kind: "state_lock"; message: string } | { kind: "suwayomi_not_installed" } | { kind: "suwayomi_not_running" } | { kind: "suwayomi_starting" } | { kind: "suwayomi_runtime"; message: string } | { kind: "suwayomi_not_ready" } | { kind: "cancelled" } | { kind: "message"; message: string };
+
 // How chapters/scan-volumes are grouped into output volumes.
-export type BundleMode = 
+export type BundleMode =
 // Group pages by detected volume number.
-"auto" | 
+"auto" |
 // Merge everything into a single output volume.
 "flatten";
 
@@ -71,9 +74,9 @@ export type ChapterDownloadEvent = {
 };
 
 // Phase of an in-progress chapter download batch.
-export type ChapterDownloadPhase = 
+export type ChapterDownloadPhase =
 // Waiting for the next chapter to finish downloading.
-"downloading" | 
+"downloading" |
 // A single chapter finished downloading.
 "complete";
 
@@ -87,11 +90,38 @@ export type ChapterMeta = {
 	downloaded: boolean,
 };
 
+// Optional color enhancement for washed-out color pages.
+export type ColorEnhanceMode =
+// Leave colors untouched.
+"Off" |
+// Subtle contrast and saturation lift.
+"Mild" |
+// Moderate contrast and saturation lift.
+"Balanced" |
+// Stronger lift for very faded scans.
+"Strong";
+
 // Emitted when all volumes are done.
 export type ConversionCompleteEvent = {
 	successful: number,
 	failed: number,
 	duration_secs: number,
+	total_pages: number,
+	input_bytes: number,
+	output_bytes: number,
+	passthrough_pages: number,
+	encoded_pages: number,
+	fetch_ms: number,
+	decode_ms: number,
+	transform_ms: number,
+	encode_ms: number,
+	outputs: ConversionOutput[],
+};
+
+export type ConversionOutput = {
+	volume_num: number,
+	volume_name: string,
+	path: string,
 };
 
 // Sent from frontend to the convert command.
@@ -103,6 +133,8 @@ export type ConvertOptions = {
 	max_width: number | null,
 	force_reencode: boolean,
 	clean_tones: boolean,
+	color_enhance?: ColorEnhanceMode,
+	sharpen?: SharpenMode,
 	output_format: OutputFormat,
 	direction: Direction,
 	bundle: BundleMode,
@@ -111,9 +143,9 @@ export type ConvertOptions = {
 };
 
 // EPUB reading direction.
-export type Direction = 
+export type Direction =
 // Left-to-right (Western comics, manhwa).
-"Ltr" | 
+"Ltr" |
 // Right-to-left (manga, manhua).
 "Rtl";
 
@@ -137,6 +169,8 @@ export type DownloadStartEvent = {
 	total_chapters: number,
 };
 
+export type ErrorSeverity = "warning" | "recoverable" | "fatal";
+
 export type ExtensionInfo = {
 	pkg_name: string,
 	name: string,
@@ -146,11 +180,11 @@ export type ExtensionInfo = {
 };
 
 // Target image encoding format.
-export type ImageFormat = 
+export type ImageFormat =
 // AVIF (AV1 Image Format) — best compression, slowest encoding.
-"Avif" | 
+"Avif" |
 // WebP — good compression, faster than AVIF.
-"Webp" | 
+"Webp" |
 // Keep original format without re-encoding.
 "Original";
 
@@ -159,6 +193,17 @@ export type ImageProgressEvent = {
 	volume_num: number,
 	current: number,
 	total: number,
+	elapsed_secs: number,
+	pages_per_sec: number,
+	estimated_remaining_secs: number | null,
+	input_bytes: number,
+	output_bytes: number,
+	passthrough_pages: number,
+	encoded_pages: number,
+	fetch_ms: number,
+	decode_ms: number,
+	transform_ms: number,
+	encode_ms: number,
 };
 
 export type InstallProgress = { phase: "downloading"; bytes: number; total: number | null } | { phase: "verifying" } | { phase: "extracting" } | { phase: "complete"; version: string };
@@ -169,11 +214,11 @@ export type InstalledInfo = {
 };
 
 // Output container format.
-export type OutputFormat = 
+export type OutputFormat =
 // Comic Book ZIP — widely supported by comic readers.
-"Cbz" | 
+"Cbz" |
 // EPUB 3 fixed-layout — e-readers and reading apps.
-"Epub" | 
+"Epub" |
 // Raw directory — one flat folder per volume.
 "Raw";
 
@@ -188,9 +233,9 @@ export type PageEditEntry = {
  *  `{ "kind": "original", "page_index": 3, "source_volume_num": 1 }` or
  *  `{ "kind": "custom",   "path": "/abs/path.png" }`.
  */
-export type PageEditSource = { kind: "original"; 
+export type PageEditSource = { kind: "original";
 // Index into the scan_result pages for `source_volume_num`.
-page_index: number; 
+page_index: number;
 // Which scan volume to look up `page_index` in. None = parent VolumeEdit's volume.
 source_volume_num: number | null } | { kind: "custom"; path: string };
 
@@ -201,6 +246,46 @@ export type PageMeta = {
 	// `thasia://image?path={url_encoded_absolute_path}`
 	url: string,
 	file_name: string,
+};
+
+export type PipelineCostClass = "cheap" | "medium" | "expensive" | "experimental";
+
+export type PipelinePlan = {
+	totalPages: number,
+	includedPages: number,
+	excludedPages: number,
+	addedPages: number,
+	volumes: number,
+	imageFormat: ImageFormat,
+	outputFormat: OutputFormat,
+	stages: PipelineStage[],
+};
+
+export type PipelineStage = {
+	id: string,
+	label: string,
+	enabled: boolean,
+	steps: PipelineStep[],
+};
+
+export type PipelineStep = {
+	id: string,
+	label: string,
+	category: string,
+	enabled: boolean,
+	defaultEnabled: boolean,
+	exclusiveGroup: string | null,
+	conflicts: string[],
+	effects: PipelineStepEffects,
+	cost: PipelineCostClass,
+};
+
+export type PipelineStepEffects = {
+	dimensions: boolean,
+	pixels: boolean,
+	alpha: boolean,
+	metadata: boolean,
+	passthrough: boolean,
 };
 
 export type RuntimeState = { state: "not_installed" } | { state: "not_running" } | { state: "starting" } | { state: "ready"; port: number } | { state: "error"; message: string };
@@ -222,6 +307,13 @@ export type SearchResult = {
 	thumbnail_url: string | null,
 	initialized: boolean,
 };
+
+// Optional sharpening for soft scans.
+export type SharpenMode =
+// Leave sharpness untouched.
+"Off" |
+// Mild unsharp-mask pass.
+"Mild";
 
 export type SourceInfo = {
 	id: string,
@@ -248,6 +340,7 @@ export type VolumeCompleteEvent = {
 	volume_num: number,
 	success: boolean,
 	error: string | null,
+	output_path: string | null,
 };
 
 // The page editor's output for one volume — sent to convert.

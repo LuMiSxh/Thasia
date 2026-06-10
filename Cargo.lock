@@ -2782,6 +2782,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6b947ae49db0d222b1dbc6b113ce7248a3fc3a6ca21b696717bfc000ba4484d8"
 
 [[package]]
+name = "memmap2"
+version = "0.9.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "714098028fe011992e1c3962653c96b2d578c4b4bce9036e15ff220319b1e0e3"
+dependencies = [
+ "libc",
+]
+
+[[package]]
 name = "memoffset"
 version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5290,7 +5299,7 @@ dependencies = [
 
 [[package]]
 name = "thasia"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "dirs 5.0.1",
  "ordered-float",
@@ -5311,6 +5320,7 @@ dependencies = [
  "thasia-parser",
  "thasia-processor",
  "thasia-source",
+ "thiserror 2.0.18",
  "tokio",
  "tracing",
  "tracing-appender",
@@ -5321,7 +5331,7 @@ dependencies = [
 
 [[package]]
 name = "thasia-core"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "miette",
  "serde",
@@ -5331,18 +5341,19 @@ dependencies = [
 
 [[package]]
 name = "thasia-packager"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "async-trait",
  "async_zip",
  "epub-builder",
  "thasia-core",
+ "thiserror 2.0.18",
  "tokio",
 ]
 
 [[package]]
 name = "thasia-parser"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "natord",
  "regex",
@@ -5352,7 +5363,7 @@ dependencies = [
 
 [[package]]
 name = "thasia-processor"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "async-trait",
  "avif-decode",
@@ -5363,6 +5374,7 @@ dependencies = [
  "rayon",
  "thasia-core",
  "thasia-source",
+ "thiserror 2.0.18",
  "tokio",
  "tracing",
  "webp",
@@ -5370,12 +5382,13 @@ dependencies = [
 
 [[package]]
 name = "thasia-source"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "async-trait",
  "flate2",
  "futures-util",
  "libc",
+ "memmap2",
  "natord",
  "regex",
  "reqwest",
@@ -5386,6 +5399,7 @@ dependencies = [
  "tar",
  "tempfile",
  "thasia-core",
+ "thiserror 2.0.18",
  "tokio",
  "tracing",
  "tracing-appender",

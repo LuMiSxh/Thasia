@@ -1,10 +1,9 @@
-use crate::Generator;
+use crate::{Generator, PackagerError, Result};
 use async_trait::async_trait;
 use epub_builder::{EpubBuilder, EpubContent, EpubVersion, ZipLibrary};
 use std::io::{BufWriter, Cursor};
 use std::path::{Path, PathBuf};
 use thasia_core::{
-    Result, ThasiaError,
     models::{Direction, ProcessedImage},
     sanitize_filename_component,
 };
@@ -54,9 +53,7 @@ impl Default for EpubGenerator {
 #[async_trait]
 impl Generator for EpubGenerator {
     async fn init(&mut self, output_dir: &Path, volume_name: &str) -> Result<()> {
-        tokio::fs::create_dir_all(output_dir)
-            .await
-            .map_err(ThasiaError::Io)?;
+        tokio::fs::create_dir_all(output_dir).await?;
         let safe_volume_name = sanitize_filename_component(volume_name)?;
         self.output_dir = output_dir.to_path_buf();
         self.volume_name = safe_volume_name;
@@ -68,6 +65,13 @@ impl Generator for EpubGenerator {
         Ok(())
     }
 
+    fn output_path(&self) -> Option<PathBuf> {
+        if self.output_dir.as_os_str().is_empty() || self.volume_name.is_empty() {
+            return None;
+        }
+        Some(self.output_dir.join(format!("{}.epub", self.volume_name)))
+    }
+
     async fn finalize(self: Box<Self>) -> Result<()> {
         let output_path = self.output_dir.join(format!("{}.epub", self.volume_name));
         let volume_name = self.volume_name.clone();
@@ -77,25 +81,24 @@ impl Generator for EpubGenerator {
         let pages = self.pages;
 
         tokio::task::spawn_blocking(move || -> Result<()> {
-            let mut epub =
-                EpubBuilder::new(ZipLibrary::new().map_err(|e| ThasiaError::Fatal(e.to_string()))?)
-                    .map_err(|e| ThasiaError::Fatal(e.to_string()))?;
+            let mut epub = EpubBuilder::new(ZipLibrary::new().map_err(PackagerError::epub)?)
+                .map_err(PackagerError::epub)?;
 
             epub.epub_version(EpubVersion::V30);
             epub.metadata("rendition:layout", "pre-paginated")
-                .map_err(|e| ThasiaError::Fatal(e.to_string()))?;
+                .map_err(PackagerError::epub)?;
             epub.metadata("title", &volume_name)
-                .map_err(|e| ThasiaError::Fatal(e.to_string()))?;
+                .map_err(PackagerError::epub)?;
 
             let dir_str = match direction {
                 Direction::Ltr => "ltr",
                 Direction::Rtl => "rtl",
             };
             epub.metadata("direction", dir_str)
-                .map_err(|e| ThasiaError::Fatal(e.to_string()))?;
+                .map_err(PackagerError::epub)?;
 
             epub.stylesheet(Cursor::new(PAGE_CSS))
-                .map_err(|e| ThasiaError::Fatal(e.to_string()))?;
+                .map_err(PackagerError::epub)?;
 
             for (i, img) in pages.iter().enumerate() {
                 let page_num = i + 1;
@@ -105,10 +108,10 @@ impl Generator for EpubGenerator {
 
                 if img.parsed_data.is_cover {
                     epub.add_cover_image(&image_path, Cursor::new(&img.image_data[..]), mime)
-                        .map_err(|e| ThasiaError::Fatal(e.to_string()))?;
+                        .map_err(PackagerError::epub)?;
                 } else {
                     epub.add_resource(&image_path, Cursor::new(&img.image_data[..]), mime)
-                        .map_err(|e| ThasiaError::Fatal(e.to_string()))?;
+                        .map_err(PackagerError::epub)?;
                 }
 
                 let xhtml = PAGE_XHTML
@@ -117,17 +120,15 @@ impl Generator for EpubGenerator {
                     .replace("%alt%", &format!("Page {}", page_num));
 
                 epub.add_content(EpubContent::new(xhtml_path, xhtml.as_bytes()))
-                    .map_err(|e| ThasiaError::Fatal(e.to_string()))?;
+                    .map_err(PackagerError::epub)?;
             }
 
-            let file = std::fs::File::create(&output_path).map_err(ThasiaError::Io)?;
+            let file = std::fs::File::create(&output_path)?;
             let buf_writer = BufWriter::with_capacity(128 * 1024, file);
-            epub.generate(buf_writer)
-                .map_err(|e| ThasiaError::Fatal(e.to_string()))?;
+            epub.generate(buf_writer).map_err(PackagerError::epub)?;
 
             Ok(())
         })
-        .await
-        .map_err(|e| ThasiaError::Fatal(e.to_string()))?
+        .await?
     }
 }

@@ -1,6 +1,7 @@
 pub mod error;
 pub mod models;
 pub mod plan;
+pub mod prelude;
 pub mod sanitize;
 
 pub use error::{Result, ThasiaError};

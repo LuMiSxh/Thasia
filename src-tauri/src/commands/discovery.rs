@@ -1,3 +1,4 @@
+use crate::app_error::{AppError, CommandResult};
 use crate::events::{
     ChapterDownloadEvent, ChapterDownloadPhase, DownloadCompleteEvent, DownloadStartEvent,
     SuwayomiInstallProgressEvent, SuwayomiStateChangedEvent,
@@ -24,7 +25,7 @@ use tokio::time::{Duration, sleep};
 #[specta::specta]
 pub async fn get_discovery_settings(
     state: State<'_, DiscoveryState>,
-) -> Result<DiscoverySettings, String> {
+) -> CommandResult<DiscoverySettings> {
     Ok(state.settings.read().await.clone())
 }
 
@@ -33,17 +34,18 @@ pub async fn get_discovery_settings(
 pub async fn set_discovery_settings(
     settings: DiscoverySettings,
     state: State<'_, DiscoveryState>,
-) -> Result<(), String> {
+) -> CommandResult<()> {
     {
         let mut current = state.settings.write().await;
         *current = settings.clone();
     }
-    state.persist_settings(&settings).await
+    state.persist_settings(&settings).await?;
+    Ok(())
 }
 
 #[tauri::command]
 #[specta::specta]
-pub async fn suwayomi_status(state: State<'_, DiscoveryState>) -> Result<RuntimeState, String> {
+pub async fn suwayomi_status(state: State<'_, DiscoveryState>) -> CommandResult<RuntimeState> {
     let snapshot = state.manager.snapshot().await;
     if matches!(snapshot, RuntimeState::NotRunning)
         && state.installer.installed_version().await.is_none()
@@ -58,12 +60,8 @@ pub async fn suwayomi_status(state: State<'_, DiscoveryState>) -> Result<Runtime
 #[specta::specta]
 pub async fn suwayomi_installed_info(
     state: State<'_, DiscoveryState>,
-) -> Result<Option<InstalledInfo>, String> {
-    state
-        .installer
-        .installed_info()
-        .await
-        .map_err(command_error)
+) -> CommandResult<Option<InstalledInfo>> {
+    Ok(state.installer.installed_info().await?)
 }
 
 #[tauri::command]
@@ -72,7 +70,7 @@ pub async fn suwayomi_install(
     version: Option<String>,
     state: State<'_, DiscoveryState>,
     app: AppHandle,
-) -> Result<(), String> {
+) -> CommandResult<()> {
     let _guard = state.install_lock.lock().await;
     let (tx, mut rx) = mpsc::channel(64);
     let app_for_events = app.clone();
@@ -85,8 +83,7 @@ pub async fn suwayomi_install(
     state
         .installer
         .install(version.as_deref().unwrap_or("latest"), tx)
-        .await
-        .map_err(command_error)?;
+        .await?;
     let settings = state.refresh_installed_version().await?;
     let _ = SuwayomiStateChangedEvent {
         state: RuntimeState::NotRunning,
@@ -94,7 +91,7 @@ pub async fn suwayomi_install(
     .emit(&app);
     if settings.enabled && settings.auto_start {
         state.prepare_suwayomi_config().await?;
-        let port = state.manager.start().await.map_err(command_error)?;
+        let port = state.manager.start().await?;
         *state.client.write().await = Some(Arc::new(SuwayomiClient::new(port)));
         start_monitor(&state, app.clone()).await;
         let _ = SuwayomiStateChangedEvent {
@@ -110,11 +107,11 @@ pub async fn suwayomi_install(
 pub async fn suwayomi_uninstall(
     state: State<'_, DiscoveryState>,
     app: AppHandle,
-) -> Result<(), String> {
+) -> CommandResult<()> {
     stop_monitor(&state).await;
     let _ = state.manager.stop().await;
     *state.client.write().await = None;
-    state.installer.uninstall().await.map_err(command_error)?;
+    state.installer.uninstall().await?;
     state.refresh_installed_version().await?;
     let _ = SuwayomiStateChangedEvent {
         state: RuntimeState::NotInstalled,
@@ -125,12 +122,8 @@ pub async fn suwayomi_uninstall(
 
 #[tauri::command]
 #[specta::specta]
-pub async fn suwayomi_check_update(state: State<'_, DiscoveryState>) -> Result<UpdateInfo, String> {
-    let latest = state
-        .installer
-        .latest_release()
-        .await
-        .map_err(command_error)?;
+pub async fn suwayomi_check_update(state: State<'_, DiscoveryState>) -> CommandResult<UpdateInfo> {
+    let latest = state.installer.latest_release().await?;
     let current = state.installer.installed_version().await;
     {
         let mut settings = state.settings.write().await;
@@ -151,13 +144,13 @@ pub async fn suwayomi_check_update(state: State<'_, DiscoveryState>) -> Result<U
 pub async fn suwayomi_start(
     state: State<'_, DiscoveryState>,
     app: AppHandle,
-) -> Result<u16, String> {
+) -> CommandResult<u16> {
     let _ = SuwayomiStateChangedEvent {
         state: RuntimeState::Starting,
     }
     .emit(&app);
     state.prepare_suwayomi_config().await?;
-    let port = state.manager.start().await.map_err(command_error)?;
+    let port = state.manager.start().await?;
     *state.client.write().await = Some(Arc::new(SuwayomiClient::new(port)));
     start_monitor(&state, app.clone()).await;
     let _ = SuwayomiStateChangedEvent {
@@ -169,9 +162,9 @@ pub async fn suwayomi_start(
 
 #[tauri::command]
 #[specta::specta]
-pub async fn suwayomi_stop(state: State<'_, DiscoveryState>, app: AppHandle) -> Result<(), String> {
+pub async fn suwayomi_stop(state: State<'_, DiscoveryState>, app: AppHandle) -> CommandResult<()> {
     stop_monitor(&state).await;
-    state.manager.stop().await.map_err(command_error)?;
+    state.manager.stop().await?;
     *state.client.write().await = None;
     let runtime = state.manager.snapshot().await;
     let _ = SuwayomiStateChangedEvent { state: runtime }.emit(&app);
@@ -183,14 +176,14 @@ pub async fn suwayomi_stop(state: State<'_, DiscoveryState>, app: AppHandle) -> 
 pub async fn suwayomi_restart(
     state: State<'_, DiscoveryState>,
     app: AppHandle,
-) -> Result<u16, String> {
+) -> CommandResult<u16> {
     let _ = SuwayomiStateChangedEvent {
         state: RuntimeState::Starting,
     }
     .emit(&app);
     stop_monitor(&state).await;
     state.prepare_suwayomi_config().await?;
-    let port = state.manager.restart().await.map_err(command_error)?;
+    let port = state.manager.restart().await?;
     *state.client.write().await = Some(Arc::new(SuwayomiClient::new(port)));
     start_monitor(&state, app.clone()).await;
     let _ = SuwayomiStateChangedEvent {
@@ -202,8 +195,9 @@ pub async fn suwayomi_restart(
 
 #[tauri::command]
 #[specta::specta]
-pub async fn suwayomi_reset_data(state: State<'_, DiscoveryState>) -> Result<(), String> {
-    state.installer.reset_data().await.map_err(command_error)
+pub async fn suwayomi_reset_data(state: State<'_, DiscoveryState>) -> CommandResult<()> {
+    state.installer.reset_data().await?;
+    Ok(())
 }
 
 #[tauri::command]
@@ -211,50 +205,34 @@ pub async fn suwayomi_reset_data(state: State<'_, DiscoveryState>) -> Result<(),
 pub async fn suwayomi_open_data_folder(
     state: State<'_, DiscoveryState>,
     app: AppHandle,
-) -> Result<(), String> {
-    tokio::fs::create_dir_all(state.installer.data_dir())
-        .await
-        .map_err(command_error)?;
+) -> CommandResult<()> {
+    tokio::fs::create_dir_all(state.installer.data_dir()).await?;
     app.opener()
-        .open_path(state.installer.data_dir().to_string_lossy(), None::<&str>)
-        .map_err(command_error)
+        .open_path(state.installer.data_dir().to_string_lossy(), None::<&str>)?;
+    Ok(())
 }
 
 #[tauri::command]
 #[specta::specta]
 pub async fn list_installed_sources(
     state: State<'_, DiscoveryState>,
-) -> Result<Vec<SourceInfo>, String> {
-    client(&state)
-        .await?
-        .list_sources()
-        .await
-        .map_err(command_error)
+) -> CommandResult<Vec<SourceInfo>> {
+    Ok(client(&state).await?.list_sources().await?)
 }
 
 #[tauri::command]
 #[specta::specta]
 pub async fn list_available_extensions(
     state: State<'_, DiscoveryState>,
-) -> Result<Vec<ExtensionInfo>, String> {
-    client(&state)
-        .await?
-        .list_extensions()
-        .await
-        .map_err(command_error)
+) -> CommandResult<Vec<ExtensionInfo>> {
+    Ok(client(&state).await?.list_extensions().await?)
 }
 
 #[tauri::command]
 #[specta::specta]
-pub async fn install_extension(
-    pkg: String,
-    state: State<'_, DiscoveryState>,
-) -> Result<(), String> {
-    client(&state)
-        .await?
-        .install_extension(&pkg)
-        .await
-        .map_err(command_error)
+pub async fn install_extension(pkg: String, state: State<'_, DiscoveryState>) -> CommandResult<()> {
+    client(&state).await?.install_extension(&pkg).await?;
+    Ok(())
 }
 
 #[tauri::command]
@@ -262,12 +240,9 @@ pub async fn install_extension(
 pub async fn uninstall_extension(
     pkg: String,
     state: State<'_, DiscoveryState>,
-) -> Result<(), String> {
-    client(&state)
-        .await?
-        .uninstall_extension(&pkg)
-        .await
-        .map_err(command_error)
+) -> CommandResult<()> {
+    client(&state).await?.uninstall_extension(&pkg).await?;
+    Ok(())
 }
 
 #[tauri::command]
@@ -277,12 +252,11 @@ pub async fn search_source(
     query: String,
     page: u32,
     state: State<'_, DiscoveryState>,
-) -> Result<SearchPage, String> {
-    client(&state)
+) -> CommandResult<SearchPage> {
+    Ok(client(&state)
         .await?
         .search(&source_id, &query, page)
-        .await
-        .map_err(command_error)
+        .await?)
 }
 
 #[tauri::command]
@@ -290,12 +264,8 @@ pub async fn search_source(
 pub async fn list_chapters(
     manga_id: i64,
     state: State<'_, DiscoveryState>,
-) -> Result<Vec<ChapterMeta>, String> {
-    client(&state)
-        .await?
-        .chapters(manga_id)
-        .await
-        .map_err(command_error)
+) -> CommandResult<Vec<ChapterMeta>> {
+    Ok(client(&state).await?.chapters(manga_id).await?)
 }
 
 #[tauri::command]
@@ -307,9 +277,9 @@ pub async fn download_series(
     state: State<'_, DiscoveryState>,
     conv_state: State<'_, RwLock<ConvState>>,
     app: AppHandle,
-) -> Result<(), String> {
+) -> CommandResult<()> {
     let client = client(&state).await?;
-    let manga = client.manga(manga_id).await.map_err(command_error)?;
+    let manga = client.manga(manga_id).await?;
     let total = chapters.len() as u32;
     let _ = DownloadStartEvent {
         series_title: manga.title.clone(),
@@ -318,7 +288,7 @@ pub async fn download_series(
     .emit(&app);
 
     let cancel = {
-        let s = conv_state.read().map_err(command_error)?;
+        let s = conv_state.read()?;
         s.cancel.clone()
     };
     cancel.store(false, Ordering::SeqCst);
@@ -352,7 +322,7 @@ pub async fn download_series(
         // applyDiscoverySource() on the frontend will call scanCurrentSource()
         // which reads this source and proceeds through the wizard.
         let local = Arc::new(LocalSource::new(manga_dir.clone()));
-        let mut s = conv_state.write().map_err(command_error)?;
+        let mut s = conv_state.write()?;
         s.source = Some(local);
         s.scan_result = None;
         None
@@ -369,29 +339,25 @@ pub async fn download_series(
     Ok(())
 }
 
-async fn client(state: &DiscoveryState) -> Result<Arc<SuwayomiClient>, String> {
-    match state.manager.snapshot().await {
-        RuntimeState::Ready { .. } => {}
-        runtime => {
-            *state.client.write().await = None;
-            return Err(match runtime {
-                RuntimeState::NotInstalled => "Suwayomi-Server is not installed".to_string(),
-                RuntimeState::NotRunning => "Suwayomi-Server is not running".to_string(),
-                RuntimeState::Starting => "Suwayomi-Server is still starting".to_string(),
-                RuntimeState::Error { message } => {
-                    format!("Suwayomi-Server is not running: {message}")
-                }
-                RuntimeState::Ready { .. } => unreachable!(),
-            });
-        }
+async fn client(state: &DiscoveryState) -> CommandResult<Arc<SuwayomiClient>> {
+    let runtime = state.manager.snapshot().await;
+    if let RuntimeState::Ready { .. } = runtime {
+        state
+            .client
+            .read()
+            .await
+            .clone()
+            .ok_or(AppError::SuwayomiNotReady)
+    } else {
+        *state.client.write().await = None;
+        Err(match runtime {
+            RuntimeState::NotInstalled => AppError::SuwayomiNotInstalled,
+            RuntimeState::NotRunning => AppError::SuwayomiNotRunning,
+            RuntimeState::Starting => AppError::SuwayomiStarting,
+            RuntimeState::Error { message } => AppError::SuwayomiRuntime { message },
+            RuntimeState::Ready { .. } => AppError::SuwayomiNotReady,
+        })
     }
-
-    state
-        .client
-        .read()
-        .await
-        .clone()
-        .ok_or_else(|| "Suwayomi-Server is not ready".to_string())
 }
 
 async fn download_chapter_pages(
@@ -400,7 +366,7 @@ async fn download_chapter_pages(
     cancel: Arc<std::sync::atomic::AtomicBool>,
     app: &AppHandle,
     destination: &std::path::Path,
-) -> Result<(), String> {
+) -> CommandResult<()> {
     let total = chapters.len() as u32;
     let semaphore = Arc::new(Semaphore::new(4));
     let mut tasks = JoinSet::new();
@@ -413,12 +379,11 @@ async fn download_chapter_pages(
             chapter.chapter_number,
         ));
         tasks.spawn(async move {
-            let _permit = semaphore.acquire_owned().await.map_err(|e| e.to_string())?;
+            let _permit = semaphore.acquire_owned().await?;
             client
                 .download_chapter_pages(chapter.id, &chapter_dest)
-                .await
-                .map_err(command_error)?;
-            Ok::<_, String>((index, chapter.id))
+                .await?;
+            Ok::<_, AppError>((index, chapter.id))
         });
     }
 
@@ -437,7 +402,7 @@ async fn download_chapter_pages(
                         output_dir: None,
                     }
                     .emit(app);
-                    return Err("Cancelled".to_string());
+                    return Err(AppError::Cancelled);
                 }
                 let _ = ChapterDownloadEvent {
                     current_chapter: format!("Downloading chapters… {tick}s"),
@@ -460,10 +425,10 @@ async fn download_chapter_pages(
                         output_dir: None,
                     }
                     .emit(app);
-                    return Err("Cancelled".to_string());
+                    return Err(AppError::Cancelled);
                 }
 
-                let (_index, chapter_id) = result.map_err(|e| e.to_string())??;
+                let (_index, chapter_id) = result??;
                 completed += 1;
                 let _ = ChapterDownloadEvent {
                     current_chapter: chapter_id.to_string(),
@@ -480,9 +445,11 @@ async fn download_chapter_pages(
     if completed == total {
         Ok(())
     } else {
-        Err(format!(
-            "Download stopped before all chapters completed ({completed}/{total})."
-        ))
+        Err(AppError::Message {
+            message: format!(
+                "Download stopped before all chapters completed ({completed}/{total})."
+            ),
+        })
     }
 }
 
@@ -567,14 +534,6 @@ fn now_string() -> String {
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_secs().to_string())
         .unwrap_or_else(|_| "0".into())
-}
-
-fn command_error(error: impl std::fmt::Display) -> String {
-    let message = error.to_string();
-    message
-        .strip_prefix("Discovery Error: ")
-        .unwrap_or(&message)
-        .to_string()
 }
 
 /// Produces the Hakuneko-style directory name for a chapter, e.g. `"001-10"`

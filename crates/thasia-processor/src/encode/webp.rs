@@ -3,7 +3,7 @@
 
 use super::constants::*;
 use super::grayscale::{ImageTone, classify_image_tone};
-use thasia_core::ThasiaError;
+use crate::Result;
 use tracing::trace;
 
 pub fn auto_tune_webp(img: &image::DynamicImage, tone: ImageTone) -> f32 {
@@ -33,7 +33,7 @@ pub fn auto_tune_webp(img: &image::DynamicImage, tone: ImageTone) -> f32 {
     quality
 }
 
-pub fn convert_to_webp(img: &image::DynamicImage) -> Result<Vec<u8>, ThasiaError> {
+pub fn convert_to_webp(img: &image::DynamicImage) -> Result<Vec<u8>> {
     use ::webp::Encoder;
 
     let tone = classify_image_tone(img);

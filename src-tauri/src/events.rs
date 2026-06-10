@@ -24,6 +24,17 @@ pub struct ImageProgressEvent {
     pub volume_num: u32,
     pub current: u32,
     pub total: u32,
+    pub elapsed_secs: f64,
+    pub pages_per_sec: f64,
+    pub estimated_remaining_secs: Option<f64>,
+    pub input_bytes: u64,
+    pub output_bytes: u64,
+    pub passthrough_pages: u32,
+    pub encoded_pages: u32,
+    pub fetch_ms: f64,
+    pub decode_ms: f64,
+    pub transform_ms: f64,
+    pub encode_ms: f64,
 }
 
 /// Emitted when a volume finishes (success or failure).
@@ -32,6 +43,14 @@ pub struct VolumeCompleteEvent {
     pub volume_num: u32,
     pub success: bool,
     pub error: Option<String>,
+    pub output_path: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct ConversionOutput {
+    pub volume_num: u32,
+    pub volume_name: String,
+    pub path: String,
 }
 
 /// Emitted when all volumes are done.
@@ -40,6 +59,16 @@ pub struct ConversionCompleteEvent {
     pub successful: u32,
     pub failed: u32,
     pub duration_secs: f64,
+    pub total_pages: u32,
+    pub input_bytes: u64,
+    pub output_bytes: u64,
+    pub passthrough_pages: u32,
+    pub encoded_pages: u32,
+    pub fetch_ms: f64,
+    pub decode_ms: f64,
+    pub transform_ms: f64,
+    pub encode_ms: f64,
+    pub outputs: Vec<ConversionOutput>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type, Event)]

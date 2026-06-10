@@ -1,11 +1,31 @@
 use crate::encode::grayscale::{ImageTone, classify_image_tone};
 use image::DynamicImage;
+use thasia_core::models::{ColorEnhanceMode, SharpenMode};
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct TransformOptions {
+    pub max_width: Option<u32>,
+    pub clean_tones: bool,
+    pub color_enhance: ColorEnhanceMode,
+    pub sharpen: SharpenMode,
+}
+
+impl TransformOptions {
+    pub fn disables_passthrough(self) -> bool {
+        self.max_width.is_some()
+            || self.clean_tones
+            || self.color_enhance != ColorEnhanceMode::Off
+            || self.sharpen != SharpenMode::Off
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TransformStep {
     NormalizeColor,
     DropOpaqueAlpha,
     CleanScanTones,
+    EnhanceColor(ColorEnhanceMode),
+    Sharpen(SharpenMode),
     ResizeMaxWidth(u32),
 }
 
@@ -16,27 +36,29 @@ const DEFAULT_STEPS: &[TransformStep] = &[
 
 #[derive(Debug, Clone, Copy)]
 pub struct TransformPipeline {
-    max_width: Option<u32>,
-    clean_tones: bool,
+    options: TransformOptions,
 }
 
 impl TransformPipeline {
-    pub fn new(max_width: Option<u32>, clean_tones: bool) -> Self {
-        Self {
-            max_width,
-            clean_tones,
-        }
+    pub fn new(options: TransformOptions) -> Self {
+        Self { options }
     }
 
     pub fn apply(&self, img: &mut DynamicImage) {
         for step in DEFAULT_STEPS {
             step.apply(img);
         }
-        if self.clean_tones {
+        if let Some(max_width) = self.options.max_width {
+            TransformStep::ResizeMaxWidth(max_width).apply(img);
+        }
+        if self.options.clean_tones {
             TransformStep::CleanScanTones.apply(img);
         }
-        if let Some(max_width) = self.max_width {
-            TransformStep::ResizeMaxWidth(max_width).apply(img);
+        if self.options.color_enhance != ColorEnhanceMode::Off {
+            TransformStep::EnhanceColor(self.options.color_enhance).apply(img);
+        }
+        if self.options.sharpen != SharpenMode::Off {
+            TransformStep::Sharpen(self.options.sharpen).apply(img);
         }
     }
 }
@@ -47,6 +69,8 @@ impl TransformStep {
             TransformStep::NormalizeColor => normalize_color(img),
             TransformStep::DropOpaqueAlpha => drop_opaque_alpha(img),
             TransformStep::CleanScanTones => clean_scan_tones(img),
+            TransformStep::EnhanceColor(mode) => enhance_color(img, mode),
+            TransformStep::Sharpen(mode) => sharpen(img, mode),
             TransformStep::ResizeMaxWidth(max_width) => resize_max_width(img, max_width),
         }
     }
@@ -79,14 +103,21 @@ fn resize_max_width(img: &mut DynamicImage, max_width: u32) {
 }
 
 fn drop_opaque_alpha(img: &mut DynamicImage) {
-    let rgb = {
+    let Some(rgb) = ({
         let Some(rgba) = img.as_rgba8() else {
             return;
         };
         if !rgba.as_raw().chunks_exact(4).all(|px| px[3] == 255) {
             return;
         }
-        DynamicImage::ImageRgba8(rgba.clone()).to_rgb8()
+        let (width, height) = rgba.dimensions();
+        let mut raw = Vec::with_capacity(rgba.as_raw().len() / 4 * 3);
+        for px in rgba.as_raw().chunks_exact(4) {
+            raw.extend_from_slice(&px[..3]);
+        }
+        image::RgbImage::from_raw(width, height, raw)
+    }) else {
+        return;
     };
     *img = DynamicImage::ImageRgb8(rgb);
 }
@@ -102,6 +133,33 @@ fn clean_scan_tones(img: &mut DynamicImage) {
     } else if let Some(luma) = img.as_mut_luma8() {
         clean_luma_tones(luma, tone);
     }
+}
+
+fn enhance_color(img: &mut DynamicImage, mode: ColorEnhanceMode) {
+    if mode == ColorEnhanceMode::Off || classify_image_tone(img) != ImageTone::Color {
+        return;
+    }
+
+    let (contrast, saturation, brightness) = match mode {
+        ColorEnhanceMode::Off => return,
+        ColorEnhanceMode::Mild => (1.04, 1.06, 0),
+        ColorEnhanceMode::Balanced => (1.08, 1.12, 2),
+        ColorEnhanceMode::Strong => (1.14, 1.20, 3),
+    };
+
+    if let Some(rgb) = img.as_mut_rgb8() {
+        enhance_rgb(rgb, contrast, saturation, brightness);
+    } else if let Some(rgba) = img.as_mut_rgba8() {
+        enhance_rgba(rgba, contrast, saturation, brightness);
+    }
+}
+
+fn sharpen(img: &mut DynamicImage, mode: SharpenMode) {
+    let (sigma, threshold) = match mode {
+        SharpenMode::Off => return,
+        SharpenMode::Mild => (0.85, 4),
+    };
+    *img = img.unsharpen(sigma, threshold);
 }
 
 fn clean_rgb_tones(img: &mut image::RgbImage, tone: ImageTone) {
@@ -131,6 +189,50 @@ fn clean_luma_tones(img: &mut image::GrayImage, tone: ImageTone) {
             px.0[0] = 0;
         }
     }
+}
+
+fn enhance_rgb(img: &mut image::RgbImage, contrast: f32, saturation: f32, brightness: i16) {
+    for px in img.pixels_mut() {
+        let [r, g, b] = px.0;
+        px.0 = enhance_rgb_channels(r, g, b, contrast, saturation, brightness);
+    }
+}
+
+fn enhance_rgba(img: &mut image::RgbaImage, contrast: f32, saturation: f32, brightness: i16) {
+    for px in img.pixels_mut() {
+        let [r, g, b, a] = px.0;
+        let [r, g, b] = enhance_rgb_channels(r, g, b, contrast, saturation, brightness);
+        px.0 = [r, g, b, a];
+    }
+}
+
+#[inline(always)]
+fn enhance_rgb_channels(
+    r: u8,
+    g: u8,
+    b: u8,
+    contrast: f32,
+    saturation: f32,
+    brightness: i16,
+) -> [u8; 3] {
+    let luma = luma_approx(r, g, b) as f32;
+    [
+        enhance_channel(r, luma, contrast, saturation, brightness),
+        enhance_channel(g, luma, contrast, saturation, brightness),
+        enhance_channel(b, luma, contrast, saturation, brightness),
+    ]
+}
+
+#[inline(always)]
+fn enhance_channel(value: u8, luma: f32, contrast: f32, saturation: f32, brightness: i16) -> u8 {
+    let saturated = luma + (value as f32 - luma) * saturation;
+    let contrasted = (saturated - 128.0) * contrast + 128.0 + brightness as f32;
+    clamp_u8(contrasted.round() as i16)
+}
+
+#[inline(always)]
+fn clamp_u8(value: i16) -> u8 {
+    value.clamp(0, 255) as u8
 }
 
 #[inline(always)]
@@ -246,5 +348,44 @@ mod tests {
         TransformStep::CleanScanTones.apply(&mut img);
         let rgb = img.as_rgb8().unwrap();
         assert!(rgb.pixels().any(|px| px.0 == [0, 0, 0]));
+    }
+
+    #[test]
+    fn color_enhance_lifts_washed_out_color() {
+        let img = ImageBuffer::from_fn(20, 20, |x, _| {
+            if x % 2 == 0 {
+                Rgb([150u8, 120u8, 100u8])
+            } else {
+                Rgb([110u8, 135u8, 150u8])
+            }
+        });
+        let mut img = DynamicImage::ImageRgb8(img);
+        TransformStep::EnhanceColor(ColorEnhanceMode::Balanced).apply(&mut img);
+        let first = img.as_rgb8().unwrap().get_pixel(0, 0).0;
+        assert!(first[0] > 150);
+        assert!(first[2] < 100);
+    }
+
+    #[test]
+    fn color_enhance_skips_grayscale_pages() {
+        let img = ImageBuffer::from_fn(20, 20, |_, _| Rgb([120u8, 120u8, 120u8]));
+        let mut img = DynamicImage::ImageRgb8(img);
+        TransformStep::EnhanceColor(ColorEnhanceMode::Strong).apply(&mut img);
+        assert_eq!(img.as_rgb8().unwrap().get_pixel(0, 0).0, [120, 120, 120]);
+    }
+
+    #[test]
+    fn sharpen_keeps_dimensions() {
+        let img = ImageBuffer::from_fn(30, 40, |x, _| {
+            if x < 15 {
+                Rgb([40u8, 40u8, 40u8])
+            } else {
+                Rgb([220u8, 220u8, 220u8])
+            }
+        });
+        let mut img = DynamicImage::ImageRgb8(img);
+        TransformStep::Sharpen(SharpenMode::Mild).apply(&mut img);
+        assert_eq!(img.width(), 30);
+        assert_eq!(img.height(), 40);
     }
 }

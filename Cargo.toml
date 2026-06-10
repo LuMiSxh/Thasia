@@ -11,7 +11,7 @@ resolver = "2"
 
 [workspace.package]
 edition = "2024"
-version = "0.3.0"
+version = "0.4.0"
 authors = ["LuMiSxh"]
 license = "BSD-3 Clause"
 repository = "https://github.com/LuMiSxh/Thasia"
@@ -49,3 +49,4 @@ ordered-float = "5"
 url = "2"
 regex = "1"
 natord = "1"
+memmap2 = "0.9"

@@ -5,9 +5,14 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 use thasia_core::{
     BundleMode,
-    models::{Direction, ImageFormat, OutputFormat, ParsedImage},
+    models::{ColorEnhanceMode, Direction, ImageFormat, OutputFormat, ParsedImage, SharpenMode},
+    prelude::ThasiaError,
 };
-use thasia_source::suwayomi::{SuwayomiClient, SuwayomiInstaller, SuwayomiManager};
+use thasia_source::{
+    SourceError,
+    suwayomi::{SuwayomiClient, SuwayomiInstaller, SuwayomiManager},
+};
+use thiserror::Error;
 use tokio::sync::{Mutex, RwLock as AsyncRwLock};
 use tokio::task::JoinHandle;
 
@@ -65,12 +70,24 @@ pub struct DiscoveryState {
     pub monitor: Mutex<Option<JoinHandle<()>>>,
 }
 
+#[derive(Debug, Error)]
+pub enum StateError {
+    #[error(transparent)]
+    Io(#[from] std::io::Error),
+    #[error(transparent)]
+    Json(#[from] serde_json::Error),
+    #[error(transparent)]
+    Core(#[from] ThasiaError),
+    #[error(transparent)]
+    Source(#[from] SourceError),
+}
+
 impl DiscoveryState {
-    pub fn new(app_data_dir: PathBuf) -> Result<Self, String> {
-        std::fs::create_dir_all(&app_data_dir).map_err(|e| e.to_string())?;
+    pub fn new(app_data_dir: PathBuf) -> Result<Self, StateError> {
+        std::fs::create_dir_all(&app_data_dir)?;
         let settings_path = app_data_dir.join("discovery.json");
         let settings = load_discovery_settings_file(&settings_path);
-        let installer = Arc::new(SuwayomiInstaller::new(app_data_dir).map_err(|e| e.to_string())?);
+        let installer = Arc::new(SuwayomiInstaller::new(app_data_dir)?);
         let manager = Arc::new(SuwayomiManager::new(installer.clone()));
         Ok(Self {
             settings_path,
@@ -83,19 +100,16 @@ impl DiscoveryState {
         })
     }
 
-    pub async fn persist_settings(&self, settings: &DiscoverySettings) -> Result<(), String> {
-        let json = serde_json::to_string_pretty(settings).map_err(|e| e.to_string())?;
+    pub async fn persist_settings(&self, settings: &DiscoverySettings) -> Result<(), StateError> {
+        let json = serde_json::to_string_pretty(settings)?;
         if let Some(parent) = self.settings_path.parent() {
-            tokio::fs::create_dir_all(parent)
-                .await
-                .map_err(|e| e.to_string())?;
+            tokio::fs::create_dir_all(parent).await?;
         }
-        tokio::fs::write(&self.settings_path, json)
-            .await
-            .map_err(|e| e.to_string())
+        tokio::fs::write(&self.settings_path, json).await?;
+        Ok(())
     }
 
-    pub async fn refresh_installed_version(&self) -> Result<DiscoverySettings, String> {
+    pub async fn refresh_installed_version(&self) -> Result<DiscoverySettings, StateError> {
         let installed_version = self.installer.installed_version().await;
         let mut settings = self.settings.write().await;
         settings.installed_version = installed_version;
@@ -107,7 +121,7 @@ impl DiscoveryState {
         Ok(out)
     }
 
-    pub async fn prepare_suwayomi_config(&self) -> Result<(), String> {
+    pub async fn prepare_suwayomi_config(&self) -> Result<(), StateError> {
         let repos = {
             let settings = self.settings.read().await;
             settings.extension_repos.clone()
@@ -127,11 +141,9 @@ fn default_extension_repos() -> Vec<String> {
     vec![DEFAULT_EXTENSION_REPO.to_string()]
 }
 
-async fn write_server_conf(path: PathBuf, repos: &[String]) -> Result<(), String> {
+async fn write_server_conf(path: PathBuf, repos: &[String]) -> Result<(), StateError> {
     if let Some(parent) = path.parent() {
-        tokio::fs::create_dir_all(parent)
-            .await
-            .map_err(|e| e.to_string())?;
+        tokio::fs::create_dir_all(parent).await?;
     }
     let repos = repos
         .iter()
@@ -166,9 +178,8 @@ suwayomi {{
 }}
 "#
     );
-    tokio::fs::write(path, content)
-        .await
-        .map_err(|e| e.to_string())
+    tokio::fs::write(path, content).await?;
+    Ok(())
 }
 
 /// Sent from frontend to the convert command.
@@ -181,6 +192,10 @@ pub struct ConvertOptions {
     pub max_width: Option<u32>,
     pub force_reencode: bool,
     pub clean_tones: bool,
+    #[serde(default)]
+    pub color_enhance: ColorEnhanceMode,
+    #[serde(default)]
+    pub sharpen: SharpenMode,
     pub output_format: OutputFormat,
     pub direction: Direction,
     pub bundle: BundleMode,
@@ -239,6 +254,61 @@ pub struct VolumeEdit {
     pub volume_num: u32,
     /// Pages in final display order (after drag reorder + excludes + additions).
     pub pages: Vec<PageEditEntry>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(rename_all = "snake_case")]
+pub enum PipelineCostClass {
+    Cheap,
+    Medium,
+    Expensive,
+    Experimental,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct PipelineStepEffects {
+    pub dimensions: bool,
+    pub pixels: bool,
+    pub alpha: bool,
+    pub metadata: bool,
+    pub passthrough: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct PipelineStep {
+    pub id: String,
+    pub label: String,
+    pub category: String,
+    pub enabled: bool,
+    pub default_enabled: bool,
+    pub exclusive_group: Option<String>,
+    pub conflicts: Vec<String>,
+    pub effects: PipelineStepEffects,
+    pub cost: PipelineCostClass,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct PipelineStage {
+    pub id: String,
+    pub label: String,
+    pub enabled: bool,
+    pub steps: Vec<PipelineStep>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct PipelinePlan {
+    pub total_pages: u32,
+    pub included_pages: u32,
+    pub excluded_pages: u32,
+    pub added_pages: u32,
+    pub volumes: u32,
+    pub image_format: ImageFormat,
+    pub output_format: OutputFormat,
+    pub stages: Vec<PipelineStage>,
 }
 
 #[cfg(test)]

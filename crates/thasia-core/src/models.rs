@@ -45,6 +45,23 @@ pub struct ProcessedImage {
     pub ext: String,
     pub width: u32,
     pub height: u32,
+    pub stats: ProcessingStats,
+}
+
+#[derive(Debug, Clone, Default)]
+#[cfg_attr(
+    feature = "tauri",
+    derive(serde::Serialize, serde::Deserialize, specta::Type)
+)]
+pub struct ProcessingStats {
+    pub input_bytes: u64,
+    pub output_bytes: u64,
+    pub passthrough: bool,
+    pub fetch_ms: f64,
+    pub decode_ms: f64,
+    pub transform_ms: f64,
+    pub encode_ms: f64,
+    pub total_ms: f64,
 }
 
 /// Target image encoding format.
@@ -61,6 +78,38 @@ pub enum ImageFormat {
     Webp,
     /// Keep original format without re-encoding.
     Original,
+}
+
+/// Optional color enhancement for washed-out color pages.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[cfg_attr(
+    feature = "tauri",
+    derive(serde::Serialize, serde::Deserialize, specta::Type)
+)]
+pub enum ColorEnhanceMode {
+    /// Leave colors untouched.
+    #[default]
+    Off,
+    /// Subtle contrast and saturation lift.
+    Mild,
+    /// Moderate contrast and saturation lift.
+    Balanced,
+    /// Stronger lift for very faded scans.
+    Strong,
+}
+
+/// Optional sharpening for soft scans.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[cfg_attr(
+    feature = "tauri",
+    derive(serde::Serialize, serde::Deserialize, specta::Type)
+)]
+pub enum SharpenMode {
+    /// Leave sharpness untouched.
+    #[default]
+    Off,
+    /// Mild unsharp-mask pass.
+    Mild,
 }
 
 /// Output container format.

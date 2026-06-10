@@ -12,6 +12,7 @@
         IconSettings,
     } from '@tabler/icons-svelte';
     import { commands, events, type RuntimeState, type SearchResult } from '$types/bindings';
+    import { formatAppError } from '$lib/errors';
     import { downloadStore as store } from '$lib/download/state.svelte';
     import SourcePicker from '$components/download/SourcePicker.svelte';
     import SearchBar from '$components/download/SearchBar.svelte';
@@ -70,7 +71,7 @@
                 store.selectedSourceId = store.sources[0]?.id ?? '';
             }
         } else {
-            store.error = result.error;
+            store.error = formatAppError(result.error);
         }
     }
 
@@ -85,7 +86,7 @@
             store.results = result.data.results;
             store.page = 1;
             store.hasNextPage = result.data.has_next_page;
-        } else store.error = result.error;
+        } else store.error = formatAppError(result.error);
         store.searching = false;
     }
 
@@ -111,7 +112,7 @@
             store.page = nextPage;
             store.hasNextPage = result.data.has_next_page;
         } else {
-            store.error = result.error;
+            store.error = formatAppError(result.error);
         }
         store.loadingMore = false;
     }
@@ -122,7 +123,7 @@
         detailError = '';
         const result = await commands.listChapters(series.id);
         if (result.status === 'ok') store.chapters = result.data;
-        else detailError = result.error;
+        else detailError = formatAppError(result.error);
         store.loadingChapters = false;
     }
 
@@ -146,7 +147,7 @@
             convertAfter
         );
         if (result.status === 'error') {
-            store.error = result.error;
+            store.error = formatAppError(result.error);
         } else if (convertAfter) {
             const title = store.selectedSeries.title;
             detailError = '';
@@ -171,7 +172,7 @@
 
     async function startServer() {
         const result = await commands.suwayomiStart();
-        if (result.status === 'error') store.error = result.error;
+        if (result.status === 'error') store.error = formatAppError(result.error);
     }
 
     function statusVariant(

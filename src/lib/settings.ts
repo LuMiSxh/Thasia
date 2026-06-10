@@ -1,4 +1,4 @@
-import { wizard } from '$lib/wizard/state.svelte';
+import { wizard, type ColorEnhanceMode, type SharpenMode } from '$lib/wizard/state.svelte';
 import { uiPrefs } from 'anasthasia';
 
 const STORAGE_KEY = 'thasia:settings';
@@ -14,6 +14,8 @@ export type Settings = {
     maxWidth: number | null;
     forceReencode: boolean;
     cleanTones: boolean;
+    colorEnhance: ColorEnhanceMode;
+    sharpen: SharpenMode;
     showKeyHints: boolean;
     /** Pre-filled in the wizard setup step. Empty = no default. */
     defaultOutputDir: string;
@@ -30,6 +32,8 @@ export const DEFAULT_SETTINGS: Settings = {
     maxWidth: null,
     forceReencode: false,
     cleanTones: false,
+    colorEnhance: 'off',
+    sharpen: 'off',
     showKeyHints: true,
     defaultOutputDir: '',
 };
@@ -64,6 +68,8 @@ export function applyToWizard(settings: Settings, opts: { force?: boolean } = {}
         wizard.maxWidth = settings.maxWidth;
         wizard.forceReencode = settings.forceReencode;
         wizard.cleanTones = settings.cleanTones;
+        wizard.colorEnhance = settings.colorEnhance;
+        wizard.sharpen = settings.sharpen;
     }
     // Output dir: only set if empty, regardless of force (don't clobber user's manual pick).
     if (!wizard.outputDir && settings.defaultOutputDir) {

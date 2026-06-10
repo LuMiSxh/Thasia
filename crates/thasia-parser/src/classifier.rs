@@ -39,21 +39,26 @@ pub enum ComponentKind {
 // Anchored, case-insensitive. Each pattern is intentionally narrow — false
 // positives are far more harmful than false negatives because the assembly
 // phase has fallbacks (depth_mapping, natord-position).
-static VOLUME_RE: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"^(?i)v(?:ol(?:ume)?)?[ ._-]*(\d+)$").unwrap());
-static CHAPTER_RE: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"^(?i)c(?:h(?:apter)?)?[ ._-]*(\d+(?:\.\d+)?)$").unwrap());
-static PAGE_RE: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"^(?i)p(?:age)?[ ._-]*(\d+(?:\.\d+)?)$").unwrap());
+static VOLUME_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"^(?i)v(?:ol(?:ume)?)?[ ._-]*(\d+)$").expect("valid volume regex")
+});
+static CHAPTER_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"^(?i)c(?:h(?:apter)?)?[ ._-]*(\d+(?:\.\d+)?)$").expect("valid chapter regex")
+});
+static PAGE_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"^(?i)p(?:age)?[ ._-]*(\d+(?:\.\d+)?)$").expect("valid page regex")
+});
 static HAKUNEKO_RE: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"^(\d+)-(\d+(?:\.\d+)?)$").unwrap());
-static SPREAD_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^(\d+)[_-](\d+)$").unwrap());
-static PURE_NUM_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^(\d+(?:\.\d+)?)$").unwrap());
+    LazyLock::new(|| Regex::new(r"^(\d+)-(\d+(?:\.\d+)?)$").expect("valid hakuneko regex"));
+static SPREAD_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^(\d+)[_-](\d+)$").expect("valid spread regex"));
+static PURE_NUM_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^(\d+(?:\.\d+)?)$").expect("valid pure number regex"));
 /// Permissive fallback for filenames whose stem ends with a number: `bonus_002`,
 /// `chapter-end-007`, `intro1`. Avoids forcing every weirdly-named file into
 /// natord-fallback when there's an obvious trailing page number.
 static TRAILING_NUM_RE: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(\d+(?:\.\d+)?)$").unwrap());
+    LazyLock::new(|| Regex::new(r"(\d+(?:\.\d+)?)$").expect("valid trailing number regex"));
 
 /// Classify one path component. Patterns are checked in priority order, most
 /// specific first. The first match wins; further patterns are not tried.

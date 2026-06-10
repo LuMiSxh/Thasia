@@ -1,5 +1,6 @@
 <script lang="ts">
     import { onMount, onDestroy } from 'svelte';
+    import { formatAppError } from '$lib/errors';
     import { wizard } from '$lib/wizard/state.svelte';
     import { open } from '@tauri-apps/plugin-dialog';
     import { commands } from '$types/bindings';
@@ -95,7 +96,7 @@
         try {
             const result = await commands.scanSource(wizard.sourcePath);
             if (result.status === 'error') {
-                scanError = result.error;
+                scanError = formatAppError(result.error);
                 return;
             }
             wizard.scanResult = result.data;
@@ -110,7 +111,7 @@
             }));
             onNext();
         } catch (e) {
-            scanError = String(e);
+            scanError = formatAppError(e);
         } finally {
             loading = false;
         }

@@ -4,6 +4,7 @@
     import { sidebar } from '$lib/sidebar/state.svelte';
     import { wizard } from '$lib/wizard/state.svelte';
     import { activeSteps } from '$lib/wizard/steps';
+    import { formatAppError } from '$lib/errors';
     import { applyToWizard, loadSettings } from '$lib/settings';
     import { commands } from '$types/bindings';
     import { Alert, keyboard } from 'anasthasia';
@@ -100,7 +101,7 @@
         discoveryScanLoading = false;
 
         if (result.status === 'error') {
-            discoveryScanError = result.error;
+            discoveryScanError = formatAppError(result.error);
             wizard.currentStepId = 'source';
             return;
         }
