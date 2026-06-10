@@ -150,90 +150,52 @@ fn resize_max_width(img: &mut DynamicImage, max_width: u32) {
 
     let new_height = ((height as f64 * max_width as f64 / width as f64).round() as u32).max(1);
 
-    // Linearize → scale in linear light → re-encode to sRGB.
-    // Prevents the thin-line darkening caused by gamma-space averaging.
-    let linearized = linearize_srgb_image(img);
-    let scaled = linearized.resize_exact(max_width, new_height, image::imageops::FilterType::Lanczos3);
-    *img = encode_linear_to_srgb(scaled);
+    // Precompute 256-entry LUTs — one powf call per distinct byte value instead
+    // of one per pixel. LLVM can auto-vectorize the subsequent table-lookup loops.
+    let to_linear = build_lut(srgb_to_linear);
+    let to_srgb = build_lut(linear_to_srgb);
+
+    // Linearize in-place (no alloc), resize in linear light, re-encode in-place.
+    apply_lut_inplace(img, &to_linear, false);
+    *img = img.resize_exact(max_width, new_height, image::imageops::FilterType::Lanczos3);
+    apply_lut_inplace(img, &to_srgb, false);
 }
 
-fn linearize_srgb_image(img: &DynamicImage) -> DynamicImage {
-    match img {
-        DynamicImage::ImageRgb8(buf) => {
-            let (w, h) = buf.dimensions();
-            let raw: Vec<u8> = buf
-                .as_raw()
-                .iter()
-                .map(|&c| (srgb_to_linear(c as f32 / 255.0) * 255.0).round() as u8)
-                .collect();
-            DynamicImage::ImageRgb8(image::RgbImage::from_raw(w, h, raw).unwrap())
-        }
-        DynamicImage::ImageRgba8(buf) => {
-            let (w, h) = buf.dimensions();
-            let raw: Vec<u8> = buf
-                .as_raw()
-                .chunks_exact(4)
-                .flat_map(|px| {
-                    [
-                        (srgb_to_linear(px[0] as f32 / 255.0) * 255.0).round() as u8,
-                        (srgb_to_linear(px[1] as f32 / 255.0) * 255.0).round() as u8,
-                        (srgb_to_linear(px[2] as f32 / 255.0) * 255.0).round() as u8,
-                        px[3],
-                    ]
-                })
-                .collect();
-            DynamicImage::ImageRgba8(image::RgbaImage::from_raw(w, h, raw).unwrap())
-        }
-        DynamicImage::ImageLuma8(buf) => {
-            let (w, h) = buf.dimensions();
-            let raw: Vec<u8> = buf
-                .as_raw()
-                .iter()
-                .map(|&c| (srgb_to_linear(c as f32 / 255.0) * 255.0).round() as u8)
-                .collect();
-            DynamicImage::ImageLuma8(image::GrayImage::from_raw(w, h, raw).unwrap())
-        }
-        _ => img.clone(),
+/// Builds a 256-entry lookup table by evaluating `f` for each possible u8 value.
+fn build_lut(f: fn(f32) -> f32) -> [u8; 256] {
+    let mut lut = [0u8; 256];
+    for (i, entry) in lut.iter_mut().enumerate() {
+        *entry = (f(i as f32 / 255.0) * 255.0).round() as u8;
     }
+    lut
 }
 
-fn encode_linear_to_srgb(img: DynamicImage) -> DynamicImage {
+/// Applies `lut` to every color channel in-place. When `skip_alpha` is true the
+/// alpha byte (4th channel in RGBA) is left untouched.
+fn apply_lut_inplace(img: &mut DynamicImage, lut: &[u8; 256], skip_alpha: bool) {
     match img {
         DynamicImage::ImageRgb8(buf) => {
-            let (w, h) = buf.dimensions();
-            let raw: Vec<u8> = buf
-                .as_raw()
-                .iter()
-                .map(|&c| (linear_to_srgb(c as f32 / 255.0) * 255.0).round() as u8)
-                .collect();
-            DynamicImage::ImageRgb8(image::RgbImage::from_raw(w, h, raw).unwrap())
+            for c in buf.as_flat_samples_mut().samples.iter_mut() {
+                *c = lut[*c as usize];
+            }
         }
         DynamicImage::ImageRgba8(buf) => {
-            let (w, h) = buf.dimensions();
-            let raw: Vec<u8> = buf
-                .as_raw()
-                .chunks_exact(4)
-                .flat_map(|px| {
-                    [
-                        (linear_to_srgb(px[0] as f32 / 255.0) * 255.0).round() as u8,
-                        (linear_to_srgb(px[1] as f32 / 255.0) * 255.0).round() as u8,
-                        (linear_to_srgb(px[2] as f32 / 255.0) * 255.0).round() as u8,
-                        px[3],
-                    ]
-                })
-                .collect();
-            DynamicImage::ImageRgba8(image::RgbaImage::from_raw(w, h, raw).unwrap())
+            let raw = buf.as_flat_samples_mut().samples;
+            for px in raw.chunks_exact_mut(4) {
+                px[0] = lut[px[0] as usize];
+                px[1] = lut[px[1] as usize];
+                px[2] = lut[px[2] as usize];
+                if !skip_alpha {
+                    px[3] = lut[px[3] as usize];
+                }
+            }
         }
         DynamicImage::ImageLuma8(buf) => {
-            let (w, h) = buf.dimensions();
-            let raw: Vec<u8> = buf
-                .as_raw()
-                .iter()
-                .map(|&c| (linear_to_srgb(c as f32 / 255.0) * 255.0).round() as u8)
-                .collect();
-            DynamicImage::ImageLuma8(image::GrayImage::from_raw(w, h, raw).unwrap())
+            for c in buf.as_flat_samples_mut().samples.iter_mut() {
+                *c = lut[*c as usize];
+            }
         }
-        other => other,
+        _ => {}
     }
 }
 
