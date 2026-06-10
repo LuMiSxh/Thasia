@@ -2,7 +2,7 @@ use crate::{
     encode::{convert_to_avif, convert_to_webp},
     error::{ProcessorError, Result as ProcessorResult},
     retry::with_retries,
-    transform::{TransformOptions, TransformPipeline},
+    transform::{TransformOptions, TransformPipeline, maybe_split_double_page},
 };
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -165,21 +165,11 @@ async fn start_pipeline_inner<S: Source + 'static>(
                         let _ = slot_tx.send(());
                         return;
                     }
-                    let result: ProcessorResult<ProcessedImage> =
-                        encode_image(raw.bytes, &raw.original_ext, opts, raw.fetch_duration).map(
-                            |encoded| ProcessedImage {
-                                parsed_data: raw.parsed,
-                                image_data: encoded.data,
-                                ext: encoded.ext,
-                                width: encoded.width,
-                                height: encoded.height,
-                                stats: encoded.stats,
-                            },
-                        );
-                    // Release slot before blocking_send so the coordinator can
-                    // keep the encode pool fed even if result_tx is temporarily full.
+                    let results = encode_images(raw, opts);
                     let _ = slot_tx.send(());
-                    result_tx.blocking_send(result).ok();
+                    for result in results {
+                        result_tx.blocking_send(result).ok();
+                    }
                 });
             }
             // scope waits here for all in-flight Rayon tasks to finish
@@ -195,6 +185,83 @@ fn is_cancelled(cancel: &Option<Arc<AtomicBool>>) -> bool {
         .as_ref()
         .map(|cancel| cancel.load(Ordering::Relaxed))
         .unwrap_or(false)
+}
+
+/// Encodes one RawImage, potentially producing two ProcessedImages when the
+/// double-page split fires. All results share the same fetch stats; the second
+/// split half gets a page_number bumped by 0.5 to preserve sort order.
+fn encode_images(
+    raw: RawImage,
+    opts: EncodeOptions,
+) -> Vec<ProcessorResult<ProcessedImage>> {
+    let fetch_duration = raw.fetch_duration;
+    let original_ext = raw.original_ext.clone();
+    let base_parsed = raw.parsed;
+
+    // If split is off or the image won't be decoded anyway, take the fast path.
+    if !opts.transform.split_double_page || opts.format == ImageFormat::Original {
+        return vec![
+            encode_image(raw.bytes, &original_ext, opts, fetch_duration).map(|enc| {
+                ProcessedImage {
+                    parsed_data: base_parsed,
+                    image_data: enc.data,
+                    ext: enc.ext,
+                    width: enc.width,
+                    height: enc.height,
+                    stats: enc.stats,
+                }
+            }),
+        ];
+    }
+
+    // Decode once, split, re-encode each half.
+    let decode_start = Instant::now();
+    let img = match decode_image(raw.bytes.as_ref(), &original_ext) {
+        Ok(img) => img,
+        Err(e) => return vec![Err(e)],
+    };
+    let decode_ms = duration_ms(decode_start.elapsed());
+    drop(raw.bytes);
+
+    let transform_start = Instant::now();
+    let halves = maybe_split_double_page(img, opts.transform.direction);
+    let transform_ms = duration_ms(transform_start.elapsed());
+
+    if halves.len() == 1 {
+        // Not a double-page spread — encode the single image normally.
+        let img = halves.into_iter().next().unwrap();
+        let result = encode_decoded_image(img, opts, fetch_duration, decode_ms, transform_ms)
+            .map(|enc| ProcessedImage {
+                parsed_data: base_parsed,
+                image_data: enc.data,
+                ext: enc.ext,
+                width: enc.width,
+                height: enc.height,
+                stats: enc.stats,
+            });
+        return vec![result];
+    }
+
+    halves
+        .into_iter()
+        .enumerate()
+        .map(|(i, half)| {
+            let mut parsed = base_parsed.clone();
+            if i == 1 {
+                parsed.page_number += 0.5;
+            }
+            encode_decoded_image(half, opts, fetch_duration, decode_ms, transform_ms).map(
+                |enc| ProcessedImage {
+                    parsed_data: parsed,
+                    image_data: enc.data,
+                    ext: enc.ext,
+                    width: enc.width,
+                    height: enc.height,
+                    stats: enc.stats,
+                },
+            )
+        })
+        .collect()
 }
 
 fn encode_image(
@@ -256,9 +323,28 @@ fn encode_image(
     // holding the JPEG buffer alongside the decoded pixel buffer wastes memory.
     drop(bytes);
 
+    encode_decoded_image(img, opts, fetch_duration, decode_ms, 0.0).map(|mut enc| {
+        // encode_decoded_image runs the transform internally for the non-split path;
+        // input_bytes was captured above but not threaded through — patch it here.
+        enc.stats.input_bytes = input_bytes;
+        enc
+    })
+}
+
+/// Encode an already-decoded image, running the transform pipeline internally.
+/// `prior_decode_ms` / `prior_transform_ms` are pre-charges from a split step.
+fn encode_decoded_image(
+    mut img: image::DynamicImage,
+    opts: EncodeOptions,
+    fetch_duration: Duration,
+    prior_decode_ms: f64,
+    prior_transform_ms: f64,
+) -> ProcessorResult<EncodedImage> {
+    let total_start = Instant::now();
+
     let transform_start = Instant::now();
     TransformPipeline::new(opts.transform).apply(&mut img);
-    let transform_ms = duration_ms(transform_start.elapsed());
+    let transform_ms = prior_transform_ms + duration_ms(transform_start.elapsed());
 
     let (w, h) = (img.width(), img.height());
 
@@ -281,11 +367,11 @@ fn encode_image(
         width: w,
         height: h,
         stats: ProcessingStats {
-            input_bytes,
+            input_bytes: 0, // caller patches if known
             output_bytes,
             passthrough: false,
             fetch_ms: duration_ms(fetch_duration),
-            decode_ms,
+            decode_ms: prior_decode_ms,
             transform_ms,
             encode_ms,
             total_ms: duration_ms(total_start.elapsed()),

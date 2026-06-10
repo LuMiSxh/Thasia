@@ -1,6 +1,8 @@
 use crate::encode::grayscale::{ImageTone, classify_image_tone};
 use image::DynamicImage;
-use thasia_core::models::{ColorEnhanceMode, SharpenMode};
+use thasia_core::models::{ColorEnhanceMode, Direction, SharpenMode};
+
+const DOUBLE_PAGE_RATIO: f32 = 1.2;
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct TransformOptions {
@@ -8,6 +10,8 @@ pub struct TransformOptions {
     pub clean_tones: bool,
     pub color_enhance: ColorEnhanceMode,
     pub sharpen: SharpenMode,
+    pub split_double_page: bool,
+    pub direction: Direction,
 }
 
 impl TransformOptions {
@@ -16,6 +20,26 @@ impl TransformOptions {
             || self.clean_tones
             || self.color_enhance != ColorEnhanceMode::Off
             || self.sharpen != SharpenMode::Off
+            || self.split_double_page
+    }
+}
+
+/// Returns 2 images (in logical reading order) if the image is a landscape
+/// double-page spread, otherwise returns the original image in a 1-element vec.
+pub fn maybe_split_double_page(img: DynamicImage, direction: Direction) -> Vec<DynamicImage> {
+    let (w, h) = (img.width(), img.height());
+    if h == 0 || (w as f32 / h as f32) <= DOUBLE_PAGE_RATIO {
+        return vec![img];
+    }
+
+    let half = w / 2;
+    use image::GenericImageView;
+    let left = img.crop_imm(0, 0, half, h);
+    let right = img.crop_imm(half, 0, w - half, h);
+
+    match direction {
+        Direction::Rtl => vec![right, left],
+        Direction::Ltr => vec![left, right],
     }
 }
 
@@ -395,6 +419,7 @@ fn black_threshold(tone: ImageTone) -> u8 {
 mod tests {
     use super::*;
     use image::{ImageBuffer, Luma, Rgb, Rgba};
+    use thasia_core::models::Direction;
 
     #[test]
     fn resize_step_only_downscales_wide_images() {
@@ -523,5 +548,34 @@ mod tests {
         TransformStep::Sharpen(SharpenMode::Mild).apply(&mut img);
         assert_eq!(img.width(), 30);
         assert_eq!(img.height(), 40);
+    }
+
+    #[test]
+    fn double_page_split_ltr_order() {
+        let img = ImageBuffer::from_fn(200, 100, |x, _| {
+            if x < 100 { Rgb([255u8, 0, 0]) } else { Rgb([0u8, 0, 255]) }
+        });
+        let halves = maybe_split_double_page(DynamicImage::ImageRgb8(img), Direction::Ltr);
+        assert_eq!(halves.len(), 2);
+        assert_eq!(halves[0].as_rgb8().unwrap().get_pixel(0, 0).0, [255, 0, 0]);
+        assert_eq!(halves[1].as_rgb8().unwrap().get_pixel(0, 0).0, [0, 0, 255]);
+    }
+
+    #[test]
+    fn double_page_split_rtl_order() {
+        let img = ImageBuffer::from_fn(200, 100, |x, _| {
+            if x < 100 { Rgb([255u8, 0, 0]) } else { Rgb([0u8, 0, 255]) }
+        });
+        let halves = maybe_split_double_page(DynamicImage::ImageRgb8(img), Direction::Rtl);
+        assert_eq!(halves[0].as_rgb8().unwrap().get_pixel(0, 0).0, [0, 0, 255]);
+        assert_eq!(halves[1].as_rgb8().unwrap().get_pixel(0, 0).0, [255, 0, 0]);
+    }
+
+    #[test]
+    fn portrait_image_not_split() {
+        let img = ImageBuffer::from_fn(100, 200, |_, _| Rgb([128u8, 128, 128]));
+        let result = maybe_split_double_page(DynamicImage::ImageRgb8(img), Direction::Ltr);
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].width(), 100);
     }
 }
