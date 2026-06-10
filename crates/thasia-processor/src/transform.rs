@@ -163,32 +163,31 @@ fn sharpen(img: &mut DynamicImage, mode: SharpenMode) {
 }
 
 fn clean_rgb_tones(img: &mut image::RgbImage, tone: ImageTone) {
-    let white_threshold = white_threshold(tone);
-    let black_threshold = black_threshold(tone);
+    let bp = black_threshold(tone) as f32;
+    let wp = white_threshold(tone) as f32;
     for px in img.pixels_mut() {
         let [r, g, b] = px.0;
         if !is_neutral(r, g, b) {
             continue;
         }
         let luma = luma_approx(r, g, b);
-        if luma >= white_threshold {
-            px.0 = [255, 255, 255];
-        } else if luma <= black_threshold {
-            px.0 = [0, 0, 0];
-        }
+        let v = smoothstep_u8(luma, bp, wp);
+        px.0 = [v, v, v];
     }
 }
 
 fn clean_luma_tones(img: &mut image::GrayImage, tone: ImageTone) {
-    let white_threshold = white_threshold(tone);
-    let black_threshold = black_threshold(tone);
+    let bp = black_threshold(tone) as f32;
+    let wp = white_threshold(tone) as f32;
     for px in img.pixels_mut() {
-        if px.0[0] >= white_threshold {
-            px.0[0] = 255;
-        } else if px.0[0] <= black_threshold {
-            px.0[0] = 0;
-        }
+        px.0[0] = smoothstep_u8(px.0[0], bp, wp);
     }
+}
+
+#[inline(always)]
+fn smoothstep_u8(luma: u8, bp: f32, wp: f32) -> u8 {
+    let t = ((luma as f32 - bp) / (wp - bp)).clamp(0.0, 1.0);
+    (t * t * (3.0 - 2.0 * t) * 255.0).round() as u8
 }
 
 fn enhance_rgb(img: &mut image::RgbImage, contrast: f32, saturation: f32, brightness: i16) {
