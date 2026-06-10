@@ -12,6 +12,9 @@ pub struct TransformOptions {
     pub sharpen: SharpenMode,
     pub split_double_page: bool,
     pub direction: Direction,
+    pub auto_crop: bool,
+    /// Padding added around the cropped area in pixels.
+    pub crop_padding: u32,
 }
 
 impl TransformOptions {
@@ -21,6 +24,7 @@ impl TransformOptions {
             || self.color_enhance != ColorEnhanceMode::Off
             || self.sharpen != SharpenMode::Off
             || self.split_double_page
+            || self.auto_crop
     }
 }
 
@@ -51,6 +55,7 @@ pub enum TransformStep {
     EnhanceColor(ColorEnhanceMode),
     Sharpen(SharpenMode),
     ResizeMaxWidth(u32),
+    AutoCrop(u32),
 }
 
 const DEFAULT_STEPS: &[TransformStep] = &[
@@ -84,6 +89,9 @@ impl TransformPipeline {
         if self.options.sharpen != SharpenMode::Off {
             TransformStep::Sharpen(self.options.sharpen).apply(img);
         }
+        if self.options.auto_crop {
+            TransformStep::AutoCrop(self.options.crop_padding).apply(img);
+        }
     }
 }
 
@@ -96,6 +104,7 @@ impl TransformStep {
             TransformStep::EnhanceColor(mode) => enhance_color(img, mode),
             TransformStep::Sharpen(mode) => sharpen(img, mode),
             TransformStep::ResizeMaxWidth(max_width) => resize_max_width(img, max_width),
+            TransformStep::AutoCrop(padding) => auto_crop(img, padding),
         }
     }
 }
@@ -265,6 +274,55 @@ fn sharpen(img: &mut DynamicImage, mode: SharpenMode) {
         SharpenMode::Mild => (0.85, 4),
     };
     *img = img.unsharpen(sigma, threshold);
+}
+
+// Brightness threshold: pixels with luma >= this are considered background.
+const CROP_BG_LUMA: u8 = 235;
+// A row/column is background if this fraction of its pixels are bright.
+const CROP_BG_ROW_RATIO: f32 = 0.97;
+
+fn auto_crop(img: &mut DynamicImage, padding: u32) {
+    let (w, h) = (img.width(), img.height());
+    if w == 0 || h == 0 {
+        return;
+    }
+
+    let luma = img.to_luma8();
+    let raw = luma.as_raw();
+
+    let row_bg = |y: u32| -> bool {
+        let start = (y * w) as usize;
+        let row = &raw[start..start + w as usize];
+        let bright = row.iter().filter(|&&p| p >= CROP_BG_LUMA).count();
+        bright as f32 / w as f32 >= CROP_BG_ROW_RATIO
+    };
+    let col_bg = |x: u32| -> bool {
+        let bright = (0..h)
+            .filter(|&y| raw[(y * w + x) as usize] >= CROP_BG_LUMA)
+            .count();
+        bright as f32 / h as f32 >= CROP_BG_ROW_RATIO
+    };
+
+    let top = (0..h).find(|&y| !row_bg(y)).unwrap_or(0);
+    let bottom = (0..h).rev().find(|&y| !row_bg(y)).map(|y| y + 1).unwrap_or(h);
+    let left = (0..w).find(|&x| !col_bg(x)).unwrap_or(0);
+    let right = (0..w).rev().find(|&x| !col_bg(x)).map(|x| x + 1).unwrap_or(w);
+
+    if top >= bottom || left >= right {
+        return;
+    }
+
+    let x = left.saturating_sub(padding);
+    let y = top.saturating_sub(padding);
+    let crop_w = (right + padding).min(w) - x;
+    let crop_h = (bottom + padding).min(h) - y;
+
+    if crop_w == w && crop_h == h {
+        return;
+    }
+
+    use image::GenericImageView;
+    *img = img.crop_imm(x, y, crop_w, crop_h);
 }
 
 fn clean_rgb_tones(img: &mut image::RgbImage, tone: ImageTone) {
