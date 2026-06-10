@@ -214,24 +214,74 @@ fn enhance_rgb_channels(
     saturation: f32,
     brightness: i16,
 ) -> [u8; 3] {
-    let luma = luma_approx(r, g, b) as f32;
+    let (l, a, b_ok) = srgb_u8_to_oklab(r, g, b);
+
+    // Scale chroma (a, b axes) without touching the hue angle.
+    let a = a * saturation;
+    let b_ok = b_ok * saturation;
+
+    // Apply lightness contrast and brightness in the L channel.
+    let l = ((l - 0.5) * contrast + 0.5 + brightness as f32 / 255.0).clamp(0.0, 1.0);
+
+    oklab_to_srgb_u8(l, a, b_ok)
+}
+
+// ── Oklab math ────────────────────────────────────────────────────────────────
+
+#[inline(always)]
+fn srgb_u8_to_oklab(r: u8, g: u8, b: u8) -> (f32, f32, f32) {
+    let r = srgb_to_linear(r as f32 / 255.0);
+    let g = srgb_to_linear(g as f32 / 255.0);
+    let b = srgb_to_linear(b as f32 / 255.0);
+
+    let l = (0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b).cbrt();
+    let m = (0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b).cbrt();
+    let s = (0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b).cbrt();
+
+    (
+        0.2104542553 * l + 0.7936177850 * m - 0.0040720468 * s,
+        1.9779984951 * l - 2.4285922050 * m + 0.4505937099 * s,
+        0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * s,
+    )
+}
+
+#[inline(always)]
+fn oklab_to_srgb_u8(l: f32, a: f32, b: f32) -> [u8; 3] {
+    let l_ = l + 0.3963377774 * a + 0.2158037573 * b;
+    let m_ = l - 0.1055613458 * a - 0.0638541728 * b;
+    let s_ = l - 0.0894841775 * a - 1.2914855480 * b;
+
+    let l = l_ * l_ * l_;
+    let m = m_ * m_ * m_;
+    let s = s_ * s_ * s_;
+
+    let r = linear_to_srgb(4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s);
+    let g = linear_to_srgb(-1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s);
+    let b = linear_to_srgb(-0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s);
+
     [
-        enhance_channel(r, luma, contrast, saturation, brightness),
-        enhance_channel(g, luma, contrast, saturation, brightness),
-        enhance_channel(b, luma, contrast, saturation, brightness),
+        (r.clamp(0.0, 1.0) * 255.0).round() as u8,
+        (g.clamp(0.0, 1.0) * 255.0).round() as u8,
+        (b.clamp(0.0, 1.0) * 255.0).round() as u8,
     ]
 }
 
 #[inline(always)]
-fn enhance_channel(value: u8, luma: f32, contrast: f32, saturation: f32, brightness: i16) -> u8 {
-    let saturated = luma + (value as f32 - luma) * saturation;
-    let contrasted = (saturated - 128.0) * contrast + 128.0 + brightness as f32;
-    clamp_u8(contrasted.round() as i16)
+fn srgb_to_linear(c: f32) -> f32 {
+    if c <= 0.04045 {
+        c / 12.92
+    } else {
+        ((c + 0.055) / 1.055).powf(2.4)
+    }
 }
 
 #[inline(always)]
-fn clamp_u8(value: i16) -> u8 {
-    value.clamp(0, 255) as u8
+fn linear_to_srgb(c: f32) -> f32 {
+    if c <= 0.0031308 {
+        c * 12.92
+    } else {
+        1.055 * c.powf(1.0 / 2.4) - 0.055
+    }
 }
 
 #[inline(always)]
@@ -351,6 +401,9 @@ mod tests {
 
     #[test]
     fn color_enhance_lifts_washed_out_color() {
+        // Warm pixel [150, 120, 100]: red is dominant, blue is lowest.
+        // Oklab chroma scaling should increase color saturation: the spread
+        // (R - B) must grow and R must increase.
         let img = ImageBuffer::from_fn(20, 20, |x, _| {
             if x % 2 == 0 {
                 Rgb([150u8, 120u8, 100u8])
@@ -361,8 +414,11 @@ mod tests {
         let mut img = DynamicImage::ImageRgb8(img);
         TransformStep::EnhanceColor(ColorEnhanceMode::Balanced).apply(&mut img);
         let first = img.as_rgb8().unwrap().get_pixel(0, 0).0;
-        assert!(first[0] > 150);
-        assert!(first[2] < 100);
+        assert!(first[0] > 150, "red channel should increase");
+        assert!(
+            (first[0] as i16 - first[2] as i16) > 50,
+            "R-B spread should increase (saturation lifted)"
+        );
     }
 
     #[test]
