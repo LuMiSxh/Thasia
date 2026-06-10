@@ -94,12 +94,93 @@ fn resize_max_width(img: &mut DynamicImage, max_width: u32) {
         return;
     }
 
-    let scale = max_width as f64 / width as f64;
-    *img = img.resize(
-        max_width,
-        (height as f64 * scale) as u32,
-        image::imageops::FilterType::Triangle,
-    );
+    let new_height = ((height as f64 * max_width as f64 / width as f64).round() as u32).max(1);
+
+    // Linearize → scale in linear light → re-encode to sRGB.
+    // Prevents the thin-line darkening caused by gamma-space averaging.
+    let linearized = linearize_srgb_image(img);
+    let scaled = linearized.resize_exact(max_width, new_height, image::imageops::FilterType::Lanczos3);
+    *img = encode_linear_to_srgb(scaled);
+}
+
+fn linearize_srgb_image(img: &DynamicImage) -> DynamicImage {
+    match img {
+        DynamicImage::ImageRgb8(buf) => {
+            let (w, h) = buf.dimensions();
+            let raw: Vec<u8> = buf
+                .as_raw()
+                .iter()
+                .map(|&c| (srgb_to_linear(c as f32 / 255.0) * 255.0).round() as u8)
+                .collect();
+            DynamicImage::ImageRgb8(image::RgbImage::from_raw(w, h, raw).unwrap())
+        }
+        DynamicImage::ImageRgba8(buf) => {
+            let (w, h) = buf.dimensions();
+            let raw: Vec<u8> = buf
+                .as_raw()
+                .chunks_exact(4)
+                .flat_map(|px| {
+                    [
+                        (srgb_to_linear(px[0] as f32 / 255.0) * 255.0).round() as u8,
+                        (srgb_to_linear(px[1] as f32 / 255.0) * 255.0).round() as u8,
+                        (srgb_to_linear(px[2] as f32 / 255.0) * 255.0).round() as u8,
+                        px[3],
+                    ]
+                })
+                .collect();
+            DynamicImage::ImageRgba8(image::RgbaImage::from_raw(w, h, raw).unwrap())
+        }
+        DynamicImage::ImageLuma8(buf) => {
+            let (w, h) = buf.dimensions();
+            let raw: Vec<u8> = buf
+                .as_raw()
+                .iter()
+                .map(|&c| (srgb_to_linear(c as f32 / 255.0) * 255.0).round() as u8)
+                .collect();
+            DynamicImage::ImageLuma8(image::GrayImage::from_raw(w, h, raw).unwrap())
+        }
+        _ => img.clone(),
+    }
+}
+
+fn encode_linear_to_srgb(img: DynamicImage) -> DynamicImage {
+    match img {
+        DynamicImage::ImageRgb8(buf) => {
+            let (w, h) = buf.dimensions();
+            let raw: Vec<u8> = buf
+                .as_raw()
+                .iter()
+                .map(|&c| (linear_to_srgb(c as f32 / 255.0) * 255.0).round() as u8)
+                .collect();
+            DynamicImage::ImageRgb8(image::RgbImage::from_raw(w, h, raw).unwrap())
+        }
+        DynamicImage::ImageRgba8(buf) => {
+            let (w, h) = buf.dimensions();
+            let raw: Vec<u8> = buf
+                .as_raw()
+                .chunks_exact(4)
+                .flat_map(|px| {
+                    [
+                        (linear_to_srgb(px[0] as f32 / 255.0) * 255.0).round() as u8,
+                        (linear_to_srgb(px[1] as f32 / 255.0) * 255.0).round() as u8,
+                        (linear_to_srgb(px[2] as f32 / 255.0) * 255.0).round() as u8,
+                        px[3],
+                    ]
+                })
+                .collect();
+            DynamicImage::ImageRgba8(image::RgbaImage::from_raw(w, h, raw).unwrap())
+        }
+        DynamicImage::ImageLuma8(buf) => {
+            let (w, h) = buf.dimensions();
+            let raw: Vec<u8> = buf
+                .as_raw()
+                .iter()
+                .map(|&c| (linear_to_srgb(c as f32 / 255.0) * 255.0).round() as u8)
+                .collect();
+            DynamicImage::ImageLuma8(image::GrayImage::from_raw(w, h, raw).unwrap())
+        }
+        other => other,
+    }
 }
 
 fn drop_opaque_alpha(img: &mut DynamicImage) {
