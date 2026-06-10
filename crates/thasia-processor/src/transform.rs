@@ -16,6 +16,7 @@ pub struct TransformOptions {
     /// Padding added around the cropped area in pixels.
     pub crop_padding: u32,
     pub moire_reduction: bool,
+    pub eink_dither: bool,
 }
 
 impl TransformOptions {
@@ -27,6 +28,7 @@ impl TransformOptions {
             || self.split_double_page
             || self.auto_crop
             || self.moire_reduction
+            || self.eink_dither
     }
 }
 
@@ -59,6 +61,7 @@ pub enum TransformStep {
     ResizeMaxWidth(u32),
     AutoCrop(u32),
     MoireReduction,
+    EinkDither,
 }
 
 const DEFAULT_STEPS: &[TransformStep] = &[
@@ -105,6 +108,9 @@ impl TransformPipeline {
         if self.options.auto_crop {
             TransformStep::AutoCrop(self.options.crop_padding).apply(img);
         }
+        if self.options.eink_dither {
+            TransformStep::EinkDither.apply(img);
+        }
     }
 }
 
@@ -119,6 +125,7 @@ impl TransformStep {
             TransformStep::ResizeMaxWidth(max_width) => resize_max_width(img, max_width),
             TransformStep::AutoCrop(padding) => auto_crop(img, padding),
             TransformStep::MoireReduction => moire_reduction(img),
+            TransformStep::EinkDither => eink_dither(img),
         }
     }
 }
@@ -294,6 +301,50 @@ fn sharpen(img: &mut DynamicImage, mode: SharpenMode) {
 const CROP_BG_LUMA: u8 = 235;
 // A row/column is background if this fraction of its pixels are bright.
 const CROP_BG_ROW_RATIO: f32 = 0.97;
+
+/// Quantises to 16 grayscale levels and applies Floyd-Steinberg error diffusion.
+fn eink_dither(img: &mut DynamicImage) {
+    let (w, h) = (img.width(), img.height());
+    let mut gray = img.to_luma8();
+    let raw = gray.as_flat_samples_mut().samples;
+
+    // Work in i16 to hold diffused error without clamping mid-way.
+    let mut buf: Vec<i16> = raw.iter().map(|&v| v as i16).collect();
+
+    const LEVELS: i16 = 16;
+    const STEP: i16 = 255 / (LEVELS - 1); // 17
+
+    for y in 0..h as usize {
+        for x in 0..w as usize {
+            let old = buf[y * w as usize + x].clamp(0, 255);
+            let new = ((old + STEP / 2) / STEP * STEP).clamp(0, 255);
+            let err = old - new;
+            buf[y * w as usize + x] = new;
+
+            // Floyd-Steinberg diffusion kernel:
+            //          * 7/16
+            //    3/16  5/16  1/16
+            if x + 1 < w as usize {
+                buf[y * w as usize + x + 1] += err * 7 / 16;
+            }
+            if y + 1 < h as usize {
+                if x > 0 {
+                    buf[(y + 1) * w as usize + x - 1] += err * 3 / 16;
+                }
+                buf[(y + 1) * w as usize + x] += err * 5 / 16;
+                if x + 1 < w as usize {
+                    buf[(y + 1) * w as usize + x + 1] += err / 16;
+                }
+            }
+        }
+    }
+
+    for (dst, src) in raw.iter_mut().zip(buf.iter()) {
+        *dst = (*src).clamp(0, 255) as u8;
+    }
+
+    *img = DynamicImage::ImageLuma8(gray);
+}
 
 fn moire_reduction(img: &mut DynamicImage) {
     // Bilateral filter on the luma channel: smooths screentone high-frequency
