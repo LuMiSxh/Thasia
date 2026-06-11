@@ -16,6 +16,11 @@ export type Settings = {
     cleanTones: boolean;
     colorEnhance: ColorEnhanceMode;
     sharpen: SharpenMode;
+    autoCrop: boolean;
+    cropPadding: number;
+    moireReduction: boolean;
+    einkDither: boolean;
+    splitDoublePage: boolean;
     showKeyHints: boolean;
     /** Pre-filled in the wizard setup step. Empty = no default. */
     defaultOutputDir: string;
@@ -34,6 +39,11 @@ export const DEFAULT_SETTINGS: Settings = {
     cleanTones: false,
     colorEnhance: 'off',
     sharpen: 'off',
+    autoCrop: false,
+    cropPadding: 0,
+    moireReduction: false,
+    einkDither: false,
+    splitDoublePage: false,
     showKeyHints: true,
     defaultOutputDir: '',
 };
@@ -70,6 +80,11 @@ export function applyToWizard(settings: Settings, opts: { force?: boolean } = {}
         wizard.cleanTones = settings.cleanTones;
         wizard.colorEnhance = settings.colorEnhance;
         wizard.sharpen = settings.sharpen;
+        wizard.autoCrop = settings.autoCrop;
+        wizard.cropPadding = settings.cropPadding;
+        wizard.moireReduction = settings.moireReduction;
+        wizard.einkDither = settings.einkDither;
+        wizard.splitDoublePage = settings.splitDoublePage;
     }
     // Output dir: only set if empty, regardless of force (don't clobber user's manual pick).
     if (!wizard.outputDir && settings.defaultOutputDir) {

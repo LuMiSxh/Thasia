@@ -9,6 +9,10 @@
         IconPhoto,
         IconRefresh,
         IconRuler,
+        IconCrop,
+        IconWaveSine,
+        IconBook,
+        IconColumns2,
     } from '@tabler/icons-svelte';
     import type { ColorEnhanceMode, SharpenMode } from '$lib/wizard/state.svelte';
 
@@ -20,6 +24,11 @@
         cleanTones: boolean;
         colorEnhance: ColorEnhanceMode;
         sharpen: SharpenMode;
+        autoCrop: boolean;
+        cropPadding: number;
+        moireReduction: boolean;
+        einkDither: boolean;
+        splitDoublePage: boolean;
     }
 
     let {
@@ -30,6 +39,11 @@
         cleanTones = $bindable(),
         colorEnhance = $bindable(),
         sharpen = $bindable(),
+        autoCrop = $bindable(),
+        cropPadding = $bindable(),
+        moireReduction = $bindable(),
+        einkDither = $bindable(),
+        splitDoublePage = $bindable(),
     }: Props = $props();
 
     const collapse = { duration: duration.base, easing: cubicInOut };
@@ -178,5 +192,79 @@
                 />
             </div>
         {/if}
+    </div>
+
+    <div class="mx-4 border-t border-anasthasia-border"></div>
+
+    <!-- Auto Crop -->
+    <div class="flex flex-col gap-2.5 px-4 py-3">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <IconCrop size={14} class="flex-shrink-0 text-anasthasia-muted" />
+                <div>
+                    <div class="text-sm font-medium">Auto Crop</div>
+                    <div class="text-xs text-anasthasia-muted">
+                        Remove white borders and margins
+                    </div>
+                </div>
+            </div>
+            <Toggle bind:checked={autoCrop} disabled={format === 'original'} />
+        </div>
+        {#if autoCrop}
+            <div transition:slide={collapse}>
+                <Input
+                    type="number"
+                    min="0"
+                    max="200"
+                    step="5"
+                    bind:value={cropPadding}
+                    hint="Padding to restore after crop (px)"
+                />
+            </div>
+        {/if}
+    </div>
+
+    <div class="mx-4 border-t border-anasthasia-border"></div>
+
+    <!-- Moire Reduction -->
+    <div class="flex items-center justify-between gap-3 px-4 py-3">
+        <div class="flex items-center gap-2">
+            <IconWaveSine size={14} class="flex-shrink-0 text-anasthasia-muted" />
+            <div>
+                <div class="text-sm font-medium">Moire Reduction</div>
+                <div class="text-xs text-anasthasia-muted">Reduce screentone artefacts</div>
+            </div>
+        </div>
+        <Toggle bind:checked={moireReduction} disabled={format === 'original'} />
+    </div>
+
+    <div class="mx-4 border-t border-anasthasia-border"></div>
+
+    <!-- E-Ink Dither -->
+    <div class="flex items-center justify-between gap-3 px-4 py-3">
+        <div class="flex items-center gap-2">
+            <IconBook size={14} class="flex-shrink-0 text-anasthasia-muted" />
+            <div>
+                <div class="text-sm font-medium">E-Ink Dither</div>
+                <div class="text-xs text-anasthasia-muted">Optimize for e-readers (16 levels)</div>
+            </div>
+        </div>
+        <Toggle bind:checked={einkDither} disabled={format === 'original'} />
+    </div>
+
+    <div class="mx-4 border-t border-anasthasia-border"></div>
+
+    <!-- Split Double Page -->
+    <div class="flex items-center justify-between gap-3 px-4 py-3">
+        <div class="flex items-center gap-2">
+            <IconColumns2 size={14} class="flex-shrink-0 text-anasthasia-muted" />
+            <div>
+                <div class="text-sm font-medium">Split Double Page</div>
+                <div class="text-xs text-anasthasia-muted">
+                    Separate wide spreads into left/right pages
+                </div>
+            </div>
+        </div>
+        <Toggle bind:checked={splitDoublePage} disabled={format === 'original'} />
     </div>
 </div>

@@ -67,24 +67,29 @@
         ['keyf', 'Flatten'],
     ]}
 >
-    <div
-        class="grid gap-3 lg:grid-cols-2 2xl:grid-cols-[minmax(0,0.85fr)_minmax(0,1fr)_minmax(0,1fr)]"
-    >
-        <!-- Image encoding -->
-        <div class="2xl:col-auto">
-            <EncodingControls
-                bind:format={wizard.imageFormat}
-                bind:maxWidth={wizard.maxWidth}
-                bind:enableMaxWidth
-                bind:forceReencode={wizard.forceReencode}
-                bind:cleanTones={wizard.cleanTones}
-                bind:colorEnhance={wizard.colorEnhance}
-                bind:sharpen={wizard.sharpen}
-            />
-        </div>
+    <!-- Image encoding (full width) -->
+    <div>
+        <EncodingControls
+            bind:format={wizard.imageFormat}
+            bind:maxWidth={wizard.maxWidth}
+            bind:enableMaxWidth
+            bind:forceReencode={wizard.forceReencode}
+            bind:cleanTones={wizard.cleanTones}
+            bind:colorEnhance={wizard.colorEnhance}
+            bind:sharpen={wizard.sharpen}
+            bind:autoCrop={wizard.autoCrop}
+            bind:cropPadding={wizard.cropPadding}
+            bind:moireReduction={wizard.moireReduction}
+            bind:einkDither={wizard.einkDither}
+            bind:splitDoublePage={wizard.splitDoublePage}
+        />
+    </div>
 
+    <div
+        class="grid w-full gap-3 lg:grid-cols-2 2xl:grid-cols-[minmax(0,0.85fr)_minmax(0,1fr)_minmax(0,1fr)]"
+    >
         <div
-            class="flex flex-col overflow-hidden rounded-xl border border-anasthasia-border bg-anasthasia-surface"
+            class="flex flex-col overflow-hidden rounded-xl border border-anasthasia-border bg-anasthasia-surface lg:col-span-2 2xl:col-span-1"
         >
             <div class="border-b border-anasthasia-border bg-anasthasia-panel px-4 py-2.5">
                 <span class="text-[10px] font-bold tracking-widest text-anasthasia-muted uppercase">

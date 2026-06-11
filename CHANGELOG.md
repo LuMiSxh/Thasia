@@ -7,6 +7,25 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-06-10
+
+### Added
+
+- **Double-page spread splitter** — manga with facing pages can now be split into individual pages with configurable LTR/RTL reading direction handling.
+- **Auto-crop whitespace transform** — scan borders and surrounding whitespace can now be automatically cropped with configurable padding around the content.
+- **Bilateral filter for noise reduction** — optional moire pattern and screentone reduction before scaling for improved output on heavily screened source material.
+- **Floyd-Steinberg dithering** — 16-level grayscale quantization for e-ink output with ordered dithering.
+
+### Changed
+
+- **Tone clamping smoothing** — binary near-white/near-black tone clamping replaced with smoothstep Hermite interpolation for smoother tonal transitions.
+- **Color saturation** — replaced luma-based saturation with perceptually uniform Oklab chroma scaling for more accurate color balance.
+- **Image scaling** — now uses Lanczos3 scaling in linear light to preserve thin-line brightness and detail.
+- **Gamma conversion optimization** — replaced allocation-heavy gamma conversion with in-place LUT-based passes for improved memory efficiency.
+- **Pipeline module structure** — internal pipeline and transform stages split into focused submodules (~300 lines/file) for better maintainability.
+
+## [0.4.0] - 2026-06-08
+
 ### Added
 
 - **Conversion observability** — conversion progress now carries live elapsed time, throughput, estimated remaining time, byte counters, passthrough/encoded page counts, and aggregate fetch/decode/transform/encode timings for the final result view.

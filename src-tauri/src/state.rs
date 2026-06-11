@@ -196,6 +196,16 @@ pub struct ConvertOptions {
     pub color_enhance: ColorEnhanceMode,
     #[serde(default)]
     pub sharpen: SharpenMode,
+    #[serde(default)]
+    pub auto_crop: bool,
+    #[serde(default)]
+    pub crop_padding: u32,
+    #[serde(default)]
+    pub moire_reduction: bool,
+    #[serde(default)]
+    pub eink_dither: bool,
+    #[serde(default)]
+    pub split_double_page: bool,
     pub output_format: OutputFormat,
     pub direction: Direction,
     pub bundle: BundleMode,

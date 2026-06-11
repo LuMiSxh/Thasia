@@ -165,6 +165,12 @@ fn encode_options(options: &ConvertOptions) -> EncodeOptions {
             clean_tones: options.clean_tones,
             color_enhance: options.color_enhance,
             sharpen: options.sharpen,
+            direction: options.direction,
+            auto_crop: options.auto_crop,
+            crop_padding: options.crop_padding,
+            moire_reduction: options.moire_reduction,
+            eink_dither: options.eink_dither,
+            split_double_page: options.split_double_page,
         },
     }
 }

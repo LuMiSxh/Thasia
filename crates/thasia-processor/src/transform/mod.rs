@@ -1,6 +1,17 @@
-use crate::encode::grayscale::{ImageTone, classify_image_tone};
 use image::DynamicImage;
-use thasia_core::models::{ColorEnhanceMode, SharpenMode};
+use thasia_core::models::{ColorEnhanceMode, Direction, SharpenMode};
+
+mod color;
+mod filters;
+mod resize;
+mod tones;
+
+const DOUBLE_PAGE_RATIO: f32 = 1.2;
+
+const DEFAULT_STEPS: &[TransformStep] = &[
+    TransformStep::NormalizeColor,
+    TransformStep::DropOpaqueAlpha,
+];
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct TransformOptions {
@@ -8,6 +19,13 @@ pub struct TransformOptions {
     pub clean_tones: bool,
     pub color_enhance: ColorEnhanceMode,
     pub sharpen: SharpenMode,
+    pub split_double_page: bool,
+    pub direction: Direction,
+    pub auto_crop: bool,
+    /// White-border padding (pixels) re-added after auto-crop.
+    pub crop_padding: u32,
+    pub moire_reduction: bool,
+    pub eink_dither: bool,
 }
 
 impl TransformOptions {
@@ -16,6 +34,26 @@ impl TransformOptions {
             || self.clean_tones
             || self.color_enhance != ColorEnhanceMode::Off
             || self.sharpen != SharpenMode::Off
+            || self.split_double_page
+            || self.auto_crop
+            || self.moire_reduction
+            || self.eink_dither
+    }
+}
+
+/// Splits a landscape double-page spread into two images in logical reading order.
+/// Returns a single-element vec for portrait images.
+pub fn maybe_split_double_page(img: DynamicImage, direction: Direction) -> Vec<DynamicImage> {
+    let (w, h) = (img.width(), img.height());
+    if h == 0 || (w as f32 / h as f32) <= DOUBLE_PAGE_RATIO {
+        return vec![img];
+    }
+    let half = w / 2;
+    let left = img.crop_imm(0, 0, half, h);
+    let right = img.crop_imm(half, 0, w - half, h);
+    match direction {
+        Direction::Rtl => vec![right, left],
+        Direction::Ltr => vec![left, right],
     }
 }
 
@@ -27,12 +65,10 @@ pub enum TransformStep {
     EnhanceColor(ColorEnhanceMode),
     Sharpen(SharpenMode),
     ResizeMaxWidth(u32),
+    AutoCrop(u32),
+    MoireReduction,
+    EinkDither,
 }
-
-const DEFAULT_STEPS: &[TransformStep] = &[
-    TransformStep::NormalizeColor,
-    TransformStep::DropOpaqueAlpha,
-];
 
 #[derive(Debug, Clone, Copy)]
 pub struct TransformPipeline {
@@ -48,6 +84,9 @@ impl TransformPipeline {
         for step in DEFAULT_STEPS {
             step.apply(img);
         }
+        if self.options.moire_reduction {
+            TransformStep::MoireReduction.apply(img);
+        }
         if let Some(max_width) = self.options.max_width {
             TransformStep::ResizeMaxWidth(max_width).apply(img);
         }
@@ -60,97 +99,28 @@ impl TransformPipeline {
         if self.options.sharpen != SharpenMode::Off {
             TransformStep::Sharpen(self.options.sharpen).apply(img);
         }
+        if self.options.auto_crop {
+            TransformStep::AutoCrop(self.options.crop_padding).apply(img);
+        }
+        if self.options.eink_dither {
+            TransformStep::EinkDither.apply(img);
+        }
     }
 }
 
 impl TransformStep {
     fn apply(self, img: &mut DynamicImage) {
         match self {
-            TransformStep::NormalizeColor => normalize_color(img),
-            TransformStep::DropOpaqueAlpha => drop_opaque_alpha(img),
-            TransformStep::CleanScanTones => clean_scan_tones(img),
-            TransformStep::EnhanceColor(mode) => enhance_color(img, mode),
+            TransformStep::NormalizeColor => color::normalize_color(img),
+            TransformStep::DropOpaqueAlpha => color::drop_opaque_alpha(img),
+            TransformStep::CleanScanTones => tones::clean_scan_tones(img),
+            TransformStep::EnhanceColor(mode) => color::enhance_color(img, mode),
             TransformStep::Sharpen(mode) => sharpen(img, mode),
-            TransformStep::ResizeMaxWidth(max_width) => resize_max_width(img, max_width),
+            TransformStep::ResizeMaxWidth(max_width) => resize::resize_max_width(img, max_width),
+            TransformStep::AutoCrop(padding) => filters::auto_crop(img, padding),
+            TransformStep::MoireReduction => filters::moire_reduction(img),
+            TransformStep::EinkDither => filters::eink_dither(img),
         }
-    }
-}
-
-fn normalize_color(img: &mut DynamicImage) {
-    match img {
-        DynamicImage::ImageRgb8(_) | DynamicImage::ImageRgba8(_) | DynamicImage::ImageLuma8(_) => {}
-        _ if img.color().has_alpha() => {
-            *img = DynamicImage::ImageRgba8(img.to_rgba8());
-        }
-        _ => {
-            *img = DynamicImage::ImageRgb8(img.to_rgb8());
-        }
-    }
-}
-
-fn resize_max_width(img: &mut DynamicImage, max_width: u32) {
-    let (width, height) = (img.width(), img.height());
-    if width <= max_width {
-        return;
-    }
-
-    let scale = max_width as f64 / width as f64;
-    *img = img.resize(
-        max_width,
-        (height as f64 * scale) as u32,
-        image::imageops::FilterType::Triangle,
-    );
-}
-
-fn drop_opaque_alpha(img: &mut DynamicImage) {
-    let Some(rgb) = ({
-        let Some(rgba) = img.as_rgba8() else {
-            return;
-        };
-        if !rgba.as_raw().chunks_exact(4).all(|px| px[3] == 255) {
-            return;
-        }
-        let (width, height) = rgba.dimensions();
-        let mut raw = Vec::with_capacity(rgba.as_raw().len() / 4 * 3);
-        for px in rgba.as_raw().chunks_exact(4) {
-            raw.extend_from_slice(&px[..3]);
-        }
-        image::RgbImage::from_raw(width, height, raw)
-    }) else {
-        return;
-    };
-    *img = DynamicImage::ImageRgb8(rgb);
-}
-
-fn clean_scan_tones(img: &mut DynamicImage) {
-    let tone = classify_image_tone(img);
-    if tone == ImageTone::Color {
-        return;
-    }
-
-    if let Some(rgb) = img.as_mut_rgb8() {
-        clean_rgb_tones(rgb, tone);
-    } else if let Some(luma) = img.as_mut_luma8() {
-        clean_luma_tones(luma, tone);
-    }
-}
-
-fn enhance_color(img: &mut DynamicImage, mode: ColorEnhanceMode) {
-    if mode == ColorEnhanceMode::Off || classify_image_tone(img) != ImageTone::Color {
-        return;
-    }
-
-    let (contrast, saturation, brightness) = match mode {
-        ColorEnhanceMode::Off => return,
-        ColorEnhanceMode::Mild => (1.04, 1.06, 0),
-        ColorEnhanceMode::Balanced => (1.08, 1.12, 2),
-        ColorEnhanceMode::Strong => (1.14, 1.20, 3),
-    };
-
-    if let Some(rgb) = img.as_mut_rgb8() {
-        enhance_rgb(rgb, contrast, saturation, brightness);
-    } else if let Some(rgba) = img.as_mut_rgba8() {
-        enhance_rgba(rgba, contrast, saturation, brightness);
     }
 }
 
@@ -162,109 +132,31 @@ fn sharpen(img: &mut DynamicImage, mode: SharpenMode) {
     *img = img.unsharpen(sigma, threshold);
 }
 
-fn clean_rgb_tones(img: &mut image::RgbImage, tone: ImageTone) {
-    let white_threshold = white_threshold(tone);
-    let black_threshold = black_threshold(tone);
-    for px in img.pixels_mut() {
-        let [r, g, b] = px.0;
-        if !is_neutral(r, g, b) {
-            continue;
-        }
-        let luma = luma_approx(r, g, b);
-        if luma >= white_threshold {
-            px.0 = [255, 255, 255];
-        } else if luma <= black_threshold {
-            px.0 = [0, 0, 0];
-        }
-    }
-}
-
-fn clean_luma_tones(img: &mut image::GrayImage, tone: ImageTone) {
-    let white_threshold = white_threshold(tone);
-    let black_threshold = black_threshold(tone);
-    for px in img.pixels_mut() {
-        if px.0[0] >= white_threshold {
-            px.0[0] = 255;
-        } else if px.0[0] <= black_threshold {
-            px.0[0] = 0;
-        }
-    }
-}
-
-fn enhance_rgb(img: &mut image::RgbImage, contrast: f32, saturation: f32, brightness: i16) {
-    for px in img.pixels_mut() {
-        let [r, g, b] = px.0;
-        px.0 = enhance_rgb_channels(r, g, b, contrast, saturation, brightness);
-    }
-}
-
-fn enhance_rgba(img: &mut image::RgbaImage, contrast: f32, saturation: f32, brightness: i16) {
-    for px in img.pixels_mut() {
-        let [r, g, b, a] = px.0;
-        let [r, g, b] = enhance_rgb_channels(r, g, b, contrast, saturation, brightness);
-        px.0 = [r, g, b, a];
+// Shared gamma primitives used by both color (Oklab) and resize (LUT builder).
+// Defined here so child modules can access them via `super::`.
+#[inline(always)]
+fn srgb_to_linear(c: f32) -> f32 {
+    if c <= 0.04045 {
+        c / 12.92
+    } else {
+        ((c + 0.055) / 1.055).powf(2.4)
     }
 }
 
 #[inline(always)]
-fn enhance_rgb_channels(
-    r: u8,
-    g: u8,
-    b: u8,
-    contrast: f32,
-    saturation: f32,
-    brightness: i16,
-) -> [u8; 3] {
-    let luma = luma_approx(r, g, b) as f32;
-    [
-        enhance_channel(r, luma, contrast, saturation, brightness),
-        enhance_channel(g, luma, contrast, saturation, brightness),
-        enhance_channel(b, luma, contrast, saturation, brightness),
-    ]
-}
-
-#[inline(always)]
-fn enhance_channel(value: u8, luma: f32, contrast: f32, saturation: f32, brightness: i16) -> u8 {
-    let saturated = luma + (value as f32 - luma) * saturation;
-    let contrasted = (saturated - 128.0) * contrast + 128.0 + brightness as f32;
-    clamp_u8(contrasted.round() as i16)
-}
-
-#[inline(always)]
-fn clamp_u8(value: i16) -> u8 {
-    value.clamp(0, 255) as u8
-}
-
-#[inline(always)]
-fn is_neutral(r: u8, g: u8, b: u8) -> bool {
-    r.abs_diff(g) <= 4 && g.abs_diff(b) <= 4 && b.abs_diff(r) <= 4
-}
-
-#[inline(always)]
-fn luma_approx(r: u8, g: u8, b: u8) -> u8 {
-    ((r as u16 * 77 + g as u16 * 150 + b as u16 * 29) >> 8) as u8
-}
-
-fn white_threshold(tone: ImageTone) -> u8 {
-    match tone {
-        ImageTone::LineArt => 238,
-        ImageTone::Grayscale => 246,
-        ImageTone::Color => 255,
-    }
-}
-
-fn black_threshold(tone: ImageTone) -> u8 {
-    match tone {
-        ImageTone::LineArt => 24,
-        ImageTone::Grayscale => 8,
-        ImageTone::Color => 0,
+fn linear_to_srgb(c: f32) -> f32 {
+    if c <= 0.0031308 {
+        c * 12.92
+    } else {
+        1.055 * c.powf(1.0 / 2.4) - 0.055
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use image::{ImageBuffer, Luma, Rgb, Rgba};
+    use image::{DynamicImage, ImageBuffer, Luma, Rgb, Rgba};
+    use thasia_core::models::Direction;
 
     #[test]
     fn resize_step_only_downscales_wide_images() {
@@ -331,8 +223,12 @@ mod tests {
         });
         let mut img = DynamicImage::ImageRgb8(img);
         TransformStep::CleanScanTones.apply(&mut img);
-        let rgb = img.as_rgb8().unwrap();
-        assert!(rgb.pixels().any(|px| px.0 == [255, 255, 255]));
+        assert!(
+            img.as_rgb8()
+                .unwrap()
+                .pixels()
+                .any(|px| px.0 == [255, 255, 255])
+        );
     }
 
     #[test]
@@ -346,8 +242,7 @@ mod tests {
         });
         let mut img = DynamicImage::ImageRgb8(img);
         TransformStep::CleanScanTones.apply(&mut img);
-        let rgb = img.as_rgb8().unwrap();
-        assert!(rgb.pixels().any(|px| px.0 == [0, 0, 0]));
+        assert!(img.as_rgb8().unwrap().pixels().any(|px| px.0 == [0, 0, 0]));
     }
 
     #[test]
@@ -362,8 +257,11 @@ mod tests {
         let mut img = DynamicImage::ImageRgb8(img);
         TransformStep::EnhanceColor(ColorEnhanceMode::Balanced).apply(&mut img);
         let first = img.as_rgb8().unwrap().get_pixel(0, 0).0;
-        assert!(first[0] > 150);
-        assert!(first[2] < 100);
+        assert!(first[0] > 150, "red channel should increase");
+        assert!(
+            (first[0] as i16 - first[2] as i16) > 50,
+            "R-B spread should increase"
+        );
     }
 
     #[test]
@@ -387,5 +285,42 @@ mod tests {
         TransformStep::Sharpen(SharpenMode::Mild).apply(&mut img);
         assert_eq!(img.width(), 30);
         assert_eq!(img.height(), 40);
+    }
+
+    #[test]
+    fn double_page_split_ltr_order() {
+        let img = ImageBuffer::from_fn(200, 100, |x, _| {
+            if x < 100 {
+                Rgb([255u8, 0, 0])
+            } else {
+                Rgb([0u8, 0, 255])
+            }
+        });
+        let halves = maybe_split_double_page(DynamicImage::ImageRgb8(img), Direction::Ltr);
+        assert_eq!(halves.len(), 2);
+        assert_eq!(halves[0].as_rgb8().unwrap().get_pixel(0, 0).0, [255, 0, 0]);
+        assert_eq!(halves[1].as_rgb8().unwrap().get_pixel(0, 0).0, [0, 0, 255]);
+    }
+
+    #[test]
+    fn double_page_split_rtl_order() {
+        let img = ImageBuffer::from_fn(200, 100, |x, _| {
+            if x < 100 {
+                Rgb([255u8, 0, 0])
+            } else {
+                Rgb([0u8, 0, 255])
+            }
+        });
+        let halves = maybe_split_double_page(DynamicImage::ImageRgb8(img), Direction::Rtl);
+        assert_eq!(halves[0].as_rgb8().unwrap().get_pixel(0, 0).0, [0, 0, 255]);
+        assert_eq!(halves[1].as_rgb8().unwrap().get_pixel(0, 0).0, [255, 0, 0]);
+    }
+
+    #[test]
+    fn portrait_image_not_split() {
+        let img = ImageBuffer::from_fn(100, 200, |_, _| Rgb([128u8, 128, 128]));
+        let result = maybe_split_double_page(DynamicImage::ImageRgb8(img), Direction::Ltr);
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].width(), 100);
     }
 }

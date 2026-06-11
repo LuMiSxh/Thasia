@@ -1,7 +1,7 @@
 {
     "name": "thasia",
     "private": true,
-    "version": "0.4.0",
+    "version": "0.4.1",
     "type": "module",
     "scripts": {
         "tauri": "tauri",
@@ -18,7 +18,8 @@
         "@tauri-apps/api": "2.11.0",
         "@tauri-apps/plugin-dialog": "2.7.0",
         "@tauri-apps/plugin-opener": "^2.5.3",
-        "anasthasia": "github:LuMiSxh/Anasthasia#v0.1.2"
+        "anasthasia": "github:LuMiSxh/Anasthasia#v0.1.2",
+        "svelte-eslint-parser": "^1.8.0"
     },
     "devDependencies": {
         "@eslint/js": "^10.0.1",
