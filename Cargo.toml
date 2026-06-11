@@ -5,7 +5,8 @@ members = [
     "crates/thasia-parser",
     "crates/thasia-processor",
     "crates/thasia-source",
-    "src-tauri",
+    "crates/thasia-ui",
+    "crates/thasia-dist",
 ]
 resolver = "2"
 

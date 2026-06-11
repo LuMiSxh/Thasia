@@ -1,5 +1,8 @@
 # Cargo configuration for local development and cross-platform release builds.
 
+[net]
+git-fetch-with-cli = true
+
 [profile.dev]
 opt-level = 0
 debug = 2

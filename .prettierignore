@@ -1,6 +1,0 @@
-src-tauri/
-build/
-target/
-.svelte-kit/
-node_modules/
-**/bindings.ts

@@ -3,7 +3,7 @@
 /target
 .DS_Store
 
-# Node related
+# Local artifacts from the retired web frontend
 /node_modules
 /dist
 /build

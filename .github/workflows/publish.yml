@@ -1,10 +1,10 @@
-name: 'publish'
+name: publish
 
 on:
     workflow_dispatch:
         inputs:
             tag:
-                description: 'Release tag (e.g. v0.3.0) — must match workspace version'
+                description: Release tag, for example v0.4.1
                 required: true
                 type: string
 
@@ -14,24 +14,20 @@ env:
 
 jobs:
     validate:
-        permissions:
-            contents: read
         runs-on: ubuntu-latest
         steps:
-            - uses: actions/checkout@v6
-
-            - name: Verify tag matches workspace version
+            - uses: actions/checkout@v4
+            - name: Verify tag and workspace
               shell: bash
               run: |
                   cargo_version="$(grep '^version = ' Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')"
                   tag_version="${{ inputs.tag }}"
                   tag_version="${tag_version#v}"
-                  if [ "$cargo_version" != "$tag_version" ]; then
-                    echo "::error::Tag version ($tag_version) does not match workspace version ($cargo_version)"
-                    exit 1
-                  fi
+                  test "$cargo_version" = "$tag_version"
+                  cargo check --workspace
+                  cargo run -p thasia-dist -- check-icons
 
-    publish-thasia:
+    build:
         needs: validate
         permissions:
             contents: write
@@ -39,89 +35,48 @@ jobs:
             fail-fast: false
             matrix:
                 include:
-                    - platform: 'macos-latest' # Apple Silicon
-                      args: '--target aarch64-apple-darwin'
-                    - platform: 'ubuntu-22.04' # Linux
-                      args: ''
-                    - platform: 'windows-latest' # Windows
-                      args: ''
-
-        runs-on: ${{ matrix.platform }}
+                    - os: macos-14
+                      target: aarch64-apple-darwin
+                    - os: macos-13
+                      target: x86_64-apple-darwin
+                    - os: windows-latest
+                      target: x86_64-pc-windows-msvc
+                    - os: ubuntu-22.04
+                      target: x86_64-unknown-linux-gnu
+        runs-on: ${{ matrix.os }}
         steps:
-            - uses: actions/checkout@v6
-
-            - name: install dependencies (ubuntu only)
-              if: matrix.platform == 'ubuntu-22.04'
+            - uses: actions/checkout@v4
+            - name: Install Linux dependencies
+              if: runner.os == 'Linux'
               run: |
                   sudo apt-get update
-                  # webkit2gtk-4.1 is required for Tauri v2
-                  sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf nasm cmake lld
-
-            - name: install dependencies (macOS only)
-              if: matrix.platform == 'macos-latest'
-              # nasm is required for rav1e (AVIF encoding); cmake is required for AVIF decode fallback.
-              run: |
-                  brew install nasm cmake
-
-            - name: Configure long paths for Windows
-              if: matrix.platform == 'windows-latest'
-              run: git config --system core.longpaths true
-              shell: bash
-
-            - name: setup pnpm
-              uses: pnpm/action-setup@v6
+                  sudo apt-get install -y libfontconfig1-dev libxkbcommon-dev libwayland-dev libx11-xcb-dev libxcb-shape0-dev libxcb-xfixes0-dev nasm cmake lld
+            - name: Install macOS dependencies
+              if: runner.os == 'macOS'
+              run: brew install nasm cmake
+            - uses: dtolnay/rust-toolchain@stable
               with:
-                  version: latest
-
-            - name: setup node
-              uses: actions/setup-node@v6
+                  targets: ${{ matrix.target }}
+            - uses: swatinem/rust-cache@v2
+            - uses: taiki-e/upload-rust-binary-action@v1
               with:
-                  node-version: lts/*
-                  cache: 'pnpm'
+                  bin: thasia-gpui
+                  target: ${{ matrix.target }}
+                  archive: thasia-$tag-$target
+                  token: ${{ secrets.GITHUB_TOKEN }}
 
-            - name: install Rust stable
-              uses: dtolnay/rust-toolchain@stable
+    manifest:
+        needs: build
+        permissions:
+            contents: write
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+            - uses: dtolnay/rust-toolchain@stable
+            - name: Generate manifest
+              run: cargo run -p thasia-dist -- manifest --version "${{ inputs.tag }}"
+            - uses: softprops/action-gh-release@v2
               with:
-                  targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin' || '' }}
-                  components: llvm-tools-preview
-
-            - name: Verify CMake is available
-              run: cmake --version
-
-            - name: Rust cache
-              uses: swatinem/rust-cache@v2
-              with:
-                  workspaces: '. -> target'
-                  cache-on-failure: true
-
-            - name: install frontend dependencies
-              run: pnpm install --frozen-lockfile
-
-            - name: Extract changelog for this version
-              id: changelog
-              shell: bash
-              run: |
-                  version="${{ inputs.tag }}"
-                  version="${version#v}"
-                  awk "/^## \[${version}\]/{found=1; next} /^## \[/{if(found) exit} found{print}" CHANGELOG.md > release_notes.md
-                  if [ ! -s release_notes.md ]; then
-                    echo "Thasia ${{ inputs.tag }}" > release_notes.md
-                  fi
-                  {
-                    echo 'notes<<EOF'
-                    cat release_notes.md
-                    echo EOF
-                  } >> "$GITHUB_OUTPUT"
-
-            - name: Build & Publish Tauri App
-              uses: tauri-apps/tauri-action@v0
-              id: tauri_build
-              env:
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-              with:
-                  tagName: ${{ inputs.tag }}
-                  releaseName: 'Thasia ${{ inputs.tag }}'
-                  releaseBody: ${{ steps.changelog.outputs.notes }}
-                  releaseDraft: true
-                  prerelease: false
-                  args: ${{ matrix.args }}
+                  tag_name: ${{ inputs.tag }}
+                  draft: true
+                  files: update-manifest.json

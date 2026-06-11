@@ -21,7 +21,7 @@ Convert, optimize, and package your manga into CBZ or EPUB formats. Featuring in
 
 ---
 
-From _Anastasia_ — meaning "resurrection" or "rise again". Thasia is a complete, ground-up rebuild of its predecessor, [Palaxy](https://github.com/LuMiSxh/Palaxy). It is faster, cleaner, designed to grow, and solves manga processing properly with a brand new engine written in Rust and a beautiful Tauri v2 + Svelte 5 interface.
+From _Anastasia_ — meaning "resurrection" or "rise again". Thasia is a complete, ground-up rebuild of its predecessor, [Palaxy](https://github.com/LuMiSxh/Palaxy). The processing engine and native GPUI interface are written entirely in Rust.
 
 ---
 
@@ -132,16 +132,13 @@ Review your conversion and hit "Start Converting". Watch the real-time progress 
 
 ## Development
 
-Thasia is built using a modern stack: **Rust (Edition 2024)**, **Tauri v2**, **Svelte 5**, and **Tailwind CSS v4**.
+Thasia is built with **Rust (Edition 2024)**, **GPUI-CE**, and the **Nasrin** native component library.
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org/) 22+
-- [pnpm](https://pnpm.io/) (required)
-- [Rust](https://www.rust-lang.org/) 1.70+
-- Rust component: `rustup component add llvm-tools-preview`
+- [Rust](https://www.rust-lang.org/) 1.85+
 - [CMake](https://cmake.org/) (required for bundled AVIF decoding used by forced AVIF re-encode)
-- [Tauri v2 Prerequisites](https://v2.tauri.app/start/prerequisites/) for your OS
+- Platform graphics and window-system development libraries required by GPUI
 
 Linux developers should also install `lld` for the workspace linker configuration:
 
@@ -156,14 +153,15 @@ sudo apt-get install lld
 git clone https://github.com/LuMiSxh/Thasia.git
 cd Thasia
 
-# Install frontend dependencies
-pnpm install
-
-# Run the Tauri app in development mode
-pnpm run tauri dev
+# Run the native app
+cargo run -p thasia-ui --bin thasia-gpui
 
 # Build for production
-pnpm run tauri build
+cargo build -p thasia-ui --release
+
+# Validate release icons and generate an update manifest
+cargo run -p thasia-dist -- check-icons
+cargo run -p thasia-dist -- manifest --version 0.4.1
 ```
 
 ### Architecture
@@ -175,8 +173,8 @@ Thasia is split into a multi-crate Rust workspace to keep concerns cleanly separ
 - `thasia-source`: File discovery and ZIP/CBZ extraction.
 - `thasia-processor`: Parallel image encoding (AVIF/WebP) and grayscale detection.
 - `thasia-packager`: CBZ and EPUB generation.
-- `src-tauri`: The Tauri backend and Specta type-bindings.
-- `src`: The Svelte 5 frontend.
+- `thasia-ui`: Native GPUI/Nasrin application and direct Rust services.
+- `thasia-dist`: Release manifest, icon validation, and bundling helper.
 
 ---
 
@@ -188,7 +186,7 @@ This project is licensed under the BSD-3 Clause License - see the [LICENSE](LICE
 
 ## Acknowledgments
 
-- Built with [Tauri v2](https://v2.tauri.app) and [Svelte 5](https://svelte.dev)
+- Built with [GPUI-CE](https://github.com/zed-industries/zed/tree/main/crates/gpui) and [Nasrin](https://github.com/LuMiSxh/nasrin)
 - Fast AVIF encoding powered by [ravif](https://github.com/kornelski/ravif-rs) and [rav1e](https://github.com/xiph/rav1e)
 - The successor to [Palaxy](https://github.com/LuMiSxh/Palaxy)
 

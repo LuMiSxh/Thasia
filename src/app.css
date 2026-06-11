@@ -1,7 +1,0 @@
-@import 'tailwindcss';
-@import 'anasthasia/styles';
-@import './lumi-flavour.css';
-
-[role='listbox'] {
-    overscroll-behavior: contain;
-}
