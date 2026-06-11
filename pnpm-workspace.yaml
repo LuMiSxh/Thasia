@@ -1,3 +1,1 @@
-allowBuilds:
-    anasthasia: true
-    esbuild: true
+dangerouslyAllowAllBuilds: true
