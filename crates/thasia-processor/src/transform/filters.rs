@@ -23,9 +23,17 @@ pub(super) fn moire_reduction(img: &mut DynamicImage) {
     }
     let range_coeff = -1.0 / (2.0 * BILATERAL_SIGMA_RANGE * BILATERAL_SIGMA_RANGE);
 
+    // Pixel diffs are bounded [-255, 255], so precompute all 511 range weights
+    // to avoid calling exp() in the innermost pixel loop.
+    let mut range_lut = [0.0f32; 511];
+    for (i, entry) in range_lut.iter_mut().enumerate() {
+        let diff = i as i32 - 255;
+        *entry = ((diff * diff) as f32 * range_coeff).exp();
+    }
+
     match img {
-        DynamicImage::ImageRgb8(buf) => bilateral_rgb(buf, w, h, r, &spatial, range_coeff),
-        DynamicImage::ImageLuma8(buf) => bilateral_luma(buf, w, h, r, &spatial, range_coeff),
+        DynamicImage::ImageRgb8(buf) => bilateral_rgb(buf, w, h, r, &spatial, &range_lut),
+        DynamicImage::ImageLuma8(buf) => bilateral_luma(buf, w, h, r, &spatial, &range_lut),
         _ => {}
     }
 }
@@ -36,33 +44,34 @@ fn bilateral_rgb(
     h: u32,
     r: i32,
     spatial: &[f32],
-    range_coeff: f32,
+    range_lut: &[f32; 511],
 ) {
     let input = buf.clone();
+    let raw_in = input.as_raw();
     let data = buf.as_flat_samples_mut().samples;
     for y in 0..h {
         for x in 0..w {
-            let cl = pixel_luma(&input, x, y);
+            let cb = (y as usize * w as usize + x as usize) * 3;
+            let cl = ((raw_in[cb] as u16 * 77 + raw_in[cb + 1] as u16 * 150 + raw_in[cb + 2] as u16 * 29) >> 8) as i32;
             let (mut sw, mut sr, mut sg, mut sb) = (0.0f32, 0.0, 0.0, 0.0);
             let mut ki = 0;
             for dy in -r..=r {
                 for dx in -r..=r {
                     let nx = (x as i32 + dx).clamp(0, w as i32 - 1) as u32;
                     let ny = (y as i32 + dy).clamp(0, h as i32 - 1) as u32;
-                    let nl = pixel_luma(&input, nx, ny);
-                    let wt = spatial[ki] * ((nl as f32 - cl as f32).powi(2) * range_coeff).exp();
                     let base = (ny as usize * w as usize + nx as usize) * 3;
-                    sr += wt * input.as_raw()[base] as f32;
-                    sg += wt * input.as_raw()[base + 1] as f32;
-                    sb += wt * input.as_raw()[base + 2] as f32;
+                    let nl = ((raw_in[base] as u16 * 77 + raw_in[base + 1] as u16 * 150 + raw_in[base + 2] as u16 * 29) >> 8) as i32;
+                    let wt = spatial[ki] * range_lut[(nl - cl + 255) as usize];
+                    sr += wt * raw_in[base] as f32;
+                    sg += wt * raw_in[base + 1] as f32;
+                    sb += wt * raw_in[base + 2] as f32;
                     sw += wt;
                     ki += 1;
                 }
             }
-            let base = (y as usize * w as usize + x as usize) * 3;
-            data[base] = (sr / sw).round() as u8;
-            data[base + 1] = (sg / sw).round() as u8;
-            data[base + 2] = (sb / sw).round() as u8;
+            data[cb] = (sr / sw).round() as u8;
+            data[cb + 1] = (sg / sw).round() as u8;
+            data[cb + 2] = (sb / sw).round() as u8;
         }
     }
 }
@@ -73,22 +82,22 @@ fn bilateral_luma(
     h: u32,
     r: i32,
     spatial: &[f32],
-    range_coeff: f32,
+    range_lut: &[f32; 511],
 ) {
     let input = buf.clone();
     let raw = buf.as_flat_samples_mut().samples;
     for y in 0..h {
         for x in 0..w {
-            let center = input.get_pixel(x, y).0[0] as f32;
+            let center = input.get_pixel(x, y).0[0] as i32;
             let (mut sw, mut sv) = (0.0f32, 0.0f32);
             let mut ki = 0;
             for dy in -r..=r {
                 for dx in -r..=r {
                     let nx = (x as i32 + dx).clamp(0, w as i32 - 1) as u32;
                     let ny = (y as i32 + dy).clamp(0, h as i32 - 1) as u32;
-                    let nv = input.get_pixel(nx, ny).0[0] as f32;
-                    let wt = spatial[ki] * ((nv - center).powi(2) * range_coeff).exp();
-                    sv += wt * nv;
+                    let nv = input.get_pixel(nx, ny).0[0] as i32;
+                    let wt = spatial[ki] * range_lut[(nv - center + 255) as usize];
+                    sv += wt * nv as f32;
                     sw += wt;
                     ki += 1;
                 }
@@ -98,47 +107,48 @@ fn bilateral_luma(
     }
 }
 
-#[inline(always)]
-fn pixel_luma(img: &image::RgbImage, x: u32, y: u32) -> u8 {
-    let [r, g, b] = img.get_pixel(x, y).0;
-    ((r as u16 * 77 + g as u16 * 150 + b as u16 * 29) >> 8) as u8
-}
-
 pub(super) fn auto_crop(img: &mut DynamicImage, padding: u32) {
     let (w, h) = (img.width(), img.height());
     if w == 0 || h == 0 {
         return;
     }
-    let luma = img.to_luma8();
-    let raw = luma.as_raw();
 
-    let row_bg = |y: u32| -> bool {
-        let start = (y * w) as usize;
-        let bright = raw[start..start + w as usize]
-            .iter()
-            .filter(|&&p| p >= CROP_BG_LUMA)
-            .count();
-        bright as f32 / w as f32 >= CROP_BG_ROW_RATIO
-    };
-    let col_bg = |x: u32| -> bool {
-        let bright = (0..h)
-            .filter(|&y| raw[(y * w + x) as usize] >= CROP_BG_LUMA)
-            .count();
-        bright as f32 / h as f32 >= CROP_BG_ROW_RATIO
-    };
+    // Borrow luma data without allocating when the image is already grayscale.
+    // The block scope ensures the borrow ends before we mutate img below.
+    let (top, bottom, left, right) = {
+        let luma_owned;
+        let luma: &image::GrayImage = if let Some(l) = img.as_luma8() {
+            l
+        } else {
+            luma_owned = img.to_luma8();
+            &luma_owned
+        };
+        let raw = luma.as_raw();
 
-    let top = (0..h).find(|&y| !row_bg(y)).unwrap_or(0);
-    let bottom = (0..h)
-        .rev()
-        .find(|&y| !row_bg(y))
-        .map(|y| y + 1)
-        .unwrap_or(h);
-    let left = (0..w).find(|&x| !col_bg(x)).unwrap_or(0);
-    let right = (0..w)
-        .rev()
-        .find(|&x| !col_bg(x))
-        .map(|x| x + 1)
-        .unwrap_or(w);
+        let row_bg = |y: u32| -> bool {
+            let start = (y * w) as usize;
+            raw[start..start + w as usize]
+                .iter()
+                .filter(|&&p| p >= CROP_BG_LUMA)
+                .count() as f32
+                / w as f32
+                >= CROP_BG_ROW_RATIO
+        };
+        let col_bg = |x: u32| -> bool {
+            (0..h)
+                .filter(|&y| raw[(y * w + x) as usize] >= CROP_BG_LUMA)
+                .count() as f32
+                / h as f32
+                >= CROP_BG_ROW_RATIO
+        };
+
+        let top = (0..h).find(|&y| !row_bg(y)).unwrap_or(0);
+        let bottom = (0..h).rev().find(|&y| !row_bg(y)).map(|y| y + 1).unwrap_or(h);
+        let left = (0..w).find(|&x| !col_bg(x)).unwrap_or(0);
+        let right = (0..w).rev().find(|&x| !col_bg(x)).map(|x| x + 1).unwrap_or(w);
+
+        (top, bottom, left, right)
+    };
 
     if top >= bottom || left >= right {
         return;

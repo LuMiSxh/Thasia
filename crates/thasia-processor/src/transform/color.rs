@@ -1,4 +1,4 @@
-use crate::encode::grayscale::{ImageTone, classify_image_tone};
+use crate::encode::grayscale::ImageTone;
 use image::DynamicImage;
 use thasia_core::models::ColorEnhanceMode;
 
@@ -28,8 +28,8 @@ pub(super) fn drop_opaque_alpha(img: &mut DynamicImage) {
     *img = DynamicImage::ImageRgb8(rgb);
 }
 
-pub(super) fn enhance_color(img: &mut DynamicImage, mode: ColorEnhanceMode) {
-    if mode == ColorEnhanceMode::Off || classify_image_tone(img) != ImageTone::Color {
+pub(super) fn enhance_color(img: &mut DynamicImage, mode: ColorEnhanceMode, tone: ImageTone) {
+    if mode == ColorEnhanceMode::Off || tone != ImageTone::Color {
         return;
     }
     let (contrast, saturation, brightness) = match mode {
@@ -38,15 +38,17 @@ pub(super) fn enhance_color(img: &mut DynamicImage, mode: ColorEnhanceMode) {
         ColorEnhanceMode::Balanced => (1.08, 1.12, 2),
         ColorEnhanceMode::Strong => (1.14, 1.20, 3),
     };
+    // Precompute sRGB->linear for all 256 byte values to avoid powf(2.4) per channel per pixel.
+    let linear: [f32; 256] = std::array::from_fn(|i| super::srgb_to_linear(i as f32 / 255.0));
     if let Some(rgb) = img.as_mut_rgb8() {
         for px in rgb.pixels_mut() {
             let [r, g, b] = px.0;
-            px.0 = enhance_channels(r, g, b, contrast, saturation, brightness);
+            px.0 = enhance_channels(r, g, b, contrast, saturation, brightness, &linear);
         }
     } else if let Some(rgba) = img.as_mut_rgba8() {
         for px in rgba.pixels_mut() {
             let [r, g, b, a] = px.0;
-            let [r, g, b] = enhance_channels(r, g, b, contrast, saturation, brightness);
+            let [r, g, b] = enhance_channels(r, g, b, contrast, saturation, brightness, &linear);
             px.0 = [r, g, b, a];
         }
     }
@@ -60,18 +62,19 @@ fn enhance_channels(
     contrast: f32,
     saturation: f32,
     brightness: i16,
+    linear: &[f32; 256],
 ) -> [u8; 3] {
-    let (l, a, b_ok) = to_oklab(r, g, b);
+    let (l, a, b_ok) = to_oklab(r, g, b, linear);
     let l = ((l - 0.5) * contrast + 0.5 + brightness as f32 / 255.0).clamp(0.0, 1.0);
     from_oklab(l, a * saturation, b_ok * saturation)
 }
 
 #[inline(always)]
 #[allow(clippy::excessive_precision)]
-fn to_oklab(r: u8, g: u8, b: u8) -> (f32, f32, f32) {
-    let r = super::srgb_to_linear(r as f32 / 255.0);
-    let g = super::srgb_to_linear(g as f32 / 255.0);
-    let b = super::srgb_to_linear(b as f32 / 255.0);
+fn to_oklab(r: u8, g: u8, b: u8, linear: &[f32; 256]) -> (f32, f32, f32) {
+    let r = linear[r as usize];
+    let g = linear[g as usize];
+    let b = linear[b as usize];
 
     let l = (0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b).cbrt();
     let m = (0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b).cbrt();

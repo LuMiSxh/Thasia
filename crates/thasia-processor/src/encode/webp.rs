@@ -2,8 +2,8 @@
 //! Ported from the Palaxy project.
 
 use super::constants::*;
-use super::grayscale::{ImageTone, classify_image_tone};
-use crate::Result;
+use super::grayscale::ImageTone;
+use crate::{ProcessorError, Result};
 use tracing::trace;
 
 pub fn auto_tune_webp(img: &image::DynamicImage, tone: ImageTone) -> f32 {
@@ -33,10 +33,9 @@ pub fn auto_tune_webp(img: &image::DynamicImage, tone: ImageTone) -> f32 {
     quality
 }
 
-pub fn convert_to_webp(img: &image::DynamicImage) -> Result<Vec<u8>> {
-    use ::webp::Encoder;
+pub fn convert_to_webp(img: &image::DynamicImage, tone: ImageTone) -> Result<Vec<u8>> {
+    use ::webp::{Encoder, WebPConfig};
 
-    let tone = classify_image_tone(img);
     let quality = auto_tune_webp(img, tone);
     let (w, h) = (img.width(), img.height());
 
@@ -45,16 +44,25 @@ pub fn convert_to_webp(img: &image::DynamicImage) -> Result<Vec<u8>> {
         w, h, quality, tone
     );
 
+    let mut config = WebPConfig::new().unwrap();
+    config.quality = quality;
+    config.method = 6;
+    config.thread_level = 0;
+
     let encoded = if img.color().has_alpha() {
         let rgba = img.to_rgba8();
-        Encoder::from_rgba(&rgba, w, h).encode(quality)
+        Encoder::from_rgba(&rgba, w, h)
+            .encode_advanced(&config)
+            .map_err(|e| ProcessorError::webp_encode(format!("{e:?}")))?
     } else {
         let rgb_cow = if let Some(r) = img.as_rgb8() {
             std::borrow::Cow::Borrowed(r)
         } else {
             std::borrow::Cow::Owned(img.to_rgb8())
         };
-        Encoder::from_rgb(&rgb_cow, w, h).encode(quality)
+        Encoder::from_rgb(&rgb_cow, w, h)
+            .encode_advanced(&config)
+            .map_err(|e| ProcessorError::webp_encode(format!("{e:?}")))?
     };
 
     Ok(encoded.to_vec())

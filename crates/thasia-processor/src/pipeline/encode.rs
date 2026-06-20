@@ -146,15 +146,15 @@ fn encode_decoded_image(
     let total_start = Instant::now();
 
     let transform_start = Instant::now();
-    TransformPipeline::new(opts.transform).apply(&mut img);
+    let tone = TransformPipeline::new(opts.transform).apply(&mut img);
     let transform_ms = prior_transform_ms + super::duration_ms(transform_start.elapsed());
 
     let (w, h) = (img.width(), img.height());
 
     let encode_start = Instant::now();
     let (data, ext) = match opts.format {
-        ImageFormat::Avif => (convert_to_avif(&img)?, "avif".to_string()),
-        ImageFormat::Webp => (convert_to_webp(&img)?, "webp".to_string()),
+        ImageFormat::Avif => (convert_to_avif(&img, tone)?, "avif".to_string()),
+        ImageFormat::Webp => (convert_to_webp(&img, tone)?, "webp".to_string()),
         ImageFormat::Original => {
             return Err(ProcessorError::UnsupportedFormat(
                 "original output can only be used via passthrough",

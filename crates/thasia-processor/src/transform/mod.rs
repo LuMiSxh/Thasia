@@ -1,3 +1,4 @@
+use crate::encode::grayscale::{ImageTone, classify_image_tone};
 use image::DynamicImage;
 use thasia_core::models::{ColorEnhanceMode, Direction, SharpenMode};
 
@@ -61,8 +62,6 @@ pub fn maybe_split_double_page(img: DynamicImage, direction: Direction) -> Vec<D
 pub enum TransformStep {
     NormalizeColor,
     DropOpaqueAlpha,
-    CleanScanTones,
-    EnhanceColor(ColorEnhanceMode),
     Sharpen(SharpenMode),
     ResizeMaxWidth(u32),
     AutoCrop(u32),
@@ -80,10 +79,17 @@ impl TransformPipeline {
         Self { options }
     }
 
-    pub fn apply(&self, img: &mut DynamicImage) {
+    /// Applies all configured transforms and returns the image tone, classified
+    /// once after normalization so downstream encode steps don't re-scan.
+    pub fn apply(&self, img: &mut DynamicImage) -> ImageTone {
         for step in DEFAULT_STEPS {
             step.apply(img);
         }
+
+        // Classify once here; passed to transforms that need it and returned
+        // to the caller so the encoder can skip its own classification pass.
+        let tone = classify_image_tone(img);
+
         if self.options.moire_reduction {
             TransformStep::MoireReduction.apply(img);
         }
@@ -91,10 +97,10 @@ impl TransformPipeline {
             TransformStep::ResizeMaxWidth(max_width).apply(img);
         }
         if self.options.clean_tones {
-            TransformStep::CleanScanTones.apply(img);
+            tones::clean_scan_tones(img, tone);
         }
         if self.options.color_enhance != ColorEnhanceMode::Off {
-            TransformStep::EnhanceColor(self.options.color_enhance).apply(img);
+            color::enhance_color(img, self.options.color_enhance, tone);
         }
         if self.options.sharpen != SharpenMode::Off {
             TransformStep::Sharpen(self.options.sharpen).apply(img);
@@ -104,7 +110,11 @@ impl TransformPipeline {
         }
         if self.options.eink_dither {
             TransformStep::EinkDither.apply(img);
+            // eink_dither always produces ImageLuma8 with 16-level quantization.
+            return ImageTone::LineArt;
         }
+
+        tone
     }
 }
 
@@ -113,8 +123,6 @@ impl TransformStep {
         match self {
             TransformStep::NormalizeColor => color::normalize_color(img),
             TransformStep::DropOpaqueAlpha => color::drop_opaque_alpha(img),
-            TransformStep::CleanScanTones => tones::clean_scan_tones(img),
-            TransformStep::EnhanceColor(mode) => color::enhance_color(img, mode),
             TransformStep::Sharpen(mode) => sharpen(img, mode),
             TransformStep::ResizeMaxWidth(max_width) => resize::resize_max_width(img, max_width),
             TransformStep::AutoCrop(padding) => filters::auto_crop(img, padding),
@@ -130,6 +138,12 @@ fn sharpen(img: &mut DynamicImage, mode: SharpenMode) {
         SharpenMode::Mild => (0.85, 4),
     };
     *img = img.unsharpen(sigma, threshold);
+}
+
+/// BT.601 luma approximation — integer-only, shared across transform submodules.
+#[inline(always)]
+pub(crate) fn luma_approx(r: u8, g: u8, b: u8) -> u8 {
+    ((r as u16 * 77 + g as u16 * 150 + b as u16 * 29) >> 8) as u8
 }
 
 // Shared gamma primitives used by both color (Oklab) and resize (LUT builder).
@@ -207,7 +221,7 @@ mod tests {
             }
         });
         let mut img = DynamicImage::ImageRgb8(img);
-        TransformStep::CleanScanTones.apply(&mut img);
+        tones::clean_scan_tones(&mut img, crate::encode::grayscale::ImageTone::LineArt);
         assert_eq!(img.width(), 100);
         assert_eq!(img.height(), 100);
     }
@@ -222,7 +236,7 @@ mod tests {
             }
         });
         let mut img = DynamicImage::ImageRgb8(img);
-        TransformStep::CleanScanTones.apply(&mut img);
+        tones::clean_scan_tones(&mut img, crate::encode::grayscale::ImageTone::Grayscale);
         assert!(
             img.as_rgb8()
                 .unwrap()
@@ -241,7 +255,8 @@ mod tests {
             }
         });
         let mut img = DynamicImage::ImageRgb8(img);
-        TransformStep::CleanScanTones.apply(&mut img);
+        // 95% B&W pixels → LineArt (bp=24), so luma=18 clamps to 0
+        tones::clean_scan_tones(&mut img, crate::encode::grayscale::ImageTone::LineArt);
         assert!(img.as_rgb8().unwrap().pixels().any(|px| px.0 == [0, 0, 0]));
     }
 
@@ -255,7 +270,7 @@ mod tests {
             }
         });
         let mut img = DynamicImage::ImageRgb8(img);
-        TransformStep::EnhanceColor(ColorEnhanceMode::Balanced).apply(&mut img);
+        color::enhance_color(&mut img, ColorEnhanceMode::Balanced, crate::encode::grayscale::ImageTone::Color);
         let first = img.as_rgb8().unwrap().get_pixel(0, 0).0;
         assert!(first[0] > 150, "red channel should increase");
         assert!(
@@ -268,7 +283,7 @@ mod tests {
     fn color_enhance_skips_grayscale_pages() {
         let img = ImageBuffer::from_fn(20, 20, |_, _| Rgb([120u8, 120u8, 120u8]));
         let mut img = DynamicImage::ImageRgb8(img);
-        TransformStep::EnhanceColor(ColorEnhanceMode::Strong).apply(&mut img);
+        color::enhance_color(&mut img, ColorEnhanceMode::Strong, crate::encode::grayscale::ImageTone::Grayscale);
         assert_eq!(img.as_rgb8().unwrap().get_pixel(0, 0).0, [120, 120, 120]);
     }
 

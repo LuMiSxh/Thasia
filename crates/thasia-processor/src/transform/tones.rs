@@ -1,27 +1,26 @@
 use image::DynamicImage;
-use crate::encode::grayscale::{ImageTone, classify_image_tone};
+use crate::encode::grayscale::ImageTone;
 
-pub(super) fn clean_scan_tones(img: &mut DynamicImage) {
-    let tone = classify_image_tone(img);
+pub(super) fn clean_scan_tones(img: &mut DynamicImage, tone: ImageTone) {
     if tone == ImageTone::Color {
         return;
     }
+    let bp = black_threshold(tone) as f32;
+    let wp = white_threshold(tone) as f32;
+    let lut: [u8; 256] = std::array::from_fn(|i| smoothstep_u8(i as u8, bp, wp));
+
     if let Some(rgb) = img.as_mut_rgb8() {
-        let bp = black_threshold(tone) as f32;
-        let wp = white_threshold(tone) as f32;
         for px in rgb.pixels_mut() {
             let [r, g, b] = px.0;
             if !is_neutral(r, g, b) {
                 continue;
             }
-            let v = smoothstep_u8(luma_approx(r, g, b), bp, wp);
+            let v = lut[super::luma_approx(r, g, b) as usize];
             px.0 = [v, v, v];
         }
     } else if let Some(luma) = img.as_mut_luma8() {
-        let bp = black_threshold(tone) as f32;
-        let wp = white_threshold(tone) as f32;
         for px in luma.pixels_mut() {
-            px.0[0] = smoothstep_u8(px.0[0], bp, wp);
+            px.0[0] = lut[px.0[0] as usize];
         }
     }
 }
@@ -35,11 +34,6 @@ fn smoothstep_u8(luma: u8, bp: f32, wp: f32) -> u8 {
 #[inline(always)]
 fn is_neutral(r: u8, g: u8, b: u8) -> bool {
     r.abs_diff(g) <= 4 && g.abs_diff(b) <= 4 && b.abs_diff(r) <= 4
-}
-
-#[inline(always)]
-fn luma_approx(r: u8, g: u8, b: u8) -> u8 {
-    ((r as u16 * 77 + g as u16 * 150 + b as u16 * 29) >> 8) as u8
 }
 
 fn white_threshold(tone: ImageTone) -> u8 {

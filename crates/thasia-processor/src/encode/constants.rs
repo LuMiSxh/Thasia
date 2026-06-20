@@ -12,8 +12,8 @@ pub const AVIF_QUALITY_HUGE: f32 = 48.0;
 pub const AVIF_SPEED_TINY: u8 = 7;
 pub const AVIF_SPEED_SMALL: u8 = 7;
 pub const AVIF_SPEED_MEDIUM: u8 = 6;
-pub const AVIF_SPEED_LARGE: u8 = 6;
-pub const AVIF_SPEED_HUGE: u8 = 6;
+pub const AVIF_SPEED_LARGE: u8 = 5;
+pub const AVIF_SPEED_HUGE: u8 = 4;
 
 pub const AVIF_ALPHA_QUALITY: f32 = 1.0;
 pub const AVIF_GRAYSCALE_QUALITY_REDUCTION: f32 = 7.0;

@@ -2,7 +2,7 @@
 //! Ported from the Palaxy project.
 
 use super::constants::*;
-use super::grayscale::{ImageTone, classify_image_tone};
+use super::grayscale::ImageTone;
 use crate::{ProcessorError, Result};
 use tracing::trace;
 
@@ -22,7 +22,7 @@ pub fn auto_tune_avif(img: &image::DynamicImage, tone: ImageTone) -> (f32, u8) {
     };
 
     if tone != ImageTone::Color {
-        speed = speed.saturating_sub(1).max(6);
+        speed = speed.saturating_sub(1);
         let reduction = if tone == ImageTone::LineArt {
             AVIF_GRAYSCALE_QUALITY_REDUCTION + 3.0
         } else {
@@ -34,10 +34,9 @@ pub fn auto_tune_avif(img: &image::DynamicImage, tone: ImageTone) -> (f32, u8) {
     (quality, speed)
 }
 
-pub fn convert_to_avif(img: &image::DynamicImage) -> Result<Vec<u8>> {
+pub fn convert_to_avif(img: &image::DynamicImage, tone: ImageTone) -> Result<Vec<u8>> {
     let width = img.width() as usize;
     let height = img.height() as usize;
-    let tone = classify_image_tone(img);
     let (quality, speed) = auto_tune_avif(img, tone);
 
     trace!(
@@ -173,7 +172,7 @@ mod tests {
         use image::Rgba;
         let img = ImageBuffer::from_fn(100, 100, |_, _| Rgba([128u8, 128u8, 128u8, 255u8]));
         let dyn_img = DynamicImage::ImageRgba8(img);
-        let result = convert_to_avif(&dyn_img);
+        let result = convert_to_avif(&dyn_img, ImageTone::Grayscale);
         assert!(result.is_ok());
         assert!(!result.unwrap().is_empty());
     }
