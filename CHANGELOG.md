@@ -20,6 +20,10 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **WebP compression effort** — encoder method raised from default (4) to maximum (6) for smaller output at the same quality setting. Thread-level set to 0 to prevent libwebp competing with Rayon for cores.
 - **AVIF encoder speed** — large-image tier lowered from speed 6 to 5, huge-image tier from 6 to 4 for meaningfully smaller files. Grayscale images additionally benefit from one extra effort level via the existing speed-subtract logic (floor removed).
 
+### Fixed
+
+- **Filename sanitization** — improved handling of special characters in filenames to prevent encoding issues.
+
 ## [0.4.1] - 2026-06-10
 
 ### Added

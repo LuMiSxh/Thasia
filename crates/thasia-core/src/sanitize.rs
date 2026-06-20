@@ -15,23 +15,28 @@ pub fn sanitize_filename_component(input: &str) -> Result<String> {
             value: input.to_string(),
         });
     }
-    if trimmed.ends_with('.') || trimmed.ends_with(' ') {
-        return Err(ThasiaError::FilenameTrailingDotOrSpace {
-            value: input.to_string(),
-        });
-    }
-    if trimmed.chars().any(|c| {
-        c.is_control() || matches!(c, '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|')
-    }) {
-        return Err(ThasiaError::UnsafeFilenameCharacter {
-            value: input.to_string(),
-        });
+
+    // Strip characters that are illegal on Windows or act as path separators.
+    // Control characters and path separators are removed silently so manga
+    // titles with punctuation like "?" don't hard-fail the conversion.
+    let cleaned: String = trimmed
+        .chars()
+        .filter(|c| {
+            !c.is_control()
+                && !matches!(c, '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|')
+        })
+        .collect();
+
+    let cleaned = cleaned.trim().trim_end_matches('.').trim_end_matches(' ');
+
+    if cleaned.is_empty() {
+        return Err(ThasiaError::EmptyFilename);
     }
 
-    let stem = trimmed
+    let stem = cleaned
         .split('.')
         .next()
-        .unwrap_or(trimmed)
+        .unwrap_or(cleaned)
         .to_ascii_uppercase();
     if WINDOWS_RESERVED_NAMES.contains(&stem.as_str()) {
         return Err(ThasiaError::WindowsReservedFilename {
@@ -39,7 +44,7 @@ pub fn sanitize_filename_component(input: &str) -> Result<String> {
         });
     }
 
-    Ok(trimmed.to_string())
+    Ok(cleaned.to_string())
 }
 
 pub fn escape_xml_text(input: &str) -> String {
@@ -70,10 +75,27 @@ mod tests {
     }
 
     #[test]
-    fn rejects_path_traversal_and_separators() {
+    fn rejects_path_traversal() {
         assert!(sanitize_filename_component("../out").is_err());
-        assert!(sanitize_filename_component("foo/bar").is_err());
-        assert!(sanitize_filename_component("foo\\bar").is_err());
+    }
+
+    #[test]
+    fn strips_unsafe_chars_silently() {
+        // path separators stripped
+        assert_eq!(sanitize_filename_component("foo/bar").unwrap(), "foobar");
+        assert_eq!(sanitize_filename_component("foo\\bar").unwrap(), "foobar");
+        // question mark and other Windows-illegal chars stripped
+        assert_eq!(
+            sanitize_filename_component("Jirai nandesu ka? Chihara-san").unwrap(),
+            "Jirai nandesu ka Chihara-san"
+        );
+        assert_eq!(sanitize_filename_component("foo:bar*baz").unwrap(), "foobarbaz");
+    }
+
+    #[test]
+    fn rejects_name_that_becomes_empty_after_stripping() {
+        assert!(sanitize_filename_component("???").is_err());
+        assert!(sanitize_filename_component("   ").is_err());
     }
 
     #[test]
